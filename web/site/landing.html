@@ -61,8 +61,6 @@ section .sub { margin: 0 0 36px; color: var(--mid); max-width: 44em; }
 .gallery figcaption { margin: 10px 0 0; font-size: 14px; color: var(--mid); }
 .gallery figcaption b { color: var(--text); font-weight: 600; }
 body > section:nth-of-type(even) { background: var(--panel); border-block: 1px solid var(--rule); }   /* the bands: every other section */
-body > section:nth-of-type(even) .eng { background: var(--bg); }
-body > section:nth-of-type(odd) .eng { background: var(--panel); }
 .three { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 28px; }
 .three h3 { margin: 0 0 8px; font: 700 18px/1.3 var(--display); color: var(--accent); }
 .three p { margin: 0; color: var(--mid); font-size: 15.5px; }
@@ -81,22 +79,19 @@ body > section:nth-of-type(odd) .eng { background: var(--panel); }
 .versions li em { margin-left: auto; font: 600 12px var(--mono); font-style: normal; color: var(--on-accent); background: var(--accent); padding: 2px 8px; border-radius: 99px; }
 .versions p { margin: 14px 0 0; font-size: 13px; color: var(--mid); }
 @media (max-width: 820px) { .news { grid-template-columns: 1fr; } }
-.sounds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; align-items: start; }
-.eng { background: var(--bg); border: 1px solid var(--rule); border-radius: 16px; padding: 16px 16px 10px; }
-.eng h3 { margin: 0 0 8px; font: 700 15px/1.3 var(--display); letter-spacing: .08em; color: var(--accent); }
-.eng h3 span { color: var(--mid); font: 400 12px var(--mono); margin-left: 6px; }
-.eng ul { list-style: none; margin: 0; padding: 0; }
-.eng button { width: 100%; display: flex; align-items: center; gap: 10px; background: none; border: 0; border-top: 1px solid var(--rule);
-              color: var(--text); font: 15px/1.3 var(--body); padding: 9px 2px; cursor: pointer; text-align: left; min-height: 40px; }
-.eng li:first-child button { border-top: 0; }
-.eng button:hover .nm { color: var(--accent); }
-.eng button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
-.eng .play { flex: none; width: 0; height: 0; border-left: 9px solid var(--mid); border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
-.eng button.on .play { width: 9px; height: 12px; border: 0; border-left: 3px solid var(--accent); border-right: 3px solid var(--accent); }
-.eng button.on .nm { color: var(--accent); }
-.eng .nm { flex: 1; min-width: 0; }
-.eng em { font: 600 10px var(--mono); font-style: normal; color: var(--on-accent); background: var(--warn); padding: 2px 6px; border-radius: 99px; }
-.eng small { font: 11px var(--mono); color: var(--mid); }
+.pieces { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 18px; }
+.piece { border: 1px solid var(--rule); border-radius: 16px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+body > section:nth-of-type(even) .piece { background: var(--bg); }
+body > section:nth-of-type(odd) .piece { background: var(--panel); }
+.piece .ph { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.piece .no { font: 600 13px var(--mono); color: var(--accent); }
+.piece h3 { margin: 0; font: 700 21px/1.2 var(--display); }
+.piece em { font: 600 11px var(--mono); font-style: normal; color: var(--on-accent); background: var(--warn); padding: 3px 8px; border-radius: 99px; }
+.piece .len { margin-left: auto; font: 13px var(--mono); color: var(--mid); }
+.piece p { margin: 0; color: var(--mid); font-size: 15.5px; }
+.piece .parts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.piece .parts li { font: 12px/1.6 var(--mono); color: var(--text); border: 1px solid var(--rule); border-radius: 99px; padding: 1px 10px; }
+.piece audio { width: 100%; height: 40px; margin-top: auto; }
 footer { border-top: 1px solid var(--rule); padding: 28px 0 48px; font-size: 13px; color: var(--mid); }
 footer p { margin: 0 0 10px; max-width: 70em; } footer a { color: var(--mid); }
 </style>

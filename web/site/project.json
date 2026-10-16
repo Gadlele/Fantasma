@@ -1,7 +1,6 @@
 {
   "name": "Fantasma",
   "version": "1.1",
-  "new_sounds": ["NOSTALGIA", "HAZY LEAD", "TAPE EP", "FADED CHOIR", "MUSIC BOX", "VHS HISS"],
   "tagline": "A ghostly, ambient synth firmware for the M-VAVE FM-1: drones, bells, rain and Omnichord chords in a neon skin.",
   "lead": "Felucca's thirteen engines and sequencer, plus an <b>ambient machine</b>: a Pad that writes its own chords, bells that grow like a garden, an endless noise of sea, rain or vinyl. In a neon skin, with a ghost.",
   "repo": "https://github.com/Gadlele/Fantasma",

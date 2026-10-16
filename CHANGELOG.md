@@ -13,8 +13,7 @@ Tape sounds, in the manner of Boards of Canada:
   **NOSTALGIA** (ANALOG, a detuned pad; on the Pad too), **HAZY LEAD** (ANALOG, a mono triangle with a slow delay),
   **TAPE EP** (FM6, the tine piano with a lot of chorus), **FADED CHOIR** (VOICE; on the Pad too), **MUSIC BOX**
   (BELL, a toy bell drifting in pitch) and **VHS HISS** (AMBI, the hiss and crackle of a running tape).
-- **The website plays every sound**: the Sounds section plays each of the 129 factory sounds in a small piece,
-  rendered by the firmware itself.
+- **Sounds on the website**: eight short pieces, played by the firmware itself on the four tracks.
 
 ## 1.0 — 2026-10-16
 

@@ -14,8 +14,8 @@
 
   web/site/make_pages.py PACKAGE.fwsc EMU_DIR_OR_PAGE OUT_DIR [SOUNDS_DIR]
 
-SOUNDS_DIR (tools/render_sounds.sh, where there is one): sounds.json and a clip per factory sound, the project
-page's Sounds section (sounds/); project.json's "new_sounds" are marked NEW.
+SOUNDS_DIR (tools/render_sounds.sh, where there is one): sounds.json and the pieces it lists, the project page's
+Sounds section (sounds/).
 
 The package must be a release build of tools/build.py (Felucca's loader, no vendor files)."""
 import hashlib
@@ -51,44 +51,33 @@ def fill(page, cfg):
     return page
 
 
-CAT = {"B": "BASS", "L": "LEAD", "P": "PAD", "U": "PLUCK", "K": "KEYS", "D": "DRUM", "F": "FX", "O": "OTHER"}
-
-
 def sounds_html(p, sounds):
-    """the Sounds section: every factory sound by engine, a button that plays its clip ("" without SOUNDS_DIR)"""
+    """the Sounds section: the pieces of tools/render_sounds.c, each with its sounds ("" without SOUNDS_DIR)"""
     if not sounds:
         return ""
-    engines = json.loads((Path(sounds) / "sounds.json").read_text(encoding="utf-8"))
-    new = set(p.get("new_sounds", []))
-    total = sum(len(e["sounds"]) for e in engines)
+    pieces = json.loads((Path(sounds) / "sounds.json").read_text(encoding="utf-8"))
     cards = []
-    for e in engines:
-        items = "".join(
-            f'<li><button type="button" data-src="sounds/{e["engine"]}_{x["k"]}.mp3">'
-            f'<span class="play" aria-hidden="true"></span><span class="nm">{html.escape(x["name"])}</span>'
-            f'{"<em>NEW</em>" if x["name"] in new else ""}<small>{CAT.get(x["cat"], "")}</small></button></li>'
-            for x in e["sounds"])
-        cards.append(f'      <div class="eng"><h3>{html.escape(e["name"])} <span>{len(e["sounds"])}</span></h3><ul>{items}</ul></div>')
+    for i, x in enumerate(pieces):
+        parts = "".join(f"<li>{html.escape(s.split(' ', 1)[1] if s.split(' ', 1)[1].startswith(s.split(' ', 1)[0]) else s)}</li>"
+                        for s in x["parts"])   # (DRUM DRUM KIT: DRUM KIT)
+        cards.append(
+            f'      <article class="piece"><div class="ph"><span class="no">{i + 1:02d}</span>'
+            f'<h3>{html.escape(x["title"])}</h3>{"<em>NEW IN " + html.escape(p["version"]) + "</em>" if x.get("new") else ""}'
+            f'<span class="len">0:{x["seconds"]:02d}</span></div>'
+            f'<p>{html.escape(x["text"])}</p><ul class="parts">{parts}</ul>'
+            f'<audio controls preload="none" src="sounds/{html.escape(x["file"])}"></audio></article>')
     return f'''<section id="sounds">
   <div class="wrap">
     <h2>Sounds</h2>
-    <p class="sub">All {total} factory sounds, each in a small piece (Dmaj7, Bm9, Gmaj7, Aadd9), played by the firmware's own engines. Press one to
-      hear it.</p>
-    <div class="sounds">
+    <p class="sub">Eight short pieces, each played by the firmware's own engines on the four tracks, as the FM-1 plays
+      them: no effects added afterwards.</p>
+    <div class="pieces">
 {chr(10).join(cards)}
     </div>
   </div>
 </section>
 <script>
-(() => {{
-  const a = new Audio(); let cur = null;
-  const stop = () => {{ if (cur) cur.classList.remove("on"); cur = null; }};
-  a.addEventListener("ended", stop);
-  document.querySelectorAll("#sounds button").forEach((b) => b.addEventListener("click", () => {{
-    if (cur === b) {{ a.pause(); stop(); return; }}
-    stop(); cur = b; b.classList.add("on"); a.src = b.dataset.src; a.play().catch(stop);
-  }}));
-}})();
+document.querySelectorAll("#sounds audio").forEach((a, _, all) => a.addEventListener("play", () => all.forEach((b) => b !== a && b.pause())));
 </script>
 '''
 
