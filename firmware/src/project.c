@@ -61,7 +61,8 @@
  *     chain is 4 + 16 x 5 = 84 bytes (FUN6..FUN9: 36, rows {slot, repeat}, chain_v9_t; they load as sections with the
  *     four tracks on the row's slot, song_chain.c chain_from_v9: the same song).
  * 68 + 4 x (104 + 2 + 576) + chain + motion = 3268; the patches at PROJ_FM6_OFF (3312): 44 spare, room for 11 more
- * track parameters. 1.5 took seven of them (no format change, FUN10 as it was): the INSERT (P_ITYPE .. P_IMIX, 96..100),
+ * track parameters. Fantasma's DENS, BARS, EVOLVE and SEED (P_PDEN, P_PLEN, P_PEV, P_PSEED, 103..106; P_COUNT 115, P_E0 107) took eight bytes more: no spare left
+ * (a FUN10 of 111 parameters loads by count with all four at their defaults, DENS 0). 1.5 took seven of them (no format change, FUN10 as it was): the INSERT (P_ITYPE .. P_IMIX, 96..100),
  * ANALOG's filter TYPE (P_FTYPE, 101) and ENV SYNC (P_ESYNC, 102), before the engine values (P_COUNT 111, P_E0 103; 16
  * spare, room for 4). A FUN10 of 1.2 .. 1.4 (104) loads by count: the INSERT OFF, TYPE LP, ENV SYNC OFF (as they
  * played), its engine values and their motion moved up by seven.
@@ -487,14 +488,54 @@ static int proj_engines_ok(const project_t *q)
             return 0;
     return 1;
 }
-/* n bytes of a stored project (any format) -> q as today's, DIGITAL and SAMPLE PERC tracks converted; 0 = not a
- * project */
+/* Fantasma 1.0: engine 3 is AMBI where Felucca has LOFI, 13 BELL where it has SLICE. A project Fantasma writes carries
+ * PROJ_FANTASMA in byte 65 (proj_pack; 0 in Felucca's, of every format, and in Fantasma's before 1.0). In one without
+ * it those tracks keep the engine number but take its default values (LOFI's and SLICE's mean nothing to AMBI and
+ * BELL: SLICE's MODE would be BELL's DENS, its generator on and the keys silent), and their motion events on the EDIT
+ * values go */
+#define PROJ_FANTASMA 0x50u
+static int proj_fantasma(const void *b, int n)   /* (a project_t as it is in RAM: this firmware's own) */
+{
+    return n == (int)sizeof(project_t) ||
+           (n == (int)PROJ_STORE_SIZE && ((const uint32_t *)b)[0] == PROJ_MAGIC && ((const uint8_t *)b)[65] == PROJ_FANTASMA);
+}
+static void proj_from_felucca(project_t *q)
+{
+    uint32_t k, i, n, hit = 0;
+    for (k = 0; k < NTRK; k++) {
+        proj_trk_t *d = &q->t[k];
+        if (!(FELUCCA_AMBI && d->engine == ENGI_AMBI) && !(FELUCCA_BELL && d->engine == ENGI_BELL))
+            continue;
+        for (i = P_E0; i < P_COUNT; i++)
+            d->p[i] = param_desc_of(d->engine, i)->def;
+        if (d->preset < PROJ_DEF_KEEP)
+            d->preset = 0;
+        hit |= 1u << k;
+    }
+    if (!hit)
+        return;
+    for (i = n = 0; i < q->motion.count && i < MOTION_MAX; i++) {
+        const motion_event_t *e = &q->motion.event[i];
+        if (((hit >> (e->place >> 6)) & 1u) && MOTION_ID(e) >= P_E0)
+            continue;
+        q->motion.event[n++] = *e;
+    }
+    for (i = n; i < q->motion.count && i < MOTION_MAX; i++)
+        memset(&q->motion.event[i], 0, sizeof q->motion.event[i]);
+    q->motion.count = (uint8_t)n;
+    q->sum = proj_sum(q);
+}
+
+/* n bytes of a stored project (any format) -> q as today's, DIGITAL and SAMPLE PERC tracks converted (and Felucca's
+ * LOFI / SLICE tracks: proj_from_felucca); 0 = not a project */
 static int proj_import(project_t *q, const void *b, int n)
 {
     if (!proj_import_any(q, b, n) || !proj_engines_ok(q))
         return 0;
     proj_fm4(q);
     proj_perc(q);
+    if (!proj_fantasma(b, n))
+        proj_from_felucca(q);
     return 1;
 }
 static int proj_import_any(project_t *q, const void *b, int n)
@@ -584,7 +625,7 @@ static int proj_pack(project_store_t *out, const project_t *q)
             if (q->fm6[t][i] > 127u) return 0;
     if (!chain_valid(&q->chain) || !motion_valid(&q->motion) || P_COUNT > 127u) return 0;
     memset(out, 0, sizeof *out); memcpy(b, &magic, 4); memcpy(b + 4, &size, 4);
-    memcpy(b + 8, q->g, sizeof q->g); b[62] = q->sel; b[63] = q->parts; b[64] = q->phys; b[66] = P_COUNT;
+    memcpy(b + 8, q->g, sizeof q->g); b[62] = q->sel; b[63] = q->parts; b[64] = q->phys; b[65] = PROJ_FANTASMA; b[66] = P_COUNT;
     for (t = 0; t < NTRK; t++) {
         for (i = 0; i < P_COUNT; i++) {
             if (q->t[t].p[i] < -64 || q->t[t].p[i] > 127) return 0;

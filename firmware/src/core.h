@@ -14,13 +14,27 @@
 #define NSTEP 64
 #define HALF_FRAMES 128          /* I2S half buffer: 2.9 ms at 44.1 kHz (a key waits 0..1 half, then plays 1 half later) */
 #ifndef FELUCCA_SLICE
-#define FELUCCA_SLICE 1          /* the SLICE engine (eng_slice.c), engine 13; FELUCCA_SLICE=0 builds without it */
+#define FELUCCA_SLICE 0          /* the SLICE engine (eng_slice.c), engine 13 (Fantasma: off by default; 1 builds it) */
 #endif
+#ifndef FELUCCA_LOFI
+#define FELUCCA_LOFI 0           /* the LOFI engine (eng_lofi.c), engine 3 (Fantasma: off by default, AMBI is in its place) */
+#endif
+#define FELUCCA_AMBI (!FELUCCA_LOFI)   /* the AMBI engine (eng_ambi.c): Fantasma's engine 3, an ambient noise generator */
+#define FELUCCA_BELL (!FELUCCA_SLICE)   /* the BELL engine (eng_bell.c): Fantasma's engine 13, in SLICE's place */
 #ifndef FELUCCA_FM4
 #define FELUCCA_FM4 0            /* the DIGITAL engine (eng_digital.c, four-operator FM): kept in the tree, not built
                                   * by default; replaced by FM6, its sounds convert (fm4_convert.c) */
 #endif
-#define NENGINES (13 + FELUCCA_SLICE)   /* SLICE (13) comes last: the other engines keep their numbers */
+#ifndef FELUCCA_RESCUE                 /* main.c usb_rescue: the USB rescue (the device build, with the updater) */
+#if FELUCCA_OTA && !defined(FELUCCA_WEB)
+#define FELUCCA_RESCUE 1
+#else
+#define FELUCCA_RESCUE 0
+#endif
+#endif
+#define NENGINES 14              /* engine 13 comes last: SLICE or, in Fantasma's default build, BELL */
+#define ENGI_BELL 13u
+#define ENGI_AMBI 3u
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
 #define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
@@ -71,6 +85,7 @@ enum {                          /* per-track parameters */
     P_ITYPE, P_IA, P_IB, P_IC, P_IMIX,         /* 1.5 (#78, #177): the INSERT, its TYPE, three values and MIX (fx.c) */
     P_FTYPE,                                   /* 1.5 (#104): ANALOG's filter TYPE, LP (as before) / BP / HP (eng_analog.c) */
     P_ESYNC,                                   /* 1.5 (#175): ENV SYNC: ATK DEC REL as note values of the tempo (voice.c) */
+    P_PDEN, P_PLEN, P_PEV, P_PSEED,            /* Fantasma: the Pad's chord progression (seq.c prog_step): DENS, BARS, EVOLVE, SEED */
     P_E0, P_E1, P_E2, P_E3, P_E4, P_E5, P_E6, P_E7,
     P_COUNT
 };
@@ -85,7 +100,7 @@ enum {                          /* global parameters */
     G_ENGSEL, G_ENGGO,          /* no page: the editor switches the engine with a SET of G_ENGSEL; G_ENGGO is
                                  * unused (ids are fixed by the formats and the protocol) */
     G_CLRSEQ, G_INITSND,
-    G_RTYPE,                    /* REVERB TYPE: 0 ROOM, 1 SPRING, 2 HALL (1.2, the power-on default) (fx.c). Was
+    G_RTYPE,                    /* REVERB TYPE: 0 ROOM, 1 SPRING, 2 HALL (1.2, the power-on default), 3 AMBI (fx.c). Was
                                  * G_DRCH, the GM drum part's MIDI channel (inert since 1.0, never read); projects
                                  * of formats before FUN7 load it as ROOM (project.c proj_rtype_room) */
     G_DRLVL, G_DRREV,           /* inert (label "-", on no page): the GM drum part they set is gone; kept
@@ -147,7 +162,7 @@ static int drum_from_perc(uint32_t engine, int16_t *e)
 enum { V_POLY, V_MONO, V_LEGATO, V_UNISON };   /* P_VOICE */
 typedef struct {
     uint8_t note, vel, gate, active;
-    uint8_t stage;               /* env: 0 off, 1 attack, 2 decay/sustain, 3 release */
+    uint8_t stage;               /* env: 0 off, 1 attack, 2 decay/sustain, 3 release, (4 given up, 5 AMBI INF crossfade out: voice.c) */
     uint8_t side;                /* SPREAD (fx.c mix_spread): 0 left of PAN, 1 right; set as the voice starts */
     int32_t env;                 /* Q24 */
     int32_t env_out;             /* last control-rate amplitude, Q15 */
@@ -356,7 +371,7 @@ typedef struct track {
     int32_t dist_hp, dist_lp1, dist_lp2;   /* DIST insert state (fx.c) */
     uint8_t tail;                /* blocks to mix after the last voice (the DIST / INSERT tail) */
     uint8_t ins_run;             /* the INSERT still sounds (fx.c track_insert: its wet share above 0) */
-    uint8_t rsv_sz[15];          /* (sizeof(track_t) a multiple of 16: below) */
+    uint8_t rsv_sz[9];          /* (sizeof(track_t) a multiple of 16: below) */
     int16_t armp, aholdp;        /* P_AMODE / P_AHOLD as last seen by the ISR */
     /* engine switch (voice.c engine_block): the old engine's voices fade out, then it switches */
     uint8_t xf_on, xf;           /* fading; blocks of the fade still to render */

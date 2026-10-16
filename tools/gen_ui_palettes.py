@@ -49,8 +49,16 @@ PALETTES = [
     ("NIGHT",  (0, 0, 0),       (0, 24, 10),     (150, 230, 170), (56, 220, 100),  (255, 255, 255)),
     # 1.0.2: black and white (the derived tokens are set, not blended: bw()); the old MONO is GREY (id 0)
     ("MONO",   (0, 0, 0),       (0, 0, 0),       (255, 255, 255), (255, 255, 255), (255, 255, 255)),
+    # Fantasma: soft, low-chroma palettes for a calm screen (appended: saved ids are indices). The background is a dusk
+    # colour, not black; text a soft off-white; the theme a pastel; the accent a warm pastel, the one warm thing
+    ("DUSK",   (28, 30, 46),    (44, 47, 68),    (222, 224, 236), (158, 178, 222), (244, 200, 160)),
+    ("MIST",   (24, 34, 38),    (38, 52, 58),    (222, 234, 234), (150, 206, 196), (240, 214, 160)),
+    ("SAKURA", (36, 28, 36),    (56, 44, 56),    (240, 228, 236), (226, 170, 196), (190, 224, 200)),
+    # FANTASMA: ECTO, near-black with a blue cast, ice-white text, neon cyan values, neon magenta for the one active thing
+    ("ECTO",   (7, 7, 13),      (18, 20, 38),    (232, 252, 255), (63, 240, 255),  (255, 63, 208)),
 ]
 BW = "MONO"
+DEFAULT = "ECTO"                   # the palette a fresh setting starts with (FANTASMA)
 BW_GREY = (82, 82, 82)             # MONO's one mid grey (RGB565 10/20/10): DIM LINE RAISE LANE
 # the 20 palettes of the earlier firmware (index order) -> the new palette
 OLD = ["GREEN", "AMBER", "CYAN", "RED", "MONO", "VIOLET", "PINK", "ICE", "WARM", "OCEAN", "DUSK", "HI-CON",
@@ -186,6 +194,7 @@ def main():
             out.append(f'    {{"{p[0]}", ' + ", ".join(f"0x{x:04x}" for x in v) + "},")
         out += ["};", f"#define UI_NPALETTES {len(PALETTES)}u", "#define UI_GREY_INDEX 0u",
                 f"#define UI_BW_INDEX {names.index(BW)}u          /* MONO: black and white (src/gfx.c palette_set) */",
+                f"#define UI_DEFAULT_INDEX {names.index(DEFAULT)}u          /* the palette of a fresh setting (FANTASMA: ECTO) */",
                 f"#define UI_BW_GREY 0x{to565(BW_GREY):04x}u          /* MONO's one grey: DIM LINE RAISE LANE */",
                 f"#define UI_PAL_TAG {PAL_TAG}u          /* stored id = UI_PAL_TAG + index; below 20: an old id */"]
         out += [f"#define UI_{k}_PCT {v}" for k, v in PCT.items()] + [f"#define UI_RAISE_PCT {RAISE_PCT}   /* SURF -> TEXT */"]

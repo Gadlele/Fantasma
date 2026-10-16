@@ -246,6 +246,16 @@ static const preset_t NOISE_PRESETS[] = {
      * a pitched chip-style buzz */
     {"ARCADE", {NZ_LFSR, 0, 127, 0, 127, 112, 0, 84}, {0, 80, 0, 50}, 0, 0, FX(0, 0, 10, 20), PAT(3)},
     {"METAL", {NZ_META, 0, 100, 40, 100, 32, 0, 0}, {0, 75, 40, 60}, 10, 0, FX(0, 20, 30, 45), PAT(7)},
+    /* Fantasma's ambiences (TRK 0: every key the same texture; slow attacks, a high SUSTAIN, long releases; DRFT is
+     * what makes them move: slow swells of the filter and the level) */
+    {"SEA", {NZ_ANLG, 110, 62, 15, 0, 0, 110, 0}, {70, 90, 120, 100}, 0, 0, FX(0, 0, 25, 85), PAT(5)},
+    {"SURF", {NZ_ANLG, 70, 78, 30, 0, 0, 127, 0}, {60, 90, 115, 95}, 0, 0, FX(0, 0, 30, 80), PAT(5)},
+    {"FIRE", {NZ_ANLG, 72, 82, 12, 0, 64, 45, 0}, {30, 90, 120, 90}, 0, 0, FX(0, 0, 10, 55), PAT(5)},
+    {"VINYL", {NZ_DUST, 0, 105, 20, 0, 55, 0, 25}, {5, 90, 127, 60}, 0, 0, FX(0, 0, 0, 25), PAT(5)},
+    {"STREAM", {NZ_ANLG, 40, 92, 70, 0, 0, 90, 0}, {50, 90, 120, 90}, 0, 0, FX(0, 0, 20, 70), PAT(5)},
+    {"STORM", {NZ_ANLG, 127, 45, 25, 0, 0, 127, 0}, {90, 90, 127, 110}, 0, 0, FX(0, 0, 30, 95), PAT(5)},
+    {"DRIPS", {NZ_DUST, 0, 80, 120, 0, 42, 20, 0}, {5, 80, 127, 80}, 0, 0, FX(0, 0, 40, 90), PAT(5)},
+    {"HISS", {NZ_ANLG, 0, 110, 0, 0, 0, 0, 0}, {20, 90, 127, 50}, 0, 0, FX(0, 0, 0, 30), PAT(5)},
 };
 
 static const engine_t ENG_NOISE = {

@@ -12,8 +12,15 @@
  * MONO / LEGATO / UNISON parts play the chord's root only; a kit (the DRUM engine, slices: an
  * engine that maps the keys itself) ignores CHRD. Every source keeps the notes it started (kb_chord for a
  * key, mchord for a MIDI note) and its release ends exactly those, so CHRD / VOIC changed while it is held
- * leave nothing hanging. A note several sources hold sounds once and ends with the last of them. */
-enum { CH_OFF, CH_DIA3, CH_DIA7, CH_MAJ, CH_MIN, CH_DOM7, CH_MAJ7, CH_MIN7, CH_SUS4, CH_POW };
+ * leave nothing hanging. A note several sources hold sounds once and ends with the last of them.
+ *
+ * OMNI (Fantasma; after FoMni, github.com/charlesvestal/fm1-fomni, itself after the Omnichord), tracks 1..3 only: the
+ * keys are laid out as an Omnichord. The 11 black keys are chord buttons (omni_keys: IV I V ii vi iii V7 III7 II7
+ * bVII VI7 of the track's ROOT, F C G Dm Am Em G7 E7 D7 Bb A7 in C), each sounding its chord (VOIC applies) and
+ * becoming the track's current chord; the 16 white keys are the strum plate, each one note of the current chord
+ * (root, third, fifth(, seventh), then the same an octave up, from an octave under the chord root). MIDI IN and
+ * the UI play single notes; a track 4 and a kit ignore it. */
+enum { CH_OFF, CH_DIA3, CH_DIA7, CH_MAJ, CH_MIN, CH_DOM7, CH_MAJ7, CH_MIN7, CH_SUS4, CH_POW, CH_OMNI, CH_OMNIH };
 enum { VC_CLOSE, VC_OPEN, VC_INV1, VC_INV2, VC_BASS };
 #define CHORD_MAX 4u
 #define MCHORD_N 24u                     /* MIDI notes held as chords at once (more: their root alone) */
@@ -22,6 +29,11 @@ static const int8_t CHORD_SHAPE[CH_POW - CH_MAJ + 1][CHORD_MAX] = {
     {0, 4, 7, -1}, {0, 3, 7, -1}, {0, 4, 7, 10}, {0, 4, 7, 11}, {0, 3, 7, 10}, {0, 5, 7, -1}, {0, 7, 12, -1},
 };
 
+static uint8_t omni_mod;                         /* OMNI: ENV (bit 0, minor) and LFO (bit 1, seventh) held, as ui_input.c sets it */
+static struct { uint8_t n, note[CHORD_MAX]; } omni_latch[NTRK];   /* OMNI H: the chord kept after its button is let go */
+static uint8_t prog_mode;                        /* while the Pad's progression builds a chord (seq.c prog_step): its shape, else 0 */
+static uint8_t omni_mode;                        /* while an OMNI button builds its chord (chord_make): its shape, else 0 */
+static uint8_t omni_root[NTRK], omni_shape[NTRK];   /* each track's current OMNI chord: root note, shape (0: none yet) */
 static uint8_t kb_chord[27][CHORD_MAX], kb_chn[27];   /* the notes key k started (kb_chn 0: none) */
 typedef struct { uint8_t id, ch, src, n, note[CHORD_MAX]; } mchord_t;   /* id: track + 1, 0 = free */
 static mchord_t mchord[MCHORD_N];
@@ -77,6 +89,10 @@ static uint32_t chord_make(const track_t *t, uint32_t root, uint8_t *out, int32_
     uint16_t mask = 0;
     *rp = r;
     *maskp = 0;
+    if (mode == CH_OMNI || mode == CH_OMNIH)            /* (only an OMNI button's chord; every other source plays the note) */
+        mode = omni_mode;
+    if (prog_mode)
+        mode = prog_mode;
     if (!mode || mode > CH_POW || chord_kit(t)) {
         out[0] = (uint8_t)root;
         return 1;
@@ -151,6 +167,53 @@ static uint32_t chord_build(track_t *t, uint32_t root, uint8_t *out)
         chord_last[k].gen++;
     }
     return m;
+}
+
+#define OMNI_TRACKS 2u
+static const struct { int8_t off; uint8_t shape; } OMNI_BTN[11] = {
+    {5, CH_MAJ}, {0, CH_MAJ}, {7, CH_MAJ}, {2, CH_MIN}, {9, CH_MIN}, {4, CH_MIN},
+    {7, CH_DOM7}, {4, CH_DOM7}, {2, CH_DOM7}, {10, CH_MAJ}, {9, CH_DOM7},
+};
+/* an OMNI button's shape with ENV / LFO held (FoMni's minor and seventh): ENV makes it minor, LFO adds the seventh (a major
+ * chord's dominant, a minor's minor seventh); a minor or dominant button keeps what it is */
+static uint32_t omni_shaped(uint32_t shape, uint32_t mod)
+{
+    uint32_t mi = shape == CH_MIN || shape == CH_MIN7 || (mod & 1u);
+    uint32_t se = shape == CH_DOM7 || shape == CH_MIN7 || (mod & 2u);
+    return mi ? (se ? CH_MIN7 : CH_MIN) : (se ? CH_DOM7 : CH_MAJ);
+}
+/* 1 = key presses of this track are an Omnichord (OMNI on tracks 1 and 2, not on a kit) */
+static int omni_on(const track_t *t) { return (t->p[P_CHRD] == CH_OMNI || t->p[P_CHRD] == CH_OMNIH) && trk_index(t) < OMNI_TRACKS && !chord_kit(t); }
+
+/* key k of an OMNI track -> the notes it plays in out (CHORD_MAX): a black key's chord (it becomes the track's current
+ * one), a white key's string of the current chord (none before the first button: the major chord of ROOT) */
+static uint32_t omni_keys(track_t *t, uint32_t k, uint8_t *out)
+{
+    uint32_t ti = trk_index(t), n;
+    int32_t shift = 12 * (int32_t)song.octave + t->p[P_TRANS], root;
+    if (key_black(k)) {
+        uint32_t b = key_place(k) % 11u;
+        root = 48 + (t->p[P_ROOT] + OMNI_BTN[b].off) % 12 + shift;
+        root = clamp(root, 0, 127);
+        omni_mode = (uint8_t)omni_shaped(OMNI_BTN[b].shape, omni_mod);
+        n = chord_build(t, (uint32_t)root, out);
+        omni_mode = 0;
+        omni_root[ti] = (uint8_t)root;
+        omni_shape[ti] = (uint8_t)omni_shaped(OMNI_BTN[b].shape, omni_mod);
+        return n;
+    }
+    {
+        int32_t iv[CHORD_MAX + 1u], note, r;
+        uint32_t shape = omni_shape[ti] ? omni_shape[ti] : CH_MAJ, w = key_place(k), nt;
+        root = omni_shape[ti] ? omni_root[ti] : clamp(48 + t->p[P_ROOT] + shift, 0, 127);
+        r = root;
+        nt = chord_tones(t, shape, &r, iv);
+        note = root - 12 + iv[w % nt] + 12 * (int32_t)(w / nt);
+        if (note < 0 || note > 127)
+            return 0;
+        out[0] = (uint8_t)note;
+        return 1;
+    }
 }
 
 /* a chord's name from its root and tones (bit i: i semitones above the root): "C", "Cm7", "F#m7b5", "Gsus4",

@@ -19,7 +19,7 @@ static struct {
     int32_t dly_lp;
     uint16_t comb_i[4], ap_i[2];
     int32_t comb_lp[4];
-    uint8_t rtype;                       /* the reverb model running (G_RTYPE: 0 ROOM, 1 SPRING, 2 HALL) */
+    uint8_t rtype;                       /* the reverb model running (G_RTYPE: 0 ROOM, 1 SPRING, 2 HALL, 3 AMBI) */
     uint16_t sp_w;                       /* SPRING: the loop's write index (SP_MASK) */
     int32_t sp_lp, sp_hp, sp_he, sp_size;   /* .. its loop low-pass, low cut (and its remainder), the loop
                                              * length (Q8, glides) */
@@ -81,6 +81,8 @@ static struct {                          /* HALL's state (in the pool: no .bss) 
     int32_t x, m, s, hp, he;             /* the send's last sample, its low cut and that step's remainder; the
                                           * last mid and side out (half rate) */
     int16_t g[HL_NL], sz;                /* the lines' gains / sqrt(7) (Q14), for SIZE sz - 1 (0: none yet) */
+    int32_t ain;                         /* AMBI: the send's gain (Q15), lower the longer the tail */
+    uint32_t rn;                         /* AMBI: the rounding noise's state */
     uint32_t ph;                         /* the taps' drift */
     uint8_t side;                        /* sd holds this block's stereo difference (HALL running) */
     int32_t sd[CTL];                     /* the block's left minus right (mix_block: rev_side_mix) */
@@ -330,12 +332,26 @@ static uint32_t exp2_neg(uint32_t x)
 /* the lines' gains for SIZE s: RT60 = 0.5 s * 2^(s / 30); a line of D samples (22.05 kHz) loses 60 dB in
  * RT60 * 22050 / D passes: g = 2^(-D * 3 log2(10) / (22050 * RT60)) = 2^(-D * 59.2 / 65536 * 2^(-s / 30)),
  * at most 0.99, over sqrt(7) (the matrix's rows have 7 entries of +-1: / sqrt(7) makes it orthogonal) */
-static __attribute__((noinline)) void hall_gains(int32_t s)
+/* AMBI (G_RTYPE 3): HALL's lines and matrix with much longer tails and no extra memory (the decay is the lines'
+ * gains: the buffers stay as they are). RT60 = 8 s * 2^(s / 32): 8 s at SIZE 0, 32 s at 64, 125 s at 127. The
+ * gain is capped at 0.99984 per pass (the matrix's norm: a loop gain of 1 would never end). A tail that long
+ * builds up on a held note, so the send is lowered with it: linearly with the loss per pass, from full at an
+ * 8 s tail down to a quarter (-12 dB) from about 32 s, so four loud tracks do not clip the lines. The gain's
+ * product is rounded at random while the line is loud (hall_end's lo 2: the expected value is exact, so the tail
+ * decays at the set rate: rounding to the nearest would hold it for ever once the loss per pass is below half a
+ * step, and truncating would cut it short, the sooner the quieter) and towards zero once it is quiet (lo 1: it
+ * then ends in exact silence). */
+static __attribute__((noinline)) void hall_gains(int32_t s, int amb)
 {
-    uint32_t q = exp2_neg((uint32_t)s * 65536u / 30u), k, g;
+    uint32_t q = exp2_neg((uint32_t)s * 65536u / (amb ? 32u : 30u)), k, g, loss = 0;
     for (k = 0; k < HL_NL; k++) {
-        g = exp2_neg((HL_LEN[k] * 59u * q) >> 15);
-        hl.g[k] = (int16_t)(((g > 32440u ? 32440u : g) * 6193u) >> 15);
+        g = exp2_neg(amb ? (HL_LEN[k] * 59u * q) >> 19 : (HL_LEN[k] * 59u * q) >> 15);
+        hl.g[k] = (int16_t)(((g > (amb ? 32760u : 32440u) ? (amb ? 32760u : 32440u) : g) * 6193u) >> 15);
+        loss += 6193u - (uint32_t)hl.g[k];
+    }
+    if (amb) {                                           /* loss: 8 lines' loss per pass in 1 / 6193 steps */
+        uint32_t a = loss * 32768u / (8u * 129u);        /* 1.0 at HALL's loss at 9 s (129 steps) */
+        hl.ain = (int32_t)(a < 8192u ? 8192u : a > 32768u ? 32768u : a);
     }
     hl.sz = (int16_t)(s + 1);
 }
@@ -358,7 +374,14 @@ static inline void hall_ap(int16_t *q, int32_t g, int32_t *x, uint32_t n)
 static inline void hall_end(const int16_t *b, int32_t f, int16_t *y, uint32_t n, int32_t g, int lo)
 {
     uint32_t i;
-    if (lo)
+    if (lo == 2) {                                      /* AMBI, loud: at random (floor(x + u), u in [0, 1)) */
+        uint32_t rn = hl.rn;
+        for (i = 0; i < n; i++) {
+            rn = rn * 1664525u + 1013904223u;
+            y[i] = (int16_t)(((b[i] + (((b[i + 1u] - b[i]) * f + 128) >> 8)) * g + (int32_t)(rn >> 18)) >> 14);
+        }
+        hl.rn = rn;
+    } else if (lo)
         for (i = 0; i < n; i++)
             y[i] = (int16_t)sh_tz((b[i] + (((b[i + 1u] - b[i]) * f + 128) >> 8)) * g, 14);
     else
@@ -372,7 +395,15 @@ static inline void hall_end_lp(const int16_t *b, int16_t *y, uint32_t n, int32_t
 {
     uint32_t i;
     int32_t l = *lp, r = *le, e;
-    if (lo)
+    if (lo == 2) {
+        uint32_t rn = hl.rn;
+        for (i = 0; i < n; i++) {
+            e = (b[i] - l) * kd + r, r = e & 32767, l += e >> 15;
+            rn = rn * 1664525u + 1013904223u;
+            y[i] = (int16_t)((l * g + (int32_t)(rn >> 18)) >> 14);
+        }
+        hl.rn = rn;
+    } else if (lo)
         for (i = 0; i < n; i++) {
             e = (b[i] - l) * kd + r, r = e & 32767, l += e >> 15;
             y[i] = (int16_t)sh_tz(l * g, 14);
@@ -406,13 +437,16 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
     uint32_t i, k, s, m, d;
     int32_t kd = HL_KD(song.g[G_RDAMP]);
     int32_t xp = hl.x, hp = hl.hp, he = hl.he, mp = hl.m, sp = hl.s;
+    int amb = fx.rtype == 3u;                           /* AMBI: HALL with longer tails (hall_gains) */
     (void)n;
     if (hl.sz != song.g[G_RSIZE] + 1)
-        hall_gains(song.g[G_RSIZE]);
+        hall_gains(song.g[G_RSIZE], amb);
     for (i = 0; i < HL_NC; i++) {
         int32_t x = (xp + 2 * rev_in[2u * i] + rev_in[2u * i + 1u]) >> 2, v;   /* every other sample, 1 2 1 */
         xp = rev_in[2u * i + 1u];
         x = mulq15(clamp(x, -262143, 262143), 2580);    /* (ROOM's level) */
+        if (amb)
+            x = mulq15(x, hl.ain);
         v = x - hp + he;                                /* the low cut, its step's remainder kept */
         he = v & 31;
         hp += v >> 5;
@@ -440,6 +474,8 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
         s = d + HL_LEN[k] / 2u;                         /* quiet? (two samples half a line apart) */
         s = s >= HL_LEN[k] ? s - HL_LEN[k] : s;
         lo = (b[d] < 0 ? -b[d] : b[d]) + (b[s] < 0 ? -b[s] : b[s]) < HL_LOUD;
+        if (amb)
+            lo = lo ? 1 : 2;                            /* (quiet: towards zero; loud: at random) */
         if ((HL_LPM >> k) & 1u) {
             HL_RUNS(d, HL_LEN[k], m, s, hall_end_lp(b + d, hl.y[k] + s, m, g, lo, &hl.lp[k], &hl.le[k], kd));
         } else {
@@ -502,6 +538,8 @@ static void rev_clear(void)
         hl.lp[i] = hl.le[i] = 0;
     fx.sp_lp = fx.sp_hp = fx.sp_he = 0;
     hl.x = hl.m = hl.s = hl.hp = hl.he = 0;
+    hl.sz = 0;                                          /* (HALL <-> AMBI: the gains are made again) */
+    hl.rn = 1;
 }
 
 static int32_t part_buf[CTL];                            /* a part's block (mix_part); the fade of a model change */
@@ -514,7 +552,7 @@ static __attribute__((noinline)) void rev_switch(const int32_t *rev_in, int32_t 
     uint32_t i;
     for (i = 0; i < n; i++)
         t[i] = 0;
-    if (fx.rtype == 2u)
+    if (fx.rtype >= 2u)
         rev_hall(rev_in, t, n);
     else if (fx.rtype)
         rev_spring(rev_in, t, n);
@@ -563,11 +601,11 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
         wet[i] = y;
     }
     rt = song.g[G_RTYPE];
-    rt = rt == 1 || rt == 2 ? rt : 0;
+    rt = rt >= 1 && rt <= 3 ? rt : 0;
     hl.side = 0;
     if (rt != fx.rtype)
         rev_switch(rev_in, wet, n, rt);
-    else if (rt == 2)
+    else if (rt >= 2)
         rev_hall(rev_in, wet, n);
     else if (rt)
         rev_spring(rev_in, wet, n);

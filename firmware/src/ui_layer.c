@@ -344,6 +344,10 @@ static void edit_load(uint32_t e, int32_t step)
     if (e < NENGINES) {
         if (e == TSEL->eng_req % NENGINES)
             return;                                     /* its engine already: the sound stays */
+        if (!eng_allowed(song.sel, e)) {
+            ui_message("NOT FOR THIS PART");            /* (Fantasma: Echoes BELL, Noise noise) */
+            return;
+        }
         select_engine(e);
         preset_hinted();
     } else {
@@ -680,7 +684,7 @@ static void layer_knob(uint32_t k, int32_t s)
         ml_knob(&trk[k], P_LEVEL);                      /* (MIDI LEARN: Tk LEVEL picked) */
     } else if (l == LAYER_EDIT) {                       /* ENG, No., FAV */
         if (k == 0u)
-            edit_load(eng_step(TSEL->eng_req, s), 0);
+            edit_load(eng_step_for(song.sel, TSEL->eng_req % NENGINES, s), 0);
         else if (k == 1u)
             edit_load(NENGINES, s);
         else if (k == 2u)

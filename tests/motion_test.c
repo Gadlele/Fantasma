@@ -136,7 +136,7 @@ static void pack_fun7_89(project_store_t *out, const project_t *q, const motion_
 }
 static int fun7_89(void)
 {
-    int bad = 0, ok; ui_power_on(); track_t *t = &trk[0];
+    int bad = 0, ok; ui_power_on(); felucca_parts(); track_t *t = &trk[0];
     project_t before, after; project_store_t old; motion_store_t m;
     uint32_t i, k;
     for (k = 0; k < NTRK; k++)
@@ -677,8 +677,8 @@ static int lock_ui(void)
     song.rec = 1;                                        /* armed, stopped: step recording */
     lk_down(kn);
     ok = ui.entry_open && lock_held() == 1u && t->step[0].n == 1u;
-    turn(EN_K3, 4);                                      /* ANALOG's HOME: E5 E6 ATK REL */
-    bad += check("the roll, armed (step recording): a note key held (the entry) is the step held; KNOB 3 locks ATK, TIME untouched", ok &&
+    turn(EN_K2, 4);                                      /* track 1 (PAD): its engine's first knob, ATK REL REV */
+    bad += check("the roll, armed (step recording): a note key held (the entry) is the step held; KNOB 2 locks ATK, TIME untouched", ok &&
         motion_lock_get(t, 0, P_ATK, &v) && v == t->p[P_ATK] + 4 && t->step[0].time == ST_NOTE);
     lk_up(kn);
     bad += check("  let go: the note and the lock on step 1, the cursor on", ui.cursor == 1u && t->step[0].n == 1u &&

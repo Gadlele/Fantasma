@@ -82,7 +82,7 @@ static int mom_turn(uint32_t k, int32_t s)
     } else {
         if (act_cols() || lock_held() || !(pg->scope == SC_TRACK || pg->scope == SC_ENGINE || pg->scope == SC_GLOBAL) ||
             pg->graph == GR_EVENTS || pg->graph == GR_SONG || pg->graph == GR_BROWSE || pg->graph == GR_USER ||
-            pg->graph == GR_PATS || (pg->graph == GR_SLICES && k < 2u) || (pg->graph == GR_MOD && k == 0u))
+            pg->graph == GR_PATS || pg->graph == GR_AMBI || (pg->graph == GR_SLICES && k < 2u) || (pg->graph == GR_MOD && k == 0u))
             return 0;
         d = page_desc(pg, k, &vp);
     }
@@ -286,12 +286,12 @@ static uint32_t scale_leds(uint32_t *root)
     uint32_t k, m = 0, r = 0, mask = scale_mask(t), note;
     int32_t pc;
     *root = 0;
-    if (!(ui_rec_prefs & (PREF_SCALE_LEDS >> 8)))
+    if (!(ui_rec_prefs & (PREF_SCALE_LEDS >> 8)) && !gen_on(t))   /* (the garden's keys always show: they are its notes) */
         return 0;
     for (k = 0; k < 27u; k++) {
         if (e->keys && e->keys(t, k) >= 0)
             continue;
-        if (t->p[P_QUANT] == QN_WHITE) {
+        if (t->p[P_QUANT] == QN_WHITE && !gen_on(t)) {
             if ((note = kb_map(t, k)) > 127u)
                 continue;                               /* (a black key: silent) */
             pc = (int32_t)note - t->p[P_TRANS];         /* (WHITE walks the scale before TRN) */
@@ -956,7 +956,11 @@ static void edit_param(uint32_t slot, int32_t steps)
         if (slot == 0u) {
             preset_step(steps);
         } else if (slot == 1u) {
-            select_engine(eng_step(TSEL->eng_req, steps));
+            {
+                uint32_t ne = eng_step_for(song.sel, TSEL->eng_req % NENGINES, steps);
+                if (ne != TSEL->eng_req % NENGINES)       /* (Echoes: BELL only; Noise: NOISE / AMBI) */
+                    select_engine(ne);
+            }
         } else if (slot == 2u) {
             preset_mark(steps > 0);
         } else if (slot == 3u) {                          /* LIST: ALL FAV BASS .. OTHER (ui.c list_mode), no wrap */
@@ -977,7 +981,7 @@ static void edit_param(uint32_t slot, int32_t steps)
     }
 #endif
     if ((act_cols() >> slot) & 1u) {                      /* an action's knob picks it (right) or drops it (left); */
-        if (pg->graph != GR_PATS)                         /* OCT+ does it (act_do) */
+        if (pg->graph != GR_PATS && pg->graph != GR_AMBI)   /* OCT+ does it (act_do) */
             ui.act = steps > 0 ? (uint8_t)(slot + 1u) : ui.act == slot + 1u ? 0u : ui.act;
         return;
     }
@@ -1034,6 +1038,10 @@ static void act_do(void)
     if (cur_page()->graph == GR_SONG) {
         if (song.playing || chain_busy() || seq_counting()) transport_req = 2;
         else chain_play_ui();
+        return;
+    }
+    if (cur_page()->graph == GR_AMBI) {
+        ambient_random();
         return;
     }
     if (cur_page()->graph == GR_PATS) {
@@ -1234,7 +1242,7 @@ static void presets_turn(int32_t s)
         edit_param(0, s);                                 /* KNOB 1's (STEP: STOP TO EDIT while a song plays) */
         ui.hot_col = 0;
         ui.hot_t = 40;
-    } else if (g != GR_TOOLS && g != GR_SLICES) {
+    } else if (g != GR_TOOLS && g != GR_SLICES && g != GR_AMBI) {
         preset_step(s);
     }
 }
@@ -1600,6 +1608,9 @@ static void ui_input(void)
             break;
         }
     }
+    omni_mod = (uint8_t)(((fm1_in.buttons >> panel.btn[B_ENV]) & 1u) | (((fm1_in.buttons >> panel.btn[B_LFO]) & 1u) << 1));
+    if (notes && omni_on(TSEL))                         /* OMNI: ENV / LFO held with a key are the chord's minor / seventh, */
+        ui.pg_down &= (uint16_t)~((1u << panel.btn[B_ENV]) | (1u << panel.btn[B_LFO]));   /* their release opens no page */
     b = ui.pg_down & ~fm1_in.buttons;
     ui.pg_down &= (uint16_t)~b;
     for (id = 0; b; id++, b >>= 1)
@@ -1607,8 +1618,10 @@ static void ui_input(void)
             page_tap(panel_btn_of(id));
     if (act_cols() && (oct & 2u)) {                     /* action pages: OCT+ does the picked action, */
         act_do();
+    } else if (act_cols() && (oct & 1u) && cur_page()->graph == GR_AMBI) {   /* AMBIENT: OCT- is STOP (HOME leaves) */
+        ambient_stop();
     } else if (act_cols() && (oct & 1u)) {              /* OCT- drops it, or (none picked) goes HOME */
-        if (cur_page()->graph != GR_PATS && ui.act)
+        if (cur_page()->graph != GR_PATS && cur_page()->graph != GR_AMBI && ui.act)
             ui.act = 0;
         else
             go_home();

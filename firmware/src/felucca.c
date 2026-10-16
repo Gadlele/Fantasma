@@ -32,7 +32,7 @@
 #define FELUCCA_ID "FM-1_900"    /* package identity (build.py: the .fwsc marker string) */
 #endif
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "v1.5.1" /* shown in the menu, the console and the editor; build.py --release X.Y */
+#define FELUCCA_VERSION "v1.0"   /* (FANTASMA 1.0) shown in the menu, the console and the editor; build.py --release X.Y */
 #endif
 #if FELUCCA_OTA && !FELUCCA_FLASH
 #error "FELUCCA_OTA needs FELUCCA_FLASH"
@@ -94,6 +94,10 @@
 #include "upreset.c"             /* user presets (RAM mirror; flash with FELUCCA_FLASH) */
 #include "project.c"
 #if FELUCCA_OTA
+#if FELUCCA_RESCUE
+static uint8_t rescue_active;            /* main.c usb_rescue: the USB rescue runs (no audio, no UI) */
+#define OTA_IDENTITY (rescue_active ? "FM-1_000" : FELUCCA_ID)   /* (as dinghy: any package installs from it) */
+#endif
 #include "ota.c"
 #include "ota_hw.c"
 #include "editor.c"              /* web editor SysEx (needs the OTA SysEx plumbing) */

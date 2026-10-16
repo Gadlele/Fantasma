@@ -23,7 +23,9 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 
 #include "eng_analog.c"
 #include "eng_phase.c"
+#if FELUCCA_LOFI
 #include "eng_lofi.c"
+#endif
 #include "eng_sample.c"
 #include "eng_formant.c"
 #include "eng_trio.c"
@@ -32,6 +34,9 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #include "eng_phys.c"           /* PHYS: DaisySP physical models (phys_dsp.c, MIT) */
 #include "eng_drum.c"           /* DRUM: the 8-lane kit (drum_voice.c) */
 #include "eng_noise.c"
+#if FELUCCA_AMBI
+#include "eng_ambi.c"          /* AMBI: an ambient noise generator (Fantasma), engine 3 in LOFI's place (uses eng_noise.c's isqrt32) */
+#endif
 #include "eng_fm6.c"            /* FM6: 6-operator FM, msfa ported (fm6_core.c, Apache-2.0) */
 #include "fm4_convert.c"        /* DIGITAL's tables, and its sounds -> FM6 */
 #if FELUCCA_FM4
@@ -39,6 +44,8 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #endif
 #if FELUCCA_SLICE
 #include "eng_slice.c"
+#else
+#include "eng_bell.c"           /* BELL: a two-operator FM bell (Fantasma), engine 13 in SLICE's place */
 #endif
 
 /* the editor protocol, user presets and projects store these indices: append, never reorder */
@@ -50,7 +57,11 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_FM4_GONE,               /* 1: reserved (DIGITAL, retired: its sounds convert to FM6, fm4_convert.c) */
 #endif
     &ENG_PHASE,                  /* 2 */
+#if FELUCCA_LOFI
     &ENG_LOFI,                   /* 3 */
+#else
+    &ENG_AMBI,                   /* 3 (Fantasma: AMBI, where LOFI was) */
+#endif
     &ENG_SAMPLE,                 /* 4 */
     &ENG_FORMANT,                /* 5 VOICE (eng_formant.c: "voice" is a sounding note in voice.c) */
     &ENG_TRIO,                   /* 6 */
@@ -62,6 +73,8 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_FM6,                    /* 12 (ENGI_FM6) */
 #if FELUCCA_SLICE
     &ENG_SLICE,                  /* 13 (FELUCCA_SLICE=0 builds without it) */
+#else
+    &ENG_BELL,                   /* 13 (Fantasma: BELL, where SLICE was) */
 #endif
 };
 
@@ -117,11 +130,9 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
 #if FELUCCA_FM4
     1,                           /* DIGITAL */
 #endif
-    2, 3, 4, 5, 6, 7, 8, 9,      /* PHASE LOFI SAMPLE VOICE TRIO WHEEL GRAIN PHYS */
+    2, 3, 4, 5, 6, 7, 8, 9,      /* PHASE LOFI (AMBI) SAMPLE VOICE TRIO WHEEL GRAIN PHYS */
     11,                          /* NOISE */
-#if FELUCCA_SLICE
-    13,                          /* SLICE */
-#endif
+    13,                          /* SLICE, or BELL */
     10,                          /* DRUM */
 };
 
@@ -141,6 +152,55 @@ static uint32_t eng_rank(uint32_t e)
 static uint32_t eng_step(uint32_t e, int32_t dir)
 {
     return eng_vis((eng_rank(e % NENGINES) + (dir > 0 ? 1u : NENG_SHOWN - 1u)) % NENG_SHOWN);
+}
+
+/* Fantasma: the parts keep their kind of sound. Echoes (part 3) offers BELL only, Noise (part 4) AMBI only (it holds the
+ * noises; the older NOISE engine is no longer offered, its index stays for projects); Pad and Lead offer every other
+ * engine. Browsing (PRESETS, the ENG knob, the EDIT layer) follows it; a project, a user preset or MIDI may still put
+ * another sound there. eng_limited(ti): the part ti has a limit (all four do) */
+#define ENGI_NOISE 11u
+static int eng_limited(uint32_t ti) { return ti < 4u; }
+static int eng_allowed(uint32_t ti, uint32_t e)
+{
+    int bell = FELUCCA_BELL && e == ENGI_BELL, ambi = FELUCCA_AMBI && e == ENGI_AMBI;
+    if (e == ENGI_NOISE && FELUCCA_AMBI)
+        return 0;                                 /* (the old NOISE engine is no longer offered: AMBI holds the noises) */
+    if (FELUCCA_BELL && ti == 2u)
+        return bell;
+    if (ti == 3u)
+        return FELUCCA_AMBI ? ambi : e == ENGI_NOISE;
+#ifndef FANTASMA_PAD_ALL                           /* (tests/ui_test.c browses every sound on the Pad: it builds with this) */
+    if (ti == 0u)                                 /* (Fantasma: the Pad keeps the engines that make pads) */
+        return e == 0u || e == 2u || e == 5u || e == 7u || e == ENGI_PHYS || e == 12u;     /* ANALOG PHASE VOICE WHEEL PHYS FM6 */
+#endif
+    return !bell && !ambi && e != ENGI_NOISE;
+}
+/* the Pad's own list: of its engines' sounds only the pad-like ones (a bit per factory preset; every one is polyphonic) */
+static int pad_preset_ok(uint32_t e, uint32_t k)
+{
+    static const uint32_t KEEP[13] = {
+        /* 0 ANALOG: SOFT PAD PWM STR STRINGS AIR DRONE GLASS PAD SWELL HAZE MOON WARM PAD TAPE STR DUSK PAD SUN PAD HUSH */
+        0x7FF80Au, 0, 0x44u /* 2 PHASE: STRING, WARM STR */, 0, 0,
+        0x1F9u /* 5 VOICE: CHOIR AAH, WHISPER, SOFT CHOIR, BREATH, OOH CHOIR, MORPH CHOIR, ANGELS */, 0,
+        0xE9u /* 7 WHEEL: FULL ORGAN, SOFT FLUTE, AIR ORGAN, CHAPEL PAD, STRING ORGAN */, 0,
+        0x88u /* 9 PHYS: BOWED METAL, DRONE STRING */, 0, 0,
+        0x150u /* 12 FM6: PAD, ORGAN, SLOW STRINGS FM */};
+#ifdef FANTASMA_PAD_ALL
+    return 1;
+#else
+    return e < 13u && k < 32u && ((KEEP[e] >> k) & 1u);
+#endif
+}
+/* the next / previous engine ti may use (itself when there is no other) */
+static uint32_t eng_step_for(uint32_t ti, uint32_t e, int32_t dir)
+{
+    uint32_t n, x = e;
+    for (n = 0; n < NENG_SHOWN; n++) {
+        x = eng_step(x, dir);
+        if (eng_allowed(ti, x))
+            return x;
+    }
+    return e;
 }
 
 /* factory sequence patterns: SAVE > PHRASES loads one into the selected track (ui.c pat_load); a preset
@@ -182,11 +242,20 @@ static const struct {
      * now that the arpeggiator is the track's and a preset no longer switches it on */
     {"ARP", {48, 51, 55, 60, 63, 67, 72, 75, 48, 51, 55, 60, 63, 67, 72, 75},       /* 13 */
      {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}},
+    /* Fantasma: one note held through all 16 steps (a TIE on every step after the first); with a slow DIV the drone
+     * the DRONE sounds of ANALOG suggest, which swell for tens of seconds and ring on for as long */
+    {"DRONE", {48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},                    /* 14 held */
+     {0, T_, T_, T_, T_, T_, T_, T_, T_, T_, T_, T_, T_, T_, T_, T_}},
 };
 #undef T_
 #define NPATTERNS (sizeof PATTERNS / sizeof PATTERNS[0])
 
-/* the parts at power-on (engine, preset, PATTERNS[n - 1] in the sequencer, 0 = empty: all are): bass, pad, lead, drums */
-static const uint8_t TRK_DEF[NPART][3] = {{0, 4, 0}, {ENGI_FM6, 4, 0}, {3, 0, 0}, {ENGI_DRUM, 0, 0}}; /* ANALOG ACID,
-                                                                       * FM6 PAD (was DIGITAL PAD), LOFI PULSE LD, DRUM KIT */
+/* the parts at power-on (engine, preset, PATTERNS[n - 1] in the sequencer, 0 = empty): Fantasma's four parts, PAD, LEAD, ECHOES,
+ * NOISE (ROLE_NAME) */
+static const uint8_t TRK_DEF[NPART][3] = {{ENGI_FM6, 4, 0}, {0, 0, 0}, {FELUCCA_BELL ? ENGI_BELL : 3, 0, 0}, {3, 0, 0}};
+                                                                      /* PAD FM6 PAD, LEAD ANALOG SAW LEAD,
+                                                                       * ECHOES BELL (LOFI PULSE LD with FELUCCA_SLICE=1), NOISE AMBI
+                                                                       * SEA, its steps empty (it starts from a key or the ambient machine) */
+/* the part each track plays, as the screen names it (HOME's footer, the tracks' rows) */
+static const char *const ROLE_NAME[NPART] = {"PAD", "LEAD", "ECHOES", "NOISE"};
 static uint32_t trk_def_engine(uint32_t i) { return TRK_DEF[i % NPART][0]; }

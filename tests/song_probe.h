@@ -18,6 +18,7 @@ static uint32_t song_probe(uint32_t *blocks)
     static const int16_t LEN[2][NTRK] = {{16, 12, 7, 5}, {8, 16, 10, 3}}, DIV[2][NTRK] = {{2, 1, 2, 3}, {1, 2, 0, 2}};
     uint32_t s, k, i, h = 2166136261u, n = 0;
     ui_power_on();
+    trk[2].p[P_REV] = 20;                              /* (track 3's send as the golden was made: LOFI PULSE LD's; BELL's differs) */
     for (s = 0; s < 2u; s++) {
         for (k = 0; k < NTRK; k++) {
             track_t *t = &trk[k];

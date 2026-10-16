@@ -22,6 +22,8 @@ FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_re
          "dv_rim_run", "dv_bell_run", "dv_cym_run", "dv_out", "dv_metal_mix",
          "slicer_track",
          "slice_render", "slc_rev",                          # SLICE (eng_slice.c): the render, the reverse windows
+         "ambi_render", "bell_render",                       # Fantasma: AMBI (engine 3, LOFI's place), BELL (13, SLICE's)
+         "gen_step", "prog_step", "gen_free",                # .. BELL's generator, the Pad's progression, their clock (seq.c)
          "fm1_alnk0_irq", "fm1_timer5_irq",               # the audio ISR; TIMER5: the key / LED scan (hal/fm1_input.h)
          "uac_tap48",                                       # the USB audio input at 48 kHz: the 44.1 -> 48 resampler (usb.c)
          "click_render",                                    # the metronome's click (click.c), while it sounds
@@ -34,6 +36,7 @@ FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_re
 # built only with FELUCCA_FM4=1 (DIGITAL, src/eng_digital.c; not in the default build, so not in BUDGET): absent,
 # they are skipped; present, checked against these (their budget lines until the engine was retired in 1.0)
 OPTIONAL = {"digital_render": 12, "digital_render_legacy": 333, "digital_render_custom": 558,
+            "lofi_render": 123, "slice_render": 453, "slc_rev": 120,   # (Fantasma builds AMBI and BELL in their places)
             "uac_tap48": 504}           # (absent from a FELUCCA_UAC_48K=0 or FELUCCA_UAC=0 build)
 TOL = 0.10                      # exact (no noise): small edits pass, a grown render loop does not
 DIV_W = 8                       # a divide weighs 1 + 8 instructions

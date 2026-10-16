@@ -415,6 +415,7 @@ static const preset_t FM6_PRESETS[] = {
     {"MARIMBA", {0, 0, 0, 0, 0, 0, 0, 5}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 25, 40), PAT(3)},
     {"ORGAN", {0, 0, 0, 0, 0, 0, 0, 6}, {0, 0, 127, 0}, 0, 0, FX(10, 40, 0, 30), PAT(6)},
     {"PLUCK", {0, 0, 0, 0, 0, 0, 0, 7}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 35, 30), PAT(13)},
+    {"SLOW STRINGS FM", {0, 1, 8, 0, 0, 3, 45, 4}, {0, 0, 127, 0}, 0, 0, FX(0, 60, 30, 85), PAT(5)},    /* Fantasma: the PAD patch, more modulation, a little vibrato, detuned */
 };
 
 static const engine_t ENG_FM6 = {

@@ -93,9 +93,49 @@ static int32_t song_key(uint32_t k)
     return k < 10u ? S[k] : -1;
 }
 
-static uint32_t scale_mask(const track_t *t)
+/* BELL's generator is on (Fantasma; below): a track on BELL with DENS above 0 */
+static inline uint32_t gen_on(const track_t *t)
+{
+    return FELUCCA_BELL && eng_idx(t->eng_req) == ENGI_BELL && t->p[P_E4] > 0;
+}
+
+/* The garden (Fantasma, after AMB-1): while a track's generator is on its keys do not play, each one turns its pitch
+ * class on or off in the track's garden, the notes the bells are drawn from; the first key starts from the scale (ROOT,
+ * SCALE). The garden is then the track's scale (scale_mask: the bells, MIDI IN, SCALE LEDS all follow it); empty (every
+ * key turned off) it is the scale again. Bit n: the pitch class n (0 = C). Not saved: gone at power-off */
+static uint16_t garden[NTRK];
+static uint8_t garden_scale[NTRK];                 /* the SCALE it was made from: another SCALE starts the garden again from it */
+static uint32_t scale_bits(const track_t *t)
 {
     return SCALE_MASK[clamp(t->p[P_SCALE], 0, sizeof SCALE_MASK / sizeof SCALE_MASK[0] - 1)];
+}
+static uint32_t scale_mask(const track_t *t)
+{
+    uint32_t ti = (uint32_t)(t - trk), g = ti < NTRK ? garden[ti] : 0u, r, m = 0, root = (uint32_t)((t->p[P_ROOT] % 12 + 12) % 12);
+    if (!g || !gen_on(t))
+        return scale_bits(t);
+    if (garden_scale[ti] != (uint8_t)t->p[P_SCALE]) {   /* a new SCALE (HOME's KNOB 3 on ECHOES): the garden is that scale again */
+        garden[ti] = 0;
+        return scale_bits(t);
+    }
+    for (r = 0; r < 12u; r++)                      /* (relative to ROOT, as the scales are) */
+        m |= ((g >> ((r + root) % 12u)) & 1u) << r;
+    return m;
+}
+/* key k of a track whose generator is on: its pitch class (as the SCALE LEDS give it) turned on or off */
+static void garden_toggle(const track_t *t, uint32_t k)
+{
+    uint32_t ti = (uint32_t)(t - trk), pc = (uint32_t)(((53 + (int32_t)k + t->p[P_TRANS]) % 12 + 12) % 12), r, root = (uint32_t)((t->p[P_ROOT] % 12 + 12) % 12);
+    if (ti >= NTRK)
+        return;
+    if (!garden[ti] || garden_scale[ti] != (uint8_t)t->p[P_SCALE]) {   /* the first key: the scale as the garden to start from */
+        uint32_t m = scale_bits(t);
+        garden[ti] = 0;
+        garden_scale[ti] = (uint8_t)t->p[P_SCALE];
+        for (r = 0; r < 12u; r++)
+            garden[ti] |= (uint16_t)(((m >> r) & 1u) << ((r + root) % 12u));
+    }
+    garden[ti] ^= (uint16_t)(1u << pc);
 }
 
 /* note n moved down onto the track's scale (ROOT, SCALE): QNT SNAP's keys and QNT SEQ's sequenced notes */
@@ -696,11 +736,36 @@ static __attribute__((noinline)) void perf_key_remap(void)
 
 /* key k plays kb_note[k] on track t: its chord (chord.c; the note alone with CHRD OFF). A note another key
  * holds already sounds: it is not started again (nor sent to MIDI OUT); the key keeps its notes */
+/* OMNI H: the chord a button left sounding ends (before the next button, or when the track is no longer OMNI H) */
+static void omni_unlatch(track_t *t)
+{
+    uint32_t ti = trk_index(t), n = omni_latch[ti].n, i, mc = trk_midi_ch(ti);
+    omni_latch[ti].n = 0;
+    for (i = 0; i < n; i++) {
+        uint32_t x = omni_latch[ti].note[i];
+        if (midi_local_held(t, x))
+            continue;
+        input_off(t, x);
+        midi_out_event(0x08u | (0x80u | mc) << 8 | x << 16);
+    }
+}
+/* OMNI H: note x is in the chord a button left sounding (its key's release must not end it) */
+static int omni_latched(const track_t *t, uint32_t x)
+{
+    uint32_t ti = trk_index(t), i;
+    for (i = 0; i < omni_latch[ti].n; i++)
+        if (omni_latch[ti].note[i] == x)
+            return 1;
+    return 0;
+}
 static void key_on(uint32_t k, track_t *t)
 {
-    uint32_t n = chord_build(t, kb_note[k], kb_chord[k]), i, mc = trk_midi_ch(trk_index(t));
+    uint32_t omni = omni_on(t);
+    if (omni_latch[trk_index(t)].n && (t->p[P_CHRD] != CH_OMNIH || (omni && key_black(k))))
+        omni_unlatch(t);
+    uint32_t n = omni ? omni_keys(t, k, kb_chord[k]) : chord_build(t, kb_note[k], kb_chord[k]), i, mc = trk_midi_ch(trk_index(t));
     kb_chn[k] = 0;
-    in_key = (uint8_t)(k + 1u);                     /* (the arp keeps the key: arp_add) */
+    in_key = omni ? 0u : (uint8_t)(k + 1u);         /* (the arp keeps the key: arp_add; an OMNI note is its own, not a key's) */
     for (i = 0; i < n; i++) {
         uint32_t x = kb_chord[k][i];
         if (midi_local_held(t, x))
@@ -710,7 +775,7 @@ static void key_on(uint32_t k, track_t *t)
     }
     in_key = 0;
     kb_chn[k] = (uint8_t)n;
-    last_note = kb_note[k];                         /* (step entry, the SAMPLE zone: the key's note) */
+    last_note = omni && n ? kb_chord[k][0] : kb_note[k];   /* (step entry, the SAMPLE zone: the key's note) */
 }
 
 /* key k is up: the notes it started end, but those another key still holds */
@@ -718,9 +783,25 @@ static void key_off(uint32_t k, track_t *t)
 {
     uint32_t n = kb_chn[k], i, mc = trk_midi_ch(trk_index(t));
     kb_chn[k] = 0;
+    if (n && t->p[P_CHRD] == CH_OMNIH && omni_on(t) && key_black(k)) {   /* OMNI H: a button's chord rings on */
+        uint32_t ti = trk_index(t), j, m = omni_latch[ti].n;
+        for (i = 0; i < m; i++) {                     /* the chord kept before (two buttons held together): */
+            uint32_t x = omni_latch[ti].note[i];      /* what the new one does not play ends */
+            for (j = 0; j < n && kb_chord[k][j] != x; j++)
+                ;
+            if (j < n || midi_local_held(t, x))
+                continue;
+            input_off(t, x);
+            midi_out_event(0x08u | (0x80u | mc) << 8 | x << 16);
+        }
+        omni_latch[ti].n = (uint8_t)n;
+        for (i = 0; i < n; i++)
+            omni_latch[trk_index(t)].note[i] = kb_chord[k][i];
+        return;
+    }
     for (i = 0; i < n; i++) {
         uint32_t x = kb_chord[k][i];
-        if (midi_local_held(t, x))
+        if (midi_local_held(t, x) || omni_latched(t, x))   /* (a string plucked on the kept chord: it rings on) */
             continue;
         input_off(t, x);
         midi_out_event(0x08u | (0x80u | mc) << 8 | x << 16);
@@ -749,6 +830,9 @@ static void keyboard_block(void)
 {
     uint32_t cur = fm1_in.notes, ch, k;
     uint32_t lay, fx, mute;
+    for (k = 0; k < NTRK; k++)                   /* OMNI H turned off (CHRD, or a kit): the kept chord ends */
+        if (omni_latch[k].n && (trk[k].p[P_CHRD] != CH_OMNIH || !omni_on(&trk[k])))
+            omni_unlatch(&trk[k]);
     ch = cur ^ kb_prev;                          /* keys also sound while entering steps */
     if (perf_remap)
         perf_key_remap();
@@ -784,6 +868,11 @@ static void keyboard_block(void)
                 kb_note[k] = KB_SILENT;
             else if (song.grid == 1u)             /* the DRUM grid: a lane key plays its lane, the rest are the UI's */
                 kb_note[k] = grid_key_note(k);
+            else if (gen_on(&trk[kb_trk[k]])) {   /* the garden (BELL's generator on): the key turns its note on / off */
+                garden_toggle(&trk[kb_trk[k]], k);
+                kb_note[k] = KB_SILENT;
+            } else if (omni_on(&trk[kb_trk[k]]))    /* OMNI: every key sounds (omni_keys); a note for the rest */
+                kb_note[k] = 60;
             else
                 kb_note[k] = (uint8_t)kb_map(&trk[kb_trk[k]], k);
             if (kb_note[k] == KB_SILENT)
@@ -807,6 +896,7 @@ static void keyboard_block(void)
 }
 
 /* -------------------------------------------------------- sequencer --- */
+static void gen_restart(uint32_t k);              /* (BELL's generator, below) */
 static void seq_start(void)
 {
     uint32_t i;
@@ -815,6 +905,7 @@ static void seq_start(void)
     for (i = 0; i < NTRK; i++) {                   /* every track from its step 0, together */
         track_t *t = &trk[i];
         t->seq_idx = (uint16_t)(t->p[P_SLEN] - 1);
+        gen_restart(i);                            /* BELL's loops start again, from their SEED */
         t->seq_pos = 0x7FFFFFFF;                   /* step 0 fires on the first block */
         t->rskip_n = 0;
         t->rh_n = 0;
@@ -840,6 +931,45 @@ static void seq_release(track_t *t)
     t->seq_n = 0;
     t->seq_hold = 0;
     t->slide_glide = 0;                             /* live MONO / LEG keys must not glide after it */
+}
+
+/* Fantasma: the ambient machine's drone (ui.c ambient_random): a note on the track that its gate lets go after 8 s (the
+ * attack has long finished); with AMBI's REL at its top the noise then goes on for ever (voice.c) */
+static void ambient_drone(track_t *t, uint32_t note)
+{
+    seq_release(t);
+    trk_note_on(t, note, 100);
+    t->seq_notes[0] = (uint8_t)note;
+    t->seq_n = 1;
+    t->seq_hold = 0;
+    t->seq_off = 8u * (uint32_t)FS;
+}
+
+/* The Noise that is always on (Fantasma): on the Noise part (track 4) with the AMBI engine, REL at its top (INF) means the
+ * noise never stops, with no key needed: when nothing sounds on it (the engine has just been switched, a preset was loaded
+ * in an older version, the voice was cut) a note starts again, a moment later. Below INF it does nothing (its sound lets go
+ * as REL says), and at power-on REL is 64: nothing starts by itself */
+static inline int noise_inf(const track_t *t)
+{
+    return FELUCCA_AMBI && trk_index(t) == 3u && eng_idx(t->eng_req) == ENGI_AMBI && t->p[P_REL] >= 127 && !t->p[P_ESYNC];
+}
+static uint8_t noise_wait;
+static void noise_keep(track_t *t)
+{
+    uint32_t i;
+    if (!noise_inf(t) || t->engine != ENGI_AMBI || kb_boot_hold) {
+        noise_wait = 0;
+        return;
+    }
+    for (i = 0; i < NVOICE; i++)
+        if (t->v[i].active) {
+            noise_wait = 0;
+            return;
+        }
+    if (++noise_wait < 8u)                           /* (a few blocks: a note just sent has not started yet) */
+        return;
+    noise_wait = 0;
+    ambient_drone(t, (uint32_t)clamp(scale_snap(t, 36 + t->p[P_ROOT]), 0, 127));
 }
 
 static void seq_stop(void)
@@ -1010,6 +1140,216 @@ static const motion_store_t *chain_motion(const track_t *t)
     return !chain.running ? &motion : s < 4u ? &chain.source[s].motion : 0;
 }
 
+/* BELL's generator (Fantasma; eng_bell.c): a track on BELL with DENS above 0 plays four loops of unequal length
+ * instead of its steps. Every step the loops advance one slot together; a slot is a note (0..47 above C3) and a
+ * threshold u: it sounds while u < DENS squared / 100 (the low end of DENS is sparse, the top full), so DENS thins or thickens the loops live, and EVOLVE draws a new slot or two
+ * each time a loop comes round. Its own generator (SEED), so one SEED is always the same bells; the notes snap to the
+ * track's ROOT / SCALE as they play */
+#define GEN_NLOOP 4
+#define GEN_MAXLEN 29
+static const uint8_t GEN_LEN[GEN_NLOOP] = {13, 17, 23, 29};
+typedef struct { uint8_t u, note, vel; } gen_slot_t;
+typedef struct { uint32_t rng, c; uint8_t seed, ok; gen_slot_t s[GEN_NLOOP][GEN_MAXLEN]; } gen_t;
+static gen_t gen[NTRK];
+static uint32_t gen_rnd(gen_t *g)
+{
+    g->rng = g->rng * 1664525u + 1013904223u;
+    return g->rng >> 8;
+}
+static void gen_slot(gen_t *g, gen_slot_t *s)
+{
+    s->u = (uint8_t)(gen_rnd(g) % 100u);
+    s->note = (uint8_t)(gen_rnd(g) % 48u);
+    s->vel = (uint8_t)(55u + gen_rnd(g) % 55u);
+}
+static void gen_reset(gen_t *g, uint32_t seed)
+{
+    uint32_t j, i;
+    g->rng = seed * 2654435761u + 12345u;
+    for (j = 0; j < GEN_NLOOP; j++)
+        for (i = 0; i < GEN_LEN[j]; i++)
+            gen_slot(g, &g->s[j][i]);
+    g->seed = (uint8_t)seed;
+    g->ok = 1;
+    g->c = 0;
+}
+/* The Pad's progression (Fantasma): with DENS above 0 the Pad (track 1) plays chords by itself, I, IV, V and vi of its ROOT /
+ * SCALE (the diatonic triads, in the VOIC voicing), instead of reading its steps. Every BARS bars (16 steps each, at the
+ * track's DIV) a chord is chosen, and it sounds with chance DENS (the rest are silence, the tail rings on). The chord is
+ * struck once and held across the bars (ties), so a slow ATK swells and REL carries it into the next */
+#define PROG_TRACKS 1u
+static uint16_t prog_c[NTRK];                      /* steps into the chord */
+static uint16_t prog_len[NTRK];                    /* .. of this many (0: a chord to choose) */
+static uint32_t prog_s[NTRK];                      /* the progression's own random state (SEED) */
+static uint8_t prog_sd[NTRK];
+static uint8_t prog_deg[NTRK] = {0}, prog_play[NTRK], prog_new[NTRK];   /* prog_new: the first chord after a restart always sounds */
+static inline uint32_t prog_on(const track_t *t)
+{
+    return t->p[P_PDEN] > 0 && trk_index(t) < PROG_TRACKS && !chord_kit(t);
+}
+static void gen_restart(uint32_t k) { gen[k].ok = 0; prog_c[k] = 0; prog_len[k] = 0; prog_s[k] = 0; prog_play[k] = 0; prog_deg[k] = 0xFFu; prog_new[k] = 1; }
+static uint32_t prog_rand(uint32_t ti)               /* xorshift32: the same SEED is the same progression */
+{
+    uint32_t x = prog_s[ti];
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    prog_s[ti] = x;
+    return x >> 8;
+}
+/* The Pad's progression, chord by chord. EVOLVE (1..8) is how many chords it chooses between, from the commonest to the
+ * rarest: I IV V vi, then ii, iii, vii and a bVII (not in the scale: the major chord a tone below ROOT); each is chosen less
+ * often than the one before (PROG_W), and seldom the same one twice. BARS bars a chord (0: RND, 1 to 6 at random). SEED:
+ * the same one is the same progression (it starts again with it) */
+static const uint8_t PROG_DEG[8] = {0, 3, 4, 5, 1, 2, 6, 10};   /* scale degrees from 0; the last: 10 semitones above ROOT */
+static const uint8_t PROG_W[8] = {30, 22, 20, 15, 8, 5, 3, 2};
+static uint32_t prog_pick(uint32_t ti, uint32_t n)
+{
+    uint32_t tot = 0, r, i;
+    for (i = 0; i < n; i++)
+        tot += PROG_W[i];
+    r = prog_rand(ti) % tot;
+    for (i = 0; i + 1u < n && r >= PROG_W[i]; i++)
+        r -= PROG_W[i];
+    return i;
+}
+static __attribute__((noinline)) void prog_step(track_t *t, uint32_t idx, uint32_t period)
+{
+    uint32_t ti = trk_index(t), seed = (uint32_t)t->p[P_PSEED] & 127u, ev = (uint32_t)clamp(t->p[P_PEV], 1, 8), pos;
+    step_t st;
+    if (!prog_s[ti] || prog_sd[ti] != seed) {
+        prog_sd[ti] = (uint8_t)seed;
+        prog_s[ti] = (seed + 1u) * 2654435761u | 1u;
+        prog_len[ti] = 0;
+        prog_deg[ti] = 0xFFu;
+    }
+    memset(&st, 0, sizeof st);
+    st.time = ST_TIE;
+    if (!prog_len[ti] || prog_c[ti] >= prog_len[ti])      /* the last chord is over: the next one */
+        prog_c[ti] = 0xFFFFu;
+    if (prog_c[ti] == 0xFFFFu) {
+        static const uint8_t RND_BARS[5] = {1, 2, 3, 4, 6};
+        uint32_t bars = (uint32_t)clamp(t->p[P_PLEN], 0, 8);
+        if (!bars)
+            bars = RND_BARS[prog_rand(ti) % 5u];
+        prog_len[ti] = (uint16_t)(16u * bars);
+        prog_c[ti] = 0;
+    }
+    pos = prog_c[ti]++;
+    if (!pos) {                                     /* a chord starts, or a bar group of silence */
+        uint32_t d, mask = scale_mask(t), deg[12], n = 0, i;
+        prog_play[ti] = (uint8_t)(prog_rand(ti) % 100u < (uint32_t)t->p[P_PDEN] || prog_new[ti]);
+        prog_new[ti] = 0;
+        if (!prog_play[ti])
+            return;
+        d = prog_pick(ti, ev);
+        if (d == prog_deg[ti] && ev > 1u && prog_rand(ti) % 100u < 60u)   /* seldom the same chord twice */
+            d = prog_pick(ti, ev);
+        prog_deg[ti] = (uint8_t)d;
+        if (mask == 0xFFFu)
+            mask = SCALE_MASK[1];                   /* CHR: the major scale of ROOT */
+        for (i = 0; i < 12u; i++)
+            if ((mask >> i) & 1u)
+                deg[n++] = i;
+        {
+            int32_t off = d == 7u ? PROG_DEG[7] : (int32_t)deg[PROG_DEG[d] % n];
+            int32_t root = 48 + t->p[P_ROOT] + off + 12 * (int32_t)song.octave + t->p[P_TRANS];
+            uint8_t out[CHORD_MAX];
+            uint32_t m;
+            prog_mode = d == 7u ? CH_MAJ : CH_DIA3;
+            m = chord_build(t, (uint32_t)clamp(root, 0, 127), out);
+            prog_mode = 0;
+            for (i = 0; i < m && i < 4u; i++)
+                st.note[i] = out[i];
+            st.n = (uint8_t)(m < 4u ? m : 4u);
+            st.time = ST_NOTE;
+            st.vel = 90;
+        }
+    } else if (!prog_play[ti]) {
+        return;
+    }
+    if (pos != (uint32_t)prog_len[ti] - 1u)
+        st.flags = SF_SLIDE;                        /* held to the next step; the last one lets go at its GATE */
+    seq_step(t, &st, idx, period, SEQ_ROLLED);
+}
+static __attribute__((noinline)) void gen_step(track_t *t, uint32_t idx, uint32_t period)
+{
+    gen_t *g = &gen[trk_index(t)];
+    uint32_t seed = (uint32_t)t->p[P_E7] & 127u, dens = ((uint32_t)t->p[P_E4] * (uint32_t)t->p[P_E4] + 99u) / 100u, ev = (uint32_t)t->p[P_E5];
+    uint32_t span = 12u * ((uint32_t)clamp(t->p[P_E6], 0, 3) + 1u), c, j, k, m = 0, vel = 0;
+    step_t st;
+    memset(&st, 0, sizeof st);
+    if (!g->ok || g->seed != seed)
+        gen_reset(g, seed);
+    c = g->c++;
+    for (j = 0; j < GEN_NLOOP; j++) {
+        uint32_t pos = c % GEN_LEN[j];
+        const gen_slot_t *s;
+        if (!pos && c)                              /* a loop comes round: it changes a little */
+            for (k = 0; k < 1u + ev / 25u; k++)
+                if (gen_rnd(g) % 100u < ev)
+                    gen_slot(g, &g->s[j][gen_rnd(g) % GEN_LEN[j]]);
+        s = &g->s[j][pos];
+        if (s->u < dens) {
+            uint32_t n = (uint32_t)clamp(scale_snap(t, 48 + (int32_t)(s->note % span) + t->p[P_TRANS]), 0, 127), i;
+            for (i = 0; i < m && st.note[i] != n; i++)
+                ;
+            if (i == m) {
+                st.note[m++] = (uint8_t)n;
+                if (s->vel > vel)
+                    vel = s->vel;
+            }
+        }
+    }
+    if (!m)
+        return;                                     /* nothing falls on this step: what rings goes on ringing */
+    st.n = (uint8_t)m;
+    st.time = ST_NOTE;
+    st.vel = (uint8_t)vel;
+    seq_step(t, &st, idx, period, SEQ_ROLLED);
+}
+
+/* The generators' own clock (Fantasma): with the transport stopped (and no count-in) a track whose generator is on (the
+ * Pad's progression, BELL's loops) goes on by itself, one step every DIV at the project's BPM, so DENS needs no PLAY.
+ * It starts when DENS comes above 0 (the progression from its first bar) and stops, letting go of what it holds, when
+ * DENS is back to 0. PLAY takes over: seq_start restarts the generators, as before */
+static uint8_t free_on[NTRK];
+static uint16_t free_idx[NTRK];
+static uint32_t free_pos[NTRK];
+static __attribute__((noinline)) void gen_free(track_t *t, uint32_t n)
+{
+    uint32_t ti = trk_index(t), period, len;
+    if (ti >= NTRK)
+        return;
+    if (song.playing || cin_left || !(prog_on(t) || gen_on(t))) {
+        if (free_on[ti] && !song.playing && !cin_left && t->seq_n)
+            seq_release(t);                         /* DENS back to 0: what the generator holds lets go */
+        free_on[ti] = 0;
+        return;
+    }
+    period = div_samples((uint32_t)t->p[P_SDIV]);
+    if (!free_on[ti]) {
+        free_on[ti] = 1;
+        free_idx[ti] = 0;
+        free_pos[ti] = period;                      /* the first step on this block */
+        prog_c[ti] = 0;
+        prog_len[ti] = 0;
+        prog_new[ti] = 1;                           /* (the first chord sounds at once) */
+    }
+    free_pos[ti] += n;
+    if (free_pos[ti] < period)
+        return;
+    free_pos[ti] -= period;
+    if (free_pos[ti] >= period)
+        free_pos[ti] = 0;
+    len = t->p[P_SLEN] ? (uint32_t)t->p[P_SLEN] : 1u;
+    if (prog_on(t))
+        prog_step(t, free_idx[ti] % len, period);
+    else
+        gen_step(t, free_idx[ti] % len, period);
+    free_idx[ti]++;
+}
+
 /* step idx plays: its chance (the one roll, as seq_step made it: a step that does not play applies no lock), the
  * automation and the locks before the notes (so a note-on reads them: eng_drum's KIT, ..), the notes live recording
  * already sounds left out (rskip), then its notes. On its start, or (NUDGE) at its start + its nudge */
@@ -1018,6 +1358,18 @@ static __attribute__((noinline)) void seq_play(track_t *t, uint32_t idx, uint32_
     const step_t *s = &seq_steps(t)[idx];
     const motion_store_t *m = chain_motion(t);
     uint32_t skip = SEQ_ROLLED, i, k;
+    if (prog_on(t)) {                               /* the Pad's progression: chords by itself, not the steps */
+        if (m)
+            motion_step(t, idx, m, 1u);
+        prog_step(t, idx, period);
+        return;
+    }
+    if (gen_on(t)) {                                /* BELL's generator: the loops, not the steps */
+        if (m)
+            motion_step(t, idx, m, 1u);
+        gen_step(t, idx, period);
+        return;
+    }
     if (step_chance(s) < 100u && rng() % 100u >= step_chance(s))
         skip = SEQ_MISS;
     if (m)
@@ -1305,8 +1657,11 @@ static void events_block(uint32_t n)
     if (aud_req)
         seq_audition();                               /* (STEP PREVIEW: a step sounds, stopped) */
     chain_tick(seq_n);
-    for (i = 0; i < NTRK; i++)
+    for (i = 0; i < NTRK; i++) {
         seq_tick(&trk[i], seq_n);
+        gen_free(&trk[i], n);                         /* (the generators' own clock: the transport stopped) */
+    }
+    noise_keep(&trk[3]);                              /* (the Noise at INF is always on) */
     if (cin_flush)
         cin_record();
     if (song.playing)

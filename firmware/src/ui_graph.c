@@ -1258,10 +1258,10 @@ static const char *eng_abbr(const char *name)
 #if FELUCCA_FM4
                                        {"DIGITAL", "DGTL"},
 #endif
-                                       {"PHASE", "PHAS"}, {"LOFI", "LOFI"},
+                                       {"PHASE", "PHAS"}, {"LOFI", "LOFI"}, {"AMBI", "AMBI"},
                                        {"SAMPLE", "SMPL"}, {"VOICE", "VOCL"}, {"TRIO", "TRIO"}, {"WHEEL", "WHEL"},
                                        {"GRAIN", "GRAN"}, {"PHYS", "PHYS"}, {"DRUM", "DRUM"},
-                                       {"NOISE", "NOIS"}, {"FM6", "FM6"}, {"SLICE", "SLCE"}};
+                                       {"NOISE", "NOIS"}, {"FM6", "FM6"}, {"SLICE", "SLCE"}, {"BELL", "BELL"}};
     uint32_t i;
     for (i = 0; i < sizeof A / sizeof A[0]; i++)
         if (str_eq(name, A[i][0]))
@@ -1802,13 +1802,15 @@ static void home_track_row(uint32_t c)
     uint16_t cn = sel ? (mute ? ux_mix(T_THEME, T_INK, 55) : T_INK) : mute ? T_DIM : T_THEME;   /* a note */
     uint16_t ca = sel || mute ? cn : T_ACCENT, cs = sel ? half : T_RAISE;   /* accented; a stub */
     uint16_t cp = sel ? ux_mix(T_THEME, T_INK, 20) : T_RAISE, cpl = sel ? T_INK : mute ? T_MID : T_TEXT;   /* playing */
-    char b[16];
+    char b[32];
     pg = song.playing ? t->seq_idx / 16u : sel ? ui.cursor / 16u : 0u;
     if (pg >= np)
         pg = np - 1u;
     p0 = pg * 16u;
     ph = song.playing && t->seq_idx / 16u == pg ? t->seq_idx % 16u : 0xFFu;
-    trk_short_name(c, b);
+    str_cpy(b, ROLE_NAME[c % NPART], sizeof b);        /* Fantasma: the part, then its sound ("PAD / SOFT PAD") */
+    str_cpy(b + str_len(b), " / ", 4);
+    trk_short_name(c, b + str_len(b));
     m = mute ? 0 : meter_px(t->peak);
     t->peak = 0;
     if (m < ts.meter[c] - 1)
@@ -1902,6 +1904,86 @@ static void draw_home_tracks(void)
 }
 /* oscilloscope of the output, triggered on a rising zero crossing: a RAISE centre line, the trace 2 px (in silence
  * a flat line on it; MENU > SCREEN OFF keeps it from staying on the panel for hours) */
+/* HOME's picture (FANTASMA): MOTES, dust in the air. 150 specks drift to the right, each with its own slow wander, at three
+ * depths (far: small and faint; near: 2 x 2 and bright); the sound stirs them (the louder, the more they scatter and rise)
+ * and lights them. Quiet: they float on, dim. From Golana's prototype (golana_gfx.c gu_home_dust, motes) */
+#define MOTE_N 150
+static struct {
+    int16_t x, y, vx, vy;                            /* Q6 px */
+    uint8_t d, ph;                                   /* depth 0..2, its own wander phase */
+} mote[MOTE_N];
+static uint32_t mote_seed = 0x9E3779B9u, mote_on;
+static int32_t mote_rnd(int32_t n)                     /* 0..n-1 */
+{
+    mote_seed ^= mote_seed << 13;
+    mote_seed ^= mote_seed >> 17;
+    mote_seed ^= mote_seed << 5;
+    return (int32_t)((mote_seed >> 8) % (uint32_t)n);
+}
+static void graph_motes(uint16_t acc)
+{
+    int32_t w = PANEL_W, h = (int32_t)cv_h, i, pk = 0, lv, zc = 0, pt, kick, na;
+    static int32_t lvl;
+    uint16_t hi;
+    for (i = 0; i < 64; i++) {                       /* the sound's level: the scope's peak (instant attack, slow release) */
+        int32_t v = scope_buf[(scope_w + (uint32_t)i * 8u) & (SCOPE_N - 1u)];
+        v = v < 0 ? -v : v;
+        pk = v > pk ? v : pk;
+    }
+    for (i = 1; i < 64; i++)                         /* its pitch, roughly: sign changes in 64 consecutive samples */
+        zc += (scope_buf[(scope_w + (uint32_t)i) & (SCOPE_N - 1u)] ^ scope_buf[(scope_w + (uint32_t)i - 1u) & (SCOPE_N - 1u)]) < 0;
+    pt = clamp(zc * 8, 0, 256);                      /* low note 0 .. high note 256 */
+    lv = clamp(pk / 24, 0, 256);
+    kick = lv - lvl > 40 ? 1 : 0;                    /* a new note: a burst from the middle */
+    lvl = lv > lvl ? lv : lvl - ((lvl - lv) >> 4) - 1;
+    lvl = lvl < 0 ? 0 : lvl;
+    lv = lvl;
+    hi = ux_mix(acc, T_ACCENT, (uint32_t)pt * 100u >> 8);   /* the track's colour, high notes towards the accent */
+    na = 40 + (lv * 110 >> 8);                       /* silence: few of them; the sound brings the rest */
+    if (!mote_on) {
+        mote_on = 1;
+        for (i = 0; i < MOTE_N; i++) {
+            mote[i].x = (int16_t)((6 + mote_rnd(w - 12)) << 6);
+            mote[i].y = (int16_t)((4 + mote_rnd(h - 8)) << 6);
+            mote[i].d = (uint8_t)(i % 7 == 0 ? 2 : i % 3 == 0 ? 1 : 0);
+            mote[i].ph = (uint8_t)mote_rnd(256);
+        }
+    }
+    for (i = 0; i < MOTE_N; i++) {
+        int32_t x, y, d = mote[i].d, br, sp = 1 + d + (lv * (2 + d * 2) >> 8);
+        uint32_t ph = (uint32_t)(mote[i].ph += (uint8_t)(1 + d)) << 24;
+        mote[i].vx = (int16_t)((mote[i].vx * 7 >> 3) + sp + (osc_sine(ph) * 2 >> 15) + mote_rnd(5) - 2);
+        mote[i].vy = (int16_t)((mote[i].vy * 7 >> 3) + (osc_sine(ph + 0x40000000u) * 2 >> 15) + mote_rnd(5) - 2);
+        mote[i].vx = (int16_t)(mote[i].vx + ((mote_rnd(33) - 16) * lv >> 6) + (sp * pt * lv >> 14));   /* the sound stirs them */
+        mote[i].vy = (int16_t)(mote[i].vy + ((mote_rnd(33) - 16) * lv >> 6) - (lv >> 4) - (pt * lv >> 12));
+        if (kick) {                                  /* the attack throws them away from the centre */
+            mote[i].vx = (int16_t)(mote[i].vx + (((mote[i].x >> 6) - w / 2) * (d + 1)) / 3);
+            mote[i].vy = (int16_t)(mote[i].vy + (((mote[i].y >> 6) - h / 2) * (d + 1)) / 3);
+        }
+        mote[i].x = (int16_t)(mote[i].x + mote[i].vx);
+        mote[i].y = (int16_t)(mote[i].y + mote[i].vy);
+        if (mote[i].x >= (w - 6) << 6)
+            mote[i].x = (int16_t)(mote[i].x - ((w - 12) << 6));
+        if (mote[i].x < 6 << 6)
+            mote[i].x = (int16_t)(mote[i].x + ((w - 12) << 6));
+        if (mote[i].y < 3 << 6)
+            mote[i].y = (int16_t)(mote[i].y + ((h - 6) << 6));
+        if (mote[i].y >= (h - 3) << 6)
+            mote[i].y = (int16_t)(mote[i].y - ((h - 6) << 6));
+        if (i >= na)
+            continue;                                /* (resting: it still drifts, unseen) */
+        x = PANEL_X0 + (mote[i].x >> 6);
+        y = mote[i].y >> 6;
+        br = 22 + d * 22 + (lv * (50 + d * 25) >> 8);
+        if (br > 100)
+            br = 100;
+        if (d == 2 || (d == 1 && lv > 128))          /* loud: the middle ones swell too */
+            cv_rect(x, y, 2, 2, ux_mix(T_SURF, hi, br));
+        else
+            cv_pset(x, y, ux_mix(T_SURF, hi, br));
+    }
+}
+static void graph_scope(uint16_t c) __attribute__((unused));
 static void graph_scope(uint16_t c)
 {
     static int16_t snap[SCOPE_N] __attribute__((section(".pool")));
@@ -2244,14 +2326,14 @@ static void draw_graph(void)
         uint32_t k = strip_kind();
         cv_oy = k == SK_ADSR || k == SK_LFO ? 3 : 0;
         graph_ht = LG_H_GRAPH - 6;
-        if (k == SK_SCOPE) graph_scope(c);
+        if (k == SK_SCOPE) graph_motes(c);
         else if (k == SK_ADSR) graph_adsr(t, c);
         else if (k == SK_LFO) graph_lfo(t, c);
         else graph_title();
         graph_ht = 100;
     } else if (ui.home) {
         cv_oy = 0;
-        graph_scope(c);
+        graph_motes(c);
     } else {
         switch (pg->graph) {
         case GR_ADSR:
@@ -2316,6 +2398,14 @@ static void draw_graph(void)
         case GR_TOOLS:
             cv_oy = 0;
             panel_note("TURN TO PICK", "[OCT+] CONFIRM", 0);
+            break;
+        case GR_AMBI:
+            cv_oy = 0;
+            {   /* FANTASMA: the one ghost, eyes only, big and faint in the middle behind the text (drawn first) */
+                int32_t gh = (int32_t)graph_h() - 14, gw = gh * 4 / 5;
+                cv_ghost(120, 7, gw, gh, T_GRID, T_SURF, 0, 0, T_GRID);
+            }
+            panel_note("AMBIENT MACHINE", "[OCT+] RANDOMIZE", "[OCT-] STOP");
             break;
 #if FELUCCA_SLICE
         case GR_SLICES:

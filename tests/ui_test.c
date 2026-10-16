@@ -162,6 +162,13 @@ static int check(const char *what, int ok)
     return ok ? 0 : 1;
 }
 
+/* The parts the harness starts with: the first sounds of the suite's tests (bass, pad, bells, drums), not Fantasma's power-on
+ * parts (TRK_DEF: PAD, LEAD, ECHOES, NOISE), so that what the tests assume of a track does not move with the factory sounds */
+static const uint8_t TEST_TRK[NPART][3] = {{0, 4, 0}, {ENGI_FM6, 4, 0}, {FELUCCA_BELL ? ENGI_BELL : 3, 0, 0}, {ENGI_DRUM, 0, 0}};
+/* (Fantasma 1.0) the stored formats before FUN10's mark are Felucca's: engine 3 / 13 there are LOFI / SLICE, which load
+ * as AMBI's / BELL's defaults (project.c proj_from_felucca). A test of their exact round trip puts part 3 (BELL here)
+ * on PHASE, an engine both have */
+static void felucca_parts(void);
 /* main.c felucca_init */
 static void ui_power_on(void)
 {
@@ -187,18 +194,20 @@ static void ui_power_on(void)
     memset(up_bank, 0, sizeof up_bank);
     for (i = 0; i < G_COUNT; i++)
         song.g[i] = GP[i].def;
+    song.g[G_BPM] = 120;                          /* (the tests count in 120 BPM; power-on is 30) */
+    song.g[G_RTYPE] = 2; song.g[G_RSIZE] = 90; song.g[G_RDAMP] = 60;   /* (the HALL they were made with; the real power-on is AMBI 127 / 0: tested apart) */
     undo_depth++;
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
         track_defaults(t);
-        set_engine_of(t, TRK_DEF[i][0]);
-        apply_preset_to(t, TRK_DEF[i][1]);
+        set_engine_of(t, TEST_TRK[i][0]);
+        apply_preset_to(t, TEST_TRK[i][1]);
         t->engine = t->eng_req;
         track_defaults_steps(t);
-        if (TRK_DEF[i][2])
-            load_pat16(t, PATTERNS[TRK_DEF[i][2] - 1u].note, PATTERNS[TRK_DEF[i][2] - 1u].flags);
+        if (TEST_TRK[i][2])
+            load_pat16(t, PATTERNS[TEST_TRK[i][2] - 1u].note, PATTERNS[TEST_TRK[i][2] - 1u].flags);
         pat_sig[i] = steps_sig(t);
-        pat_last[i] = TRK_DEF[i][2];
+        pat_last[i] = TEST_TRK[i][2];
     }
     undo_depth--;
     song.sel = 0;
@@ -407,7 +416,7 @@ static int test_sound_loads(void)
     for (i = 0; i < NTRK; i++)
         empty &= (uint32_t)seq_is_empty(&trk[i]);
     bad += check("power-on: the four sounds, every sequencer empty, no undo copy", empty && undo.trk == 0 && undo_depth == 0 &&
-                 trk[3].eng_req == ENGI_DRUM && trk[3].preset == 0u && trk[0].preset == TRK_DEF[0][1]);
+                 trk[3].eng_req == ENGI_DRUM && trk[3].preset == 0u && trk[0].preset == TEST_TRK[0][1]);
     my_steps(t);
     t->p[P_E0 + 1] = 77;                          /* a sound edit */
     t->p[P_AMODE] = 2;                            /* and the track's own settings */
@@ -435,7 +444,7 @@ static int test_sound_loads(void)
                  preset_pat_hint() == 12 && ui.ppick == 12 && str_eq(PATTERNS[12].name, "ARP"));
     t->p[P_AMODE] = 2;
     before = *t;
-    for (i = 0; i < 6u; i++)                      /* several loads, into the next engine */
+    for (i = (uint32_t)t->preset; i < ENGINES[0]->npresets; i++)   /* several loads, into the next engine */
         turn(EN_PRESET, 1);
     bad += check("browsing on, into another engine: the steps still untouched", t->eng_req != before.eng_req &&
                  !memcmp(t->step, before.step, sizeof t->step) && t->p[P_AMODE] == 2);
@@ -1582,11 +1591,12 @@ static int test_display_preferences(void)
                  settings.palette == 6 && T_BG == UI_PALETTES[6].bg && ux.light && ui.menu == 1 && !song.octave &&
                  memcmp(before, host_screen, sizeof before) && !memcmp(sounds, trk, sizeof sounds));
     turn(EN_K1, 1);
-    bad += check("COLOR KNOB 1 steps on to HI-CON, NIGHT (#50: true black), MONO (1.0.2: black and white), then wraps to GREY",
+    bad += check("COLOR KNOB 1 steps on to HI-CON, NIGHT (#50: true black), MONO (1.0.2: black and white), then on to DUSK and ECTO (FANTASMA's default, the last)",
                  settings.palette == 7 && (turn(EN_K1, 1), settings.palette == 8u) && T_BG == 0u &&
                  str_eq(UI_PALETTES[8].name, "NIGHT") && (turn(EN_K1, 1), settings.palette == UI_BW_INDEX) &&
                  str_eq(UI_PALETTES[UI_BW_INDEX].name, "MONO") && T_BG == 0u && T_TEXT == 0xFFFFu &&
-                 (turn(EN_K1, 1), settings.palette == UI_GREY_INDEX) && str_eq(UI_PALETTES[UI_GREY_INDEX].name, "GREY"));
+                 (turn(EN_K1, 1), settings.palette == UI_BW_INDEX + 1u) && str_eq(UI_PALETTES[UI_BW_INDEX + 1u].name, "DUSK") &&
+                 str_eq(UI_PALETTES[UI_DEFAULT_INDEX].name, "ECTO"));
     settings.lowcut = 2;
     ui.menu_sel = MI_LOWCUT;
     press(B_OCTUP);
@@ -1609,7 +1619,7 @@ static int test_display_preferences(void)
     k = ui.menu == 1 && settings.lowcut == 0u;         /* (OCT- at the first value: nothing, the menu stays) */
     press(B_HOME);
     bad += check("HOME leaves display preferences without changing musical state (OCT- no longer closes)",
-                 k && !ui.menu && settings.palette == UI_GREY_INDEX && !memcmp(sounds, trk, sizeof sounds));
+                 k && !ui.menu && settings.palette == UI_BW_INDEX + 1u && !memcmp(sounds, trk, sizeof sounds));
     return bad;
 }
 
@@ -2608,7 +2618,7 @@ static int test_presets_knob(void)
                 sel_ok &= same_snd && same_steps && ui.page == i;
             } else if (g == GR_EVENTS) {               /* (AUTOMATION: its row, PLAY's to the first record's) */
                 sel_ok &= same_snd && same_steps && ui.page == i && ui.ev_row == 1u;
-            } else if (g == GR_TOOLS) {
+            } else if (g == GR_TOOLS || g == GR_AMBI) {
                 tools_ok &= same_snd && same_steps && !ui.confirm;
             } else {
                 snd_ok &= !same_snd && same_steps && ui.page == i && !ui.home;
@@ -2674,7 +2684,7 @@ static int test_page_cycles(void)
     ok = 1;
     for (i = 0; i < NPAGES; i++) {                       /* every page in a family its button reaches, and its LED */
         uint32_t f = PAGES[i].fam;
-        ok &= f != FAM_SEQ || PAGES[i].graph == GR_ROLL || PAGES[i].graph == GR_EVENTS;
+        ok &= f != FAM_SEQ || PAGES[i].graph == GR_ROLL || PAGES[i].graph == GR_EVENTS || PAGES[i].graph == GR_AMBI;
         ok &= f != FAM_GLO || PAGES[i].graph == GR_SONG;   /* (1.2: GLO's only page) */
         ok &= f != FAM_TRK || PAGES[i].graph == GR_TRK || str_eq(PAGES[i].title, "CLOCK");   /* HOME's: MIXER CLOCK */
         ok &= PAGES[i].graph != GR_TRK || f == FAM_TRK;
@@ -2925,7 +2935,7 @@ static int test_product_ux(void)
     motion_full = 1; frame();
     bad += check("#93 the events used up: AUTOMATION FULL", msg_is("AUTOMATION FULL") && !motion_full);
     {   /* #63: a card shows MOTION's icon while the track's motion changes its parameter */
-        uint32_t id = ENGINES[TSEL->eng_req]->knob[0];
+        uint32_t id = home_id(TSEL, 0);
         ui_power_on(); go_home(); frame();
         ok = !card_motion(0) && !card_motion(1);
         song.rec = 1; seq_start(); go_home(); turn(EN_K1, 1); frame();
@@ -3208,8 +3218,8 @@ static int test_layer(void)
     turn(EN_K1, 1);
     ok &= song.g[G_RTYPE] == 1 && str_eq(GP[G_RTYPE].names[song.g[G_RTYPE]], "SPRING");
     turn(EN_K1, 5);
-    ok &= song.g[G_RTYPE] == 2;
-    turn(EN_K1, -1);
+    ok &= song.g[G_RTYPE] == 3;                   /* (stops at AMBI, the last) */
+    turn(EN_K1, -2);
     ok &= song.g[G_RTYPE] == 1;
     song.playing = 0;
     project_save(2);
@@ -3218,6 +3228,19 @@ static int test_layer(void)
     project_load(2);
     bad += check("REVERB page: TYPE HALL (power-on) / ROOM / SPRING on KNOB 1 (SIZE, DAMP beside it); a project keeps SPRING",
                  ok && song.g[G_RTYPE] == 1);
+    {   /* Fantasma: a fresh start has the AMBI reverb at SIZE 100, DAMP 0; Echoes' sounds load with REV 100 %, DLY 50 % */
+        uint32_t k;
+        ok = GP[G_RTYPE].def == 3 && GP[G_RSIZE].def == 127 && GP[G_RDAMP].def == 0;
+        if (FELUCCA_BELL) {
+            ui_power_on();
+            set_engine_of(&trk[2], ENGI_BELL);
+            for (k = 0; k < ENGINES[ENGI_BELL]->npresets; k++) {
+                apply_preset_to(&trk[2], k);
+                ok &= trk[2].p[P_REV] == 127 && trk[2].p[P_DLY] == 64;
+            }
+        }
+        bad += check("  fresh start: reverb AMBI SIZE 100 DAMP 0; every Echoes sound REV 100 %, DLY 50 %", ok);
+    }
     go_title("CHORUS");
     bad += check("  CHORUS page: CRT CDP", cur_page()->fam == FAM_FX && cur_page()->id[0] == G_CRATE &&
                  cur_page()->id[1] == G_CDEPTH && cur_page()->id[2] == 0xFFu);
@@ -3559,9 +3582,9 @@ static int engine_cycle(const char *const *want, uint32_t n)   /* EDIT tapped fr
 }
 static int test_edit_cycle(void)
 {
-    static const char *const CYC_A[] = {"EDIT 1", "EDIT 2", "FILTER", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};   /* (1.5: FILTER) */
+    static const char *const CYC_A[] = {"EDIT 1", "EDIT 2", "FILTER", "GEN", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};   /* (1.5: FILTER; Fantasma: the Pad's GEN) */
     static const char *const CYC_D[] = {"EDIT 1", "EDIT 2", "OP1 ENV", "OP2 ENV", "OP3 ENV", "OP4 ENV",
-                                        "OP LEVEL", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
+                                        "OP LEVEL", "GEN", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
     int bad = 0, ok;
     uint32_t i;
     ui_power_on();
@@ -3573,7 +3596,7 @@ static int test_edit_cycle(void)
         ok &= !str_eq(PAGES[i].title, "ENGINE");
     bad += check("no ENGINE page (engines are the EDIT layer's)", ok);
     set_engine_of(TSEL, 0);
-    bad += check("EDIT cycle (ANALOG): EDIT 1 EDIT 2 FILTER VOICE VOICE 2 VOICE 3 EDIT 1", engine_cycle(CYC_A, NELEM(CYC_A)));
+    bad += check("EDIT cycle (ANALOG): EDIT 1 EDIT 2 FILTER GEN VOICE VOICE 2 VOICE 3 EDIT 1", engine_cycle(CYC_A, NELEM(CYC_A)));
 #if FELUCCA_FM4
     set_engine_of(TSEL, 1);
     bad += check("EDIT cycle (DIGITAL): EDIT 1 EDIT 2 OP1..OP4 ENV OP LEVEL VOICE VOICE 2 VOICE 3 EDIT 1",
@@ -3581,7 +3604,7 @@ static int test_edit_cycle(void)
 #else
     set_engine_of(TSEL, ENGI_DIGITAL);
     {
-        static const char *const CYC_F[] = {"EDIT 1", "EDIT 2", "OPERATOR", "OP ENV", "OPERATOR 2", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
+        static const char *const CYC_F[] = {"EDIT 1", "EDIT 2", "OPERATOR", "OP ENV", "OPERATOR 2", "GEN", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
         bad += check("EDIT cycle (engine 1 asked for: FM6, DIGITAL retired): EDIT 1 EDIT 2 OPERATOR OP ENV OPERATOR 2 VOICE .. VOICE 3",
                      TSEL->eng_req == ENGI_FM6 && engine_cycle(CYC_F, NELEM(CYC_F)));
     }
@@ -3858,6 +3881,129 @@ static uint32_t black(uint32_t b) { return key_at(1, b); }
 static void lay_combo(uint32_t btn, uint32_t k) { btn_down(btn); key_down(k); frame(); }
 static void oct_back(void) { btn_down(B_OCTDN); frame(); btn_up(B_OCTDN); frame(); }
 
+/* Fantasma: SEQ > AMBIENT, OCT+ (ui.c ambient_random): the Pad and Echoes drawn anew on one ROOT and SCALE */
+static void felucca_parts(void)
+{
+    set_engine_of(&trk[2], 2);
+    apply_preset_to(&trk[2], 0);
+    trk[2].engine = trk[2].eng_req;
+}
+/* Fantasma 1.0: a user preset Fantasma writes carries its mark (upreset.c UP_MARK_AT) and loads as it is; one without it
+ * (Felucca's, where engine 3 is LOFI and 13 SLICE) on those engines loads AMBI's / BELL's defaults; a rename keeps
+ * what the record was */
+static int test_up_fantasma(void)
+{
+    int bad = 0;
+    int16_t v[P_COUNT];
+    up_rec_t r;
+    uint32_t i, keep = 1, def = 1;
+    ui_power_on();
+    track_select(3);
+    set_engine_of(TSEL, ENGI_AMBI);                 /* (the tests' power-on is Felucca's parts: TEST_TRK) */
+    apply_preset_to(TSEL, 0);
+    TSEL->engine = TSEL->eng_req;
+    bad += check("Fantasma 1.0: the Noise on AMBI (engine 3)", TSEL->eng_req == ENGI_AMBI);
+    for (i = 0; i < 8u; i++)
+        TSEL->p[P_E0 + i] = (int16_t)(10 + i);
+    bad += check("  a user preset it writes carries the mark", (up_store(9, "AMB") & ~3) == 0 && up_used(9) &&
+                 up_rec(9)->packed[UP_MARK_AT] == UP_FANTASMA);
+    up_values(up_rec(9), v);
+    for (i = 0; i < 8u; i++)
+        keep &= v[P_E0 + i] == (int16_t)(10 + i);
+    bad += check("  it loads as it is (AMBI's values)", keep);
+    r = *up_rec(9);
+    r.packed[UP_MARK_AT] = 0;                        /* (as Felucca writes it: LOFI's values) */
+    up_values(&r, v);
+    for (i = 0; i < 8u; i++)
+        def &= v[P_E0 + i] == param_desc_of(ENGI_AMBI, P_E0 + i)->def;
+    bad += check("  one without the mark (Felucca's LOFI): AMBI's defaults", def);
+    up_put(9, &r);
+    up_rename(9, "RENAMED");
+    bad += check("  renamed: still unmarked (its values were never AMBI's)", up_rec(9)->packed[UP_MARK_AT] == 0u);
+    up_put(9, 0);
+    ui_power_on();
+    return bad;
+}
+static int test_ambient(void)
+{
+    int bad = 0, ok = 1, i, same = 1, root_ok = 1, eng_ok_ = 1, gen_ok = 1, seen_root = 0, seen_eng = 0;
+    uint32_t scales = 0, engs = 0;
+    track_t lead, noise;
+    int16_t bpm;
+    ui_power_on();
+    set_engine_of(&trk[1], 0);
+    memcpy(&lead, &trk[1], sizeof lead);
+    memcpy(&noise, &trk[3], sizeof noise);
+    bpm = song.g[G_BPM];
+    go_page(GR_AMBI); frame();
+    ok &= str_eq(cur_page()->title, "AMBIENT") && act_cols() == 1u && str_eq(act_name(0), "RANDOM");
+    bad += check("ambient machine: the AMBIENT page (SEQ), one action: RANDOM", ok);
+    for (i = 0; i < 60; i++) {
+        track_t *pad = &trk[0], *ech = &trk[2];
+        press(B_OCTUP); frames(48);
+        root_ok &= pad->p[P_ROOT] == ech->p[P_ROOT] && pad->p[P_SCALE] == ech->p[P_SCALE];
+        scales |= 1u << pad->p[P_SCALE];
+        seen_root |= 1 << pad->p[P_ROOT];
+        engs |= 1u << pad->eng_req;
+        eng_ok_ &= eng_allowed(0, pad->eng_req) && pad->eng_req != ENGI_DRUM && (!FELUCCA_BELL || ech->eng_req == ENGI_BELL);
+        gen_ok &= pad->p[P_PDEN] > 0 && pad->p[P_PLEN] >= 0 && pad->p[P_PLEN] <= 8 && pad->p[P_VOICE] == V_POLY &&
+                  pad->p[P_REV] >= 50 && ech->p[P_REV] >= 50 && !pad->p[P_MUTE] && !ech->p[P_MUTE];
+        if (FELUCCA_BELL) gen_ok &= ech->p[P_E4] >= 20 && ech->p[P_E4] <= 30 && ech->p[P_E5] > 0 && ech->p[P_E6] >= 1 && ech->p[P_E6] <= 2;
+        { track_t l2; memcpy(&l2, &trk[1], sizeof l2); l2.p[P_ROOT] = lead.p[P_ROOT]; l2.p[P_SCALE] = lead.p[P_SCALE];
+          same &= !memcmp(&lead, &l2, sizeof lead) && trk[1].p[P_ROOT] == trk[0].p[P_ROOT] && trk[1].p[P_SCALE] == trk[0].p[P_SCALE] && song.g[G_BPM] == bpm; }
+    }
+    (void)seen_eng;
+    bad += check("ambient machine: the Pad and Echoes share the ROOT and SCALE", root_ok);
+    bad += check("  .. over 60 draws every ROOT of a dozen shows up, several scales, several Pad engines (never a kit)",
+                 __builtin_popcount((unsigned)seen_root) >= 9 && __builtin_popcount(scales) >= 5 && __builtin_popcount(engs) >= 4 && eng_ok_);
+    bad += check("  the Pad's DENS / BARS and Echoes' DENS / EVOLVE / RANGE above zero, poly, with reverb", gen_ok);
+    bad += check("  the Lead gets the same ROOT and SCALE and nothing else; the BPM is left alone", same);
+    song.playing = 0; transport_req = 0;
+    press(B_OCTUP); frames(48);
+    bad += check("  the transport is not started (the generators have their own clock); the page is left as it was", transport_req == 0u && !song.playing && cur_page()->graph == GR_AMBI);
+    {   /* the Pad's EVOLVE / SEED, the Noise: an AMBI sound, REL at its top, one note of the scale going */
+        track_t *pad = &trk[0], *nz = &trk[3];
+        ok = 1;
+        for (i = 0; i < 40; i++) {
+            press(B_OCTUP); frames(48);
+            ok &= pad->p[P_PEV] >= 3 && pad->p[P_PEV] <= 8 && pad->p[P_PSEED] >= 0 && pad->p[P_PSEED] < 128 &&
+                  eng_idx(nz->eng_req) == ENGI_AMBI && nz->p[P_REL] == 127 && !nz->p[P_ESYNC] && !nz->p[P_MUTE] &&
+                  nz->p[P_ROOT] == pad->p[P_ROOT] && nz->p[P_SCALE] == pad->p[P_SCALE] && nz->seq_n == 1u;
+        }
+        bad += check("  the Pad's EVOLVE and SEED drawn; the Noise: AMBI, REL at its top, ROOT / SCALE of the others, one note going", ok);
+        ok = nz->seq_n == 1u;
+        for (i = 0; i < 6000; i++) events_block(64);          /* 8.7 s of audio blocks: seq_tick counts the gate down */
+        ok &= nz->seq_n == 0u;
+        bad += check("  the Noise's note lets go after its gate (the noise itself goes on: REL at its top)", ok);
+        press(B_OCTUP); frames(48);
+        press(B_OCTDN); frames(48);
+        {   /* the card: INF where AMBI's REL is at its top, the number below it */
+            char val[12];
+            const char *unit = "s";
+            song.sel = 3;
+            nz->p[P_ESYNC] = 0;
+            str_cpy(val, "10", 12);
+            nz->p[P_REL] = 127;
+            rel_inf(&nz->p[P_REL], val, &unit);
+            ok = str_eq(val, "INF") && !unit[0];
+            nz->p[P_REL] = 126;
+            str_cpy(val, "9.8", 12); unit = "s";
+            rel_inf(&nz->p[P_REL], val, &unit);
+            ok &= str_eq(val, "9.8") && str_eq(unit, "s");
+            song.sel = 0;
+            bad += check("  REL card: INF on the Noise at its top, the number below it", ok);
+        }
+        nz->p[P_REL] = 127;
+        press(B_OCTUP); frames(48);
+        press(B_OCTDN); frames(48);
+        ok = pad->p[P_PDEN] == 0 && trk[2].p[P_E4] == 0 && nz->p[P_REL] == 64 && nz->seq_n == 0u && cur_page()->graph == GR_AMBI &&
+             !song.playing && transport_req == 0u;
+        bad += check("  OCT-: STOP (the Pad's and Echoes' DENS 0, the Noise's REL 64 and its note let go; the page stays, the transport too)", ok);
+    }
+    return bad;
+}
+
+static uint32_t eng_count_for(uint32_t ti);
 static int test_quick_layers(void)
 {
     static const uint8_t LB[3] = {B_GLO, B_SCL, B_EDIT};
@@ -4017,16 +4163,16 @@ static int test_quick_layers(void)
     btn_down(B_EDIT); frames(480);
     for (i = 0; i < LY_INIT; i++) {
         key_down(white(i)); key_up(white(i)); frame();
-        a += i < NENG_SHOWN ? TSEL->eng_req == eng_vis(i) : 0u;
+        a += i < NENG_SHOWN && eng_allowed(song.sel, eng_vis(i)) ? TSEL->eng_req == eng_vis(i) : 0u;   /* (a part's own engines) */
         ok &= eng_ok(TSEL->eng_req);
     }
     btn_up(B_EDIT); frame();
     bad += check("  every engine one can pick has its white key from F3 (NENG_SHOWN, not a fixed count; never DIGITAL)",
-                 ok && a == NENG_SHOWN);
+                 ok && a == eng_count_for(song.sel));
     set_engine_of(TSEL, 0);
-    lay_combo(B_EDIT, white(eng_rank(3))); key_up(white(eng_rank(3))); frame();
+    lay_combo(B_EDIT, white(eng_rank(2))); key_up(white(eng_rank(2))); frame();
     turn(EN_K2, 1);
-    ok = TSEL->eng_req == 3u && TSEL->preset == 1u;
+    ok = TSEL->eng_req == 2u && TSEL->preset == 1u;
     turn(EN_K3, 1);
     ok &= preset_favorite();
     oct_back();
@@ -4997,7 +5143,7 @@ static int test_fm4_retired(void)
     int16_t p[P_COUNT];
     uint8_t v[FP_SIZE + 1u];
     ui_power_on();
-    bad += check("power-on: track 2 is FM6 PAD (TRK_DEF, was DIGITAL PAD)", trk[1].eng_req == ENGI_FM6 &&
+    bad += check("power-on: track 2 is FM6 PAD (TEST_TRK, was DIGITAL PAD)", trk[1].eng_req == ENGI_FM6 &&
                  str_eq(ENGINES[ENGI_FM6]->presets[trk[1].preset].name, "PAD"));
     preset_all_pos(&total);
     for (i = 0; i < total; i++) {
@@ -5008,16 +5154,17 @@ static int test_fm4_retired(void)
     bad += check("PRESETS: the list holds every engine's presets but DIGITAL's", seen == all && NENG_SHOWN == NENGINES - 1u);
     go_page(GR_BROWSE);
     set_engine_of(TSEL, 0);
-    for (i = 0, seen = 0; i < NENG_SHOWN; i++) {
+    for (i = 0, seen = 0; i < eng_count_for(song.sel); i++) {
         turn(EN_K2, 1);
         seen |= 1u << TSEL->eng_req;
     }
-    bad += check("PRESETS KNOB 2: the engines in order, DIGITAL skipped, back to the first",
-                 seen == all && TSEL->eng_req == 0u && eng_step(0, 1) == ENGI_FM6 && eng_step(ENGI_FM6, 1) == 2u &&
+    bad += check("PRESETS KNOB 2: the engines in order, DIGITAL skipped, back to the first (Pad: no bells, no noises)",
+                 seen == (all & ~(1u << ENGI_NOISE) & ~(FELUCCA_BELL ? 1u << ENGI_BELL : 0u) & ~(FELUCCA_AMBI ? 1u << ENGI_AMBI : 0u)) &&
+                 TSEL->eng_req == 0u && eng_step(0, 1) == ENGI_FM6 && eng_step(ENGI_FM6, 1) == 2u &&
                  eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == ENGI_DRUM);
     {   /* the display order (engines.c ENGINE_ORDER): every engine one can pick once; the PRESETS list follows it */
-        static const char *const ORDER[] = {"ANALOG", "FM6", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
-                                            "PHYS", "NOISE", "SLICE", "DRUM"};
+        static const char *const ORDER[] = {"ANALOG", "FM6", "PHASE", FELUCCA_LOFI ? "LOFI" : "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
+                                            "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM"};
         uint32_t last = 0xFFu, r = 0, n = 0;
         ok = NENG_SHOWN == NELEM(ORDER);
         for (i = 0; ok && i < NENG_SHOWN; i++)
@@ -5032,7 +5179,7 @@ static int test_fm4_retired(void)
             last = e;
             r++;
         }
-        bad += check("engines shown ANALOG FM6 PHASE ... NOISE SLICE DRUM (ENGINE_ORDER); PRESETS lists them so",
+        bad += check("engines shown ANALOG FM6 PHASE ... NOISE BELL (SLICE) DRUM (ENGINE_ORDER); PRESETS lists them so",
                      ok && r == NENG_SHOWN);
     }
     /* a user preset stored with engine 1: kept as it is, it loads as FM6 with the converted patch */
@@ -5734,6 +5881,154 @@ static uint64_t scr_session_fork(uint32_t setting, uint32_t *flags)   /* from th
     *flags = (uint32_t)r[1];
     return r[0];
 }
+/* Fantasma: the four tracks are parts, PAD LEAD ECHOES NOISE; HOME's four knobs follow the part (ui.c home_id): the PAD's
+ * are its engine's first, ATK, REL, REV; ECHOES (on BELL) DENS, EVOLVE, SCL, REV; LEAD and NOISE the engine's own */
+static uint32_t eng_count_for(uint32_t ti)          /* how many engines part ti offers */
+{
+    uint32_t n = 0, r;
+    for (r = 0; r < NENG_SHOWN; r++)
+        n += eng_allowed(ti, eng_vis(r));
+    return n;
+}
+/* Fantasma: Echoes browses BELL only, Noise the noise engines only (engines.c eng_allowed); Pad and Lead everything */
+static int test_part_sounds(void)
+{
+    int bad = 0, ok = 1;
+    uint32_t total, all, i, k, k2, e, seen[NENGINES];
+    ui_power_on();
+    memset(up_bank, 0, sizeof up_bank);
+    memset(&favorites, 0, sizeof favorites);
+    song.sel = 0;
+    preset_all_pos(&all);
+    for (k = 0; k < 2u; k++) {
+        song.sel = k;
+        preset_pos(&total);
+        for (i = 0; i < total; i++) {
+            e = preset_at(i, &k2);
+            ok &= e == NENGINES || (e != ENGI_NOISE && e != ENGI_BELL && e != ENGI_AMBI);
+        }
+        ok &= total > 60u && total < all;
+    }
+    song.sel = 0;
+    bad += check("part sounds: Pad and Lead list every engine but the bells and the noises", ok);
+    if (FELUCCA_BELL) {
+        song.sel = 2;
+        set_engine_of(TSEL, ENGI_BELL);
+        preset_pos(&total);
+        memset(seen, 0, sizeof seen);
+        for (i = 0; i < total; i++) {
+            e = preset_at(i, &k);
+            ok &= e < NENGINES && e == ENGI_BELL && k < ENGINES[e]->npresets;
+        }
+        bad += check("part sounds: Echoes lists the bells only", ok && total == preset_shown(ENGI_BELL) && total < all);
+        for (i = 0; i < total + 2u; i++)
+            preset_step(1);
+        ok = TSEL->eng_req == ENGI_BELL;
+        select_engine(eng_step_for(2, ENGI_BELL, 1));
+        ok &= eng_step_for(2, ENGI_BELL, 1) == ENGI_BELL && eng_step_for(2, ENGI_BELL, -1) == ENGI_BELL;
+        bad += check("part sounds: Echoes stays on BELL (PRESETS and the ENG knob)", ok && TSEL->eng_req == ENGI_BELL);
+    }
+    song.sel = 3;
+    set_engine_of(TSEL, ENGI_AMBI);
+    preset_pos(&total);
+    for (i = 0; i < total; i++) {
+        e = preset_at(i, &k);
+        ok &= e == ENGI_AMBI;
+    }
+    bad += check("part sounds: Noise lists the AMBI sounds only (no NOISE engine)", ok && total == preset_shown(ENGI_AMBI));
+    ok = 1;
+    for (i = 0; i < total + 3u; i++) {
+        preset_step(1);
+        ok &= TSEL->eng_req == ENGI_AMBI;
+    }
+    ok &= eng_step_for(3, ENGI_AMBI, 1) == ENGI_AMBI && eng_step_for(3, ENGI_AMBI, -1) == ENGI_AMBI &&
+          eng_count_for(3) == 1u && !eng_allowed(0, ENGI_NOISE) && !eng_allowed(3, ENGI_NOISE);
+    bad += check("part sounds: Noise PRESETS and the ENG knob stay on AMBI", ok);
+    song.sel = 0;
+    return bad;
+}
+
+static int test_roles(void)
+{
+    int bad = 0, ok;
+    uint32_t k;
+    ui_power_on();
+    ok = str_eq(ROLE_NAME[0], "PAD") && str_eq(ROLE_NAME[1], "LEAD") && str_eq(ROLE_NAME[2], "ECHOES") &&
+         str_eq(ROLE_NAME[3], "NOISE");
+    bad += check("parts: PAD LEAD ECHOES NOISE", ok);
+    ok = home_id(&trk[0], 0) == ENGINES[trk[0].eng_req]->knob[0] && home_id(&trk[0], 1) == P_ATK &&
+         home_id(&trk[0], 2) == P_REL && home_id(&trk[0], 3) == P_REV;
+    bad += check("  PAD: the engine's first knob, ATK, REL, REV", ok);
+    ok = FELUCCA_BELL && trk[2].eng_req == ENGI_BELL && home_id(&trk[2], 0) == P_E4 && home_id(&trk[2], 1) == P_E5 &&
+         home_id(&trk[2], 2) == P_SCALE && home_id(&trk[2], 3) == P_REV;
+    bad += check("  ECHOES on BELL: DENS, EVOLVE, SCL, REV", ok);
+    for (k = 0; k < 4u; k++)
+        ok &= home_id(&trk[1], k) == ENGINES[trk[1].eng_req]->knob[k] && home_id(&trk[3], k) == ENGINES[trk[3].eng_req]->knob[k];
+    bad += check("  LEAD and NOISE: the engine's own four", ok);
+    trk[2].eng_req = 0;                                  /* ECHOES on another sound: its own four again */
+    ok = home_id(&trk[2], 0) == ENGINES[0]->knob[0] && home_id(&trk[2], 3) == ENGINES[0]->knob[3];
+    bad += check("  ECHOES on another engine: that engine's four", ok);
+    trk[3].eng_req = ENGI_DRUM;                          /* a kit as the PAD: the engine's own too */
+    trk[0].eng_req = ENGI_DRUM;
+    ok = home_id(&trk[0], 1) == ENGINES[ENGI_DRUM]->knob[1];
+    bad += check("  PAD on a kit: the kit's four", ok);
+    /* the parts at power-on (TRK_DEF, main.c): a FM6 pad, an ANALOG lead, the bells, the AMBI sea on its drone */
+    ok = TRK_DEF[0][0] == ENGI_FM6 && str_eq(ENGINES[ENGI_FM6]->presets[TRK_DEF[0][1]].name, "PAD") &&
+         TRK_DEF[1][0] == 0 && str_eq(ENGINES[0]->presets[TRK_DEF[1][1]].name, "SAW LEAD") &&
+         TRK_DEF[2][0] == (FELUCCA_BELL ? ENGI_BELL : 3) && TRK_DEF[3][0] == 3 &&
+         (FELUCCA_LOFI || (str_eq(ENGINES[3]->name, "AMBI") && str_eq(ENGINES[3]->presets[TRK_DEF[3][1]].name, "SEA"))) &&
+         TRK_DEF[3][2] == 0 && str_eq(PATTERNS[13].name, "DRONE") && trk[3].step[0].time == ST_REST;
+    bad += check("  power-on parts: FM6 PAD, ANALOG SAW LEAD, the bells, AMBI SEA, its steps empty", ok);
+    {   /* the NOISE track starts with empty steps (the DRONE pattern is still in SAVE > PHRASES for whoever wants it) */
+        track_t *t = &trk[3];
+        uint32_t i;
+        ui_power_on();
+        ok = PATTERNS[13].note[0] == 48 && PATTERNS[13].flags[1] != 0;
+        for (i = 0; i < 16u; i++)
+            ok &= t->step[i].time == ST_REST && t->step[i].n == 0u;
+        bad += check("  the NOISE track's steps are empty at power-on; the DRONE pattern (C3 held) is still a phrase", ok);
+    }
+    {   /* the colour follows the track (gfx.c ux_turn, ui_draw.c track_tint_apply): THEME turns, the rest stays */
+        uint16_t th[4], bg;
+        uint32_t pi, tk, d;
+        for (pi = 0; pi < NPALETTES; pi++) {
+            ui_power_on();
+            settings.palette = pi;
+            ux.trk = 0;
+            palette_set(pi);
+            ui.home = 1;
+            for (tk = 0; tk < 4u; tk++) {
+                song.sel = (uint8_t)tk;
+                ui.force = 1;
+                frame();
+                th[tk] = ux.theme;
+            }
+            bg = ux.bg;
+            ok = ux.trk == 3u && th[0] == UI_PALETTES[pi].theme && ux.bg == UI_PALETTES[pi].bg && ux.text == UI_PALETTES[pi].text &&
+                 ux.accent == UI_PALETTES[pi].accent;
+            if (pi == UI_GREY_INDEX || pi == UI_BW_INDEX)
+                ok &= th[1] == th[0] && th[2] == th[0] && th[3] == th[0];       /* no hue to turn */
+            else
+                ok &= th[1] != th[0] && th[2] != th[0] && th[3] != th[0] && th[1] != th[2] && th[2] != th[3] && th[1] != th[3];
+            for (tk = 0; tk < 4u; tk++) {                    /* each still reads on the background (lightness kept, within reason) */
+                d = ux_luma(th[tk]) > ux_luma(bg) ? ux_luma(th[tk]) - ux_luma(bg) : ux_luma(bg) - ux_luma(th[tk]);
+                ok &= d >= 45u;
+            }
+            if (!ok)
+                printf("  palette %u: %04x %04x %04x %04x on %04x\n", pi, th[0], th[1], th[2], th[3], bg);
+            bad += check("  the colour follows the track (each palette: THEME turns, BG TEXT ACCENT stay, still readable)", ok);
+        }
+        song.sel = 0; ux.trk = 0; settings.palette = UI_DEFAULT_INDEX; palette_set(UI_DEFAULT_INDEX);
+    }
+    ui_power_on();
+    ui.home = 1;
+    song.sel = 2;
+    ui.force = 1;
+    frame();
+    ok = str_eq(ROLE_NAME[song.sel], "ECHOES");
+    bad += check("  the selected part names HOME", ok);
+    return bad;
+}
 /* 1.2 (Discussions #72 / #73): MOMENTARY, LFO held. KNOB 1..4 on HOME and the sound / FX pages change their values as
  * ever and LFO let go puts each back (no LFO page then; LFO alone still opens it); OCT+ with LFO held keeps them (no
  * octave); not recorded as automation; a sound load meanwhile puts the values back first (the undo copy is the sound as
@@ -5745,13 +6040,13 @@ static int test_momentary(void)
     int16_t v0, v1, g0;
     ui_power_on();
     ui.home = 1;
-    id0 = ENGINES[TSEL->eng_req]->knob[0];
-    id1 = ENGINES[TSEL->eng_req]->knob[1];
+    id0 = home_id(TSEL, 0);
+    id1 = home_id(TSEL, 1);
     v0 = TSEL->p[id0];
     v1 = TSEL->p[id1];
     btn_down(B_LFO); frame();
     turn(EN_K1, 6);
-    turn(EN_K2, -4);
+    turn(EN_K2, 4);                                      /* (up: track 1's KNOB 2 is ATK, 0 on ACID) */
     ok = TSEL->p[id0] != v0 && TSEL->p[id1] != v1 && mom.n == 2u && msg_is("MOMENTARY  [OCT+] KEEP");
  ui_leds();
     btn_up(B_LFO); frame();
@@ -5882,11 +6177,11 @@ static int test_idle_leds(void)
     memset(fm1_led, 0x5A, sizeof fm1_led);
     ui_leds();
     bad += check("  it has the LEDs: ui_leds writes none", fm1_led[0] == 0x5A && fm1_led[3] == 0x5A);
-    v = TSEL->p[ENGINES[TSEL->eng_req]->knob[0]];
+    v = TSEL->p[home_id(TSEL, 0)];
     ui.home = 1;
     turn(EN_K1, 3); ui_leds();
     bad += check("  a knob turned ends it at once and is not swallowed (the value turns)", !host_idle &&
-                 TSEL->p[ENGINES[TSEL->eng_req]->knob[0]] != v && fm1_led[0] != 0x5A);
+                 TSEL->p[home_id(TSEL, 0)] != v && fm1_led[0] != 0x5A);
     frame(); fm1_ms += IDLE_LEDS_MS; frame(); ui_leds();   /* (the turn counted as input: a minute from it) */
     ok = host_idle;
     fm1_in.notes = 1u << 4; host_notes |= 1u << 4; frame(); ui_leds();
@@ -6001,7 +6296,7 @@ static int test_screen_off(void)
     for (i = 0; i < 20u; i++) turn(EN_K1, 1);        /* a knob turned to wake it, still turning (on past the wake) */
     ok = scr_woke(n) && *vp == v0;
     turn(EN_PRESET, 1); turn(EN_ALGO, 1); turn(EN_SELECT, 1); turn(EN_K4, -1);
-    ok &= *vp == v0 && song.sel == 0u && song.g[G_BPM] == GP[G_BPM].def && scrn.eat;
+    ok &= *vp == v0 && song.sel == 0u && song.g[G_BPM] == 120 && scrn.eat;
     frames(400u);                                     /* at rest SCR_EAT_MS: the knobs are the page's again */
     turn(EN_K1, 1);
     ok &= *vp != v0;
@@ -6592,11 +6887,13 @@ static int test_seq_tools(void)
     press(B_SEQ); frames(320);
     ok &= cur_page()->graph == GR_EVENTS && str_eq(cur_page()->title, "AUTOMATION");
     press(B_SEQ); frames(320);
+    ok &= cur_page()->graph == GR_AMBI && str_eq(cur_page()->title, "AMBIENT");   /* (Fantasma's) */
+    press(B_SEQ); frames(320);
     ok &= str_eq(cur_page()->title, "STEP");
     press(B_SEQ); frames(320);
     press(B_SEQ); frames(320);
     ok &= cur_page()->graph == GR_EVENTS;
-    bad += check("1.2: a tap on STEP: DETAIL (1.5.1), AUTOMATION, then STEP again (three SEQ pages; the hint until the layer "
+    bad += check("1.2: a tap on STEP: DETAIL (1.5.1), AUTOMATION, then STEP again (four SEQ pages with Fantasma's AMBIENT; the hint until the layer "
                  "was opened)", ok);
     go_title("ENV"); frame();
     press(B_SEQ); frames(320);
@@ -6898,7 +7195,7 @@ static int test_layer_lock(void)
     go_title("ENV"); frame();
     press(B_EDIT); press(B_EDIT); frames(100);
     turn(EN_K1, 1);
-    ok = TSEL->eng_req != trk[1].eng_req || TSEL->eng_req != TRK_DEF[0][0];
+    ok = TSEL->eng_req != trk[1].eng_req || TSEL->eng_req != TEST_TRK[0][0];
     ok &= str_eq(cur_page()->title, "ENV") && ui.lock == LAYER_EDIT;
     key_down(white(LY_INIT)); frame(); key_up(white(LY_INIT)); frame();   /* INIT: the dialog closes it */
     ok &= ui.confirm == CF_INIT_SOUND && !ui.lock && !ui.layer;
@@ -6945,6 +7242,8 @@ static int test_layer_lock(void)
     ok &= str_eq(cur_page()->title, "DETAIL") && !ui.lock && !ui.layer;   /* (1.5.1) */
     press(B_SEQ); frames(400);
     ok &= str_eq(cur_page()->title, "AUTOMATION") && !ui.lock && !ui.layer;
+    press(B_SEQ); frames(400);
+    ok &= str_eq(cur_page()->title, "AMBIENT") && !ui.lock && !ui.layer;
     press(B_SEQ);
     btn_down(B_SEQ); frames(500);
     ok &= ui.layer == LAYER_SEQ && !ui.lock;
@@ -8680,11 +8979,21 @@ static int test_song_pictures(void)
 
 /* the header's slot letter (ui_draw.c head_slot): the PROJECT slot of the selected track's pattern; "A*" edited since;
  * none at power-on and after a PHRASES pattern; a song playing: its section's slot ("-" silent); a message hides it */
-static uint32_t head_ink_cols(int32_t x0, int32_t x1)  /* header columns x0..x1 with anything not BG */
+static uint32_t head_hdr_cols(int32_t x0, int32_t x1)  /* header columns x0..x1 with anything not BG (a message shows the header) */
 {
     uint32_t n = 0;
     for (int32_t x = x0; x <= x1; x++)
         for (int32_t y = 2; y < 22; y++)
+            if (swap16(host_screen[(uint32_t)y * 240u + (uint32_t)x]) != T_BG) { n++; break; }
+    return n;
+}
+static uint32_t head_ink_cols(int32_t x0, int32_t x1)  /* FANTASMA: the slot letter is in the footer, after the track's number:
+                                                        * footer columns x0..x1 (rows 220..232) with anything not BG */
+{
+    uint32_t n = 0;
+    (void)x0; (void)x1;
+    for (int32_t x = 26; x <= 28; x++)
+        for (int32_t y = 220; y < 233; y++)
             if (swap16(host_screen[(uint32_t)y * 240u + (uint32_t)x]) != T_BG) { n++; break; }
     return n;
 }
@@ -8701,7 +9010,7 @@ static int test_head_slot(void)
     frames(50);
     ok = head_is(0) && !head_ink_cols(23, 32);
     project_save(1); ui.msg_t = 0; frames(50);
-    ok &= head_is("B") && head_ink_cols(23, 32) > 4;
+    ok &= head_is("B") && head_ink_cols(23, 32) > 0;
     bad += check("header: no letter at power-on; \"1 B\" after PROJECT SAVE to B", ok);
     trk[0].step[0].note[0] = 70; trk[0].step[0].n = 1; frames(50);
     ok = head_is("B*");
@@ -8732,7 +9041,7 @@ static int test_head_slot(void)
     song.sel = 1; ok &= head_is("-");
     song.sel = 0;
     ui_message("SAVED"); frames(20);
-    ok &= !head_ink_cols(23, 32);
+    ok &= !head_hdr_cols(23, 32);
     seq_stop(); ui.msg_t = 0; frames(50);
     bad += check("header: a song playing: its section's slot (\"1 B\", T2 \"-\"); a message hides it; STOP: \"A\"", ok &&
                  head_is("A"));
@@ -9253,7 +9562,7 @@ static int test_home_tracks(void)
 
     /* HOME's knobs: the selected track's; ALGORITHM moves the selection; HOME tapped: MIXER, CLOCK, HOME */
     song.sel = 2; ui.force = 1; frame();
-    id = ENGINES[trk[2].eng_req % NENGINES]->knob[0];
+    id = home_id(&trk[2], 0);
     v0 = trk[2].p[id];
     {
         int16_t o0 = trk[0].p[id], o1 = trk[1].p[id];
@@ -9264,7 +9573,7 @@ static int test_home_tracks(void)
     turn(EN_ALGO, 1);
     frame();
     ok &= song.sel == 3u && tr_px(3 + 22, tr_y(3) + 1) == T_THEME && tr_px(3 + 22, tr_y(2) + 1) == T_SURF;
-    id = ENGINES[trk[3].eng_req % NENGINES]->knob[1];
+    id = home_id(&trk[3], 1);
     v0 = trk[3].p[id];
     turn(EN_K2, -2);
     if (trk[3].p[id] == v0) turn(EN_K2, 4);
@@ -9420,8 +9729,8 @@ static int test_edit_quick_actions(void)
 
     /* the white keys as before (an engine pick from DRUM: the sound load clears the mutes) */
     btn_down(B_EDIT); frames(500);
-    key_down(white(0)); frame(); key_up(white(0)); frame();
-    ok = TSEL->eng_req == eng_vis(0) && !drum_mute[3] && eqa_count(TSEL) == 0u;
+    key_down(white(eng_rank(ENGI_AMBI))); frame(); key_up(white(eng_rank(ENGI_AMBI))); frame();   /* (T4 takes noise engines only) */
+    ok = TSEL->eng_req == ENGI_AMBI && !drum_mute[3] && eqa_count(TSEL) == 0u;
     a = leds_at(0); b2 = leds_at(250);
     for (i = 0; i < 11u; i++)                         /* (ANALOG: no actions, the black keys dark and inert) */
         ok &= !(((a | b2) >> black(i)) & 1u);
@@ -9638,6 +9947,10 @@ int main(void)
     bad += test_screen_off();
     bad += test_idle_leds();
     bad += test_momentary();
+    bad += test_roles();
+    bad += test_part_sounds();
+    bad += test_ambient();
+    bad += test_up_fantasma();
     bad += test_fm6_charts();
     bad += test_fm6_ops();
     bad += test_home_tracks();

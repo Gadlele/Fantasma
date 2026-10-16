@@ -115,6 +115,8 @@ static uint8_t sync_reload;                  /* engine / preset / project / user
  * the panel 76..198 (a SURF area; the graphs live in it), footer 202..240; BG between them */
 #define Y_HEAD 0
 #define H_HEAD 24
+#define Y_TABS 0                      /* FANTASMA: the page tabs, where the header was (the header's content: the footer) */
+#define H_TABS 24
 #define Y_LABEL 28                    /* the cards */
 #define Y_SEP_END 72
 #define CARD_W 57
@@ -180,7 +182,7 @@ static struct {
     uint32_t enc_t[NE];
     /* drawn-state cache */
     char col[4][32];
-    uint32_t graph_sig, head_sig, foot_sig, frame;
+    uint32_t graph_sig, head_sig, foot_sig, tab_sig, frame;
     /* rolling digits (ui_draw.c roll_*): the four card values and the header BPM */
     struct {
         char from[7];            /* the value rolling out; "" = idle */
@@ -390,6 +392,8 @@ static int page_visible(uint32_t i)
 {
     if (PAGES[i].scope == SC_TRACK && PAGES[i].id[0] >= P_LN0 && PAGES[i].id[0] <= P_LN7)
         return TSEL->eng_req % NENGINES == ENGI_DRUM;
+    if (PAGES[i].fam == FAM_EDIT && PAGES[i].id[0] == P_PDEN)   /* GEN (Fantasma): the Pad's chord generator */
+        return trk_index(TSEL) == 0u && !chord_kit(TSEL) && eng_idx(TSEL->eng_req) != ENGI_DRUM;
     if (PAGES[i].id[0] == P_FTYPE)                    /* FILTER (1.5, #104): ANALOG's */
         return ENGINES[TSEL->eng_req % NENGINES] == &ENG_ANALOG;
     if (PAGES[i].graph >= GR_FMOP && PAGES[i].graph <= GR_FMENV)
@@ -470,10 +474,26 @@ static int lock_page_ok(uint32_t i)
             return 1;
     return 0;
 }
+/* Fantasma: the parameter on HOME's KNOB k of track t, by the part it plays (ROLE_NAME). PAD (track 1, a pitched engine):
+ * the engine's first knob, then ATK and REL (the swell in, the tail out) and the reverb send (the space). ECHOES (track 3
+ * on BELL): DENS and EVOLVE of its generator, then the SCALE its bells are drawn from (on the ROOT; the delay is on its
+ * FX page) and the reverb send. LEAD and NOISE (and any other sound
+ * on a part): the engine's own four. */
+static uint32_t home_id(const track_t *t, uint32_t k)
+{
+    const engine_t *e = ENGINES[t->eng_req % NENGINES];
+    uint32_t ti = (uint32_t)(t - trk);
+    k &= 3u;
+    if (ti == 0u && !chord_kit(t))
+        return k == 0u ? e->knob[0] : k == 1u ? (uint32_t)P_ATK : k == 2u ? (uint32_t)P_REL : (uint32_t)P_REV;
+    if (ti == 2u && FELUCCA_BELL && t->eng_req == ENGI_BELL)
+        return k == 0u ? (uint32_t)P_E4 : k == 1u ? (uint32_t)P_E5 : k == 2u ? (uint32_t)P_SCALE : (uint32_t)P_REV;
+    return e->knob[k];
+}
 static uint32_t lock_id(uint32_t k)
 {
     uint32_t id = ui.plk_src && lock_page_ok(ui.plk_src - 1u) ? PAGES[ui.plk_src - 1u].id[k & 3u]
-                                                               : ENGINES[TSEL->eng_req % NENGINES]->knob[k & 3u];
+                                                               : home_id(TSEL, k);
     return id < P_COUNT && motion_param(id) ? id : 0xFFu;
 }
 
@@ -1204,6 +1224,7 @@ static void apply_preset_to(track_t *t, uint32_t pi)
 {
     const engine_t *e = ENGINES[t->eng_req % NENGINES];
     uint32_t i;
+    int inf;
 #if !FELUCCA_FM4
     if (t->eng_req % NENGINES == ENGI_DIGITAL) {
         fm4_load_preset(t, pi);
@@ -1215,7 +1236,9 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         return;                                       /* (core.h drum_from_perc) */
     }
     load_begin(t, UNDO_SOUND);
-    panic_req |= (uint8_t)(1u << trk_index(t));       /* MONO/POLY may change: release what sounds */
+    inf = noise_inf(t);                               /* (Fantasma: the Noise at INF is always on: a new sound plays on, REL stays) */
+    if (!inf)
+        panic_req |= (uint8_t)(1u << trk_index(t));   /* MONO/POLY may change: release what sounds */
     t->user = 0;
     if (t == TSEL)
         sync_reload = 1;
@@ -1233,7 +1256,7 @@ static void apply_preset_to(track_t *t, uint32_t pi)
     t->p[P_ATK] = e->presets[pi].env[0];
     t->p[P_DEC] = e->presets[pi].env[1];
     t->p[P_SUS] = e->presets[pi].env[2];
-    t->p[P_REL] = e->presets[pi].env[3];
+    t->p[P_REL] = inf ? 127 : e->presets[pi].env[3];
     t->p[P_ED_FLT] = e->presets[pi].fenv;
     t->p[P_VOICE] = e->presets[pi].mono ? V_LEGATO : V_POLY;   /* mono presets keep the legato feel */
     {   /* the sends */
@@ -1241,6 +1264,10 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         const preset_t *pr = &e->presets[pi];
         for (i = 0; i < 4u; i++)
             t->p[P_DIST + i] = (int16_t)(pr->fx[i] ? pr->fx[i] - 1 : FX_DEF[i]);
+    }
+    if (FELUCCA_BELL && t->eng_req % NENGINES == ENGI_BELL) {   /* Echoes' sounds: reverb 100 %, delay 50 % */
+        t->p[P_REV] = 127;
+        t->p[P_DLY] = 64;
     }
     fm6_track_loaded(t);                              /* FM6: the preset's patch (its SLOT) */
     load_end(t);
@@ -1288,8 +1315,11 @@ static void midi_pc_load(track_t *t, uint32_t n)
             t->p[P_E0] = (int16_t)k;
         return;
     }
-    if (n >= preset_shown(e)) {
-        int32_t s = (int32_t)(FM6_OWN + 1u + n - preset_shown(e));
+    uint32_t np = preset_shown(e);
+    if (e == ENGI_FM6 && np > FM6_NFACTORY)           /* (Fantasma: SLOW STRINGS FM is past F8: the numbers of the bank stay what they were) */
+        np = FM6_NFACTORY;
+    if (n >= np) {
+        int32_t s = (int32_t)(FM6_OWN + 1u + n - np);
         if (e == ENGI_FM6 && fm6_bank_slot(s) >= 0 && fm6_slot_ok(s))
             t->p[P_E7] = (int16_t)s;
         return;
@@ -1326,6 +1356,102 @@ static void select_engine(uint32_t e)
 {
     set_engine(e);
     ui_say("ENGINE ", ENGINES[TSEL->eng_req]->name);
+    ui.force = 1;
+}
+
+/* Fantasma: SEQ > AMBIENT, OCT+: the ambient machine. The Pad (part 1) and Echoes (part 3) are drawn anew: one ROOT and one
+ * soft SCALE for both, each an engine of its own kinds (eng_allowed; no kit) and a sound of it, the Pad's progression (DENS,
+ * BARS, EVOLVE, SEED) and Echoes' bells (DENS, EVOLVE, RANGE, SEED) switched on, slow attacks and long releases on the Pad,
+ * some reverb and delay. The Noise (part 4) gets an AMBI sound of the drawn kind and one note of the scale that goes on for
+ * good (REL at its top: voice.c). The generators run on their own clock (seq.c gen_free): nothing starts the transport. The
+ * Lead gets the same ROOT and SCALE (nothing else: its sound is the player's), so it can be played along; the tempo and the global
+ * reverb are the player's too: not touched */
+static void ambient_random(void)
+{
+    static const uint8_t SCL[8] = {1, 2, 3, 4, 5, 6, 8, 9};      /* N_SCALE: MAJ MIN DOR MIX PEN MPEN PHRY LYD */
+    uint32_t root = rng() % 12u, scale = SCL[rng() % 8u], n;
+    if (chain_busy()) { ui_message("STOP TO EDIT"); return; }
+    for (n = 0; n < 3u; n++) {
+        uint32_t ti = n == 0u ? 0u : n == 1u ? 2u : 3u, list[NENGINES], nl = 0, e, k, j, n2;
+        track_t *t = &trk[ti];
+        for (e = 0; e < NENGINES; e++)
+            if (eng_ok(e) && eng_allowed(ti, e) && !ENGINES[e]->oneshot && !ENGINES[e]->keys && ENGINES[e]->npresets)
+                list[nl++] = e;
+        if (!nl)
+            continue;
+        e = list[rng() % nl];
+        set_engine_of(t, e);
+        for (n2 = 0; n2 < 64u; n2++) {                          /* (the Pad only plays its own list) */
+            k = rng() % preset_shown(e);
+            for (j = 0; preset_orig(ENGINES[e], j) != j || k--; j++)
+                ;
+            if (ti != 0u || pad_preset_ok(e, j))
+                break;
+        }
+        if (ti == 0u && !pad_preset_ok(e, j))
+            for (j = 0; j + 1u < ENGINES[e]->npresets && !pad_preset_ok(e, j); j++)
+                ;
+        apply_preset_to(t, j);
+        t->p[P_ROOT] = (int16_t)root;
+        t->p[P_SCALE] = (int16_t)scale;
+        t->p[P_MUTE] = 0;
+        if (ti != 3u && t->p[P_REV] < 50)
+            t->p[P_REV] = (int16_t)(50u + rng() % 30u);
+        if (ti == 0u) {                                        /* the Pad: chords, poly, swelling, long */
+            t->p[P_VOICE] = V_POLY;
+            t->p[P_PDEN] = (int16_t)(45u + rng() % 46u);
+            t->p[P_PLEN] = (int16_t)(2u + rng() % 3u);
+            t->p[P_PEV] = (int16_t)(3u + rng() % 6u);
+            t->p[P_PSEED] = (int16_t)(rng() % 128u);
+            if (t->p[P_ATK] < 70)
+                t->p[P_ATK] = (int16_t)(70u + rng() % 30u);
+            if (t->p[P_REL] < 85)
+                t->p[P_REL] = (int16_t)(85u + rng() % 25u);
+        } else if (ti == 3u) {                                 /* the Noise: one note, never let go */
+            t->p[P_REL] = 127;
+            t->p[P_ESYNC] = 0;
+            uint32_t note = (uint32_t)clamp(scale_snap(t, 36 + (int32_t)(rng() % 24u)), 0, 127);
+            fm1_irq_off();                                     /* (the voices are the audio ISR's) */
+            seq_release(t);
+            ambient_drone(t, note);
+            fm1_irq_on();
+        } else if (FELUCCA_BELL && e == ENGI_BELL) {            /* Echoes: the bells play by themselves */
+            t->p[P_E4] = (int16_t)(20u + rng() % 11u);
+            t->p[P_E5] = (int16_t)(15u + rng() % 36u);
+            t->p[P_E6] = (int16_t)(1u + rng() % 2u);
+            t->p[P_E7] = (int16_t)(rng() % 128u);
+            if (t->p[P_DLY] < 30)
+                t->p[P_DLY] = (int16_t)(30u + rng() % 30u);
+        }
+        fm1_irq_off();
+        garden[ti] = 0;                                         /* Echoes' garden starts again from the scale */
+        gen_restart(ti);
+        fm1_irq_on();
+    }
+    song.g[G_RTYPE] = 3;                                        /* the reverb: AMBI, SIZE 100, DAMP 0 */
+    song.g[G_RSIZE] = 127;
+    song.g[G_RDAMP] = 0;
+    trk[1].p[P_ROOT] = (int16_t)root;                           /* the Lead: only ROOT and SCALE, to play along on the same scale */
+    trk[1].p[P_SCALE] = (int16_t)scale;
+    ui_message("AMBIENT MACHINE");
+    ui.force = 1;
+}
+
+/* SEQ > AMBIENT, OCT-: the panic button. The Pad's and Echoes' DENS to 0 (no new notes; what rings fades), the Noise's REL
+ * to its middle (64, as at power-on), its voices let go: everything off. The transport, the Lead and the rest are not touched */
+static void ambient_stop(void)
+{
+    track_t *t = &trk[3];
+    trk[0].p[P_PDEN] = 0;
+    if (FELUCCA_BELL && eng_idx(trk[2].eng_req) == ENGI_BELL)
+        trk[2].p[P_E4] = 0;
+    if (FELUCCA_AMBI && eng_idx(t->eng_req) == ENGI_AMBI)
+        t->p[P_REL] = 64;
+    fm1_irq_off();
+    seq_release(t);
+    fm1_irq_on();
+    panic_req |= (uint8_t)(1u << 3);                    /* the Noise: every voice let go now, and noise_keep no longer strikes it */
+    ui_message("AMBIENT STOP");
     ui.force = 1;
 }
 
@@ -1381,6 +1507,10 @@ static uint32_t sound_cat(uint32_t e, uint32_t k) { return e == NENGINES ? up_ca
 static int list_keep(uint32_t e, uint32_t k)
 {
     uint32_t m = list_mode();
+    if (!eng_allowed(song.sel, e == NENGINES ? up_engine(k) : e))     /* (Fantasma: Echoes BELL, Noise noise) */
+        return 0;
+    if (song.sel == 0u && e != NENGINES && !pad_preset_ok(e, k))     /* (Fantasma: the Pad's own list) */
+        return 0;
     return m == 1u ? favorite_has(e, k) : m ? sound_cat(e, k) == m - 1u : 1;
 }
 /* the category of the sound track t plays: its user preset's, else its factory preset's (the NAME screen's default) */
@@ -1393,7 +1523,7 @@ static uint32_t track_cat(const track_t *t)
 static uint32_t preset_pos(uint32_t *total)
 {
     uint32_t all, current = preset_all_pos(&all), n = 0, pos = 0xFFFFFFFFu;
-    if (!list_mode()) { *total = all; return current; }
+    if (!list_mode() && !eng_limited(song.sel)) { *total = all; return current; }
     for (uint32_t i = 0; i < all; i++) {
         uint32_t k, e = preset_all_at(i, &k);
         if (!list_keep(e, k)) continue;
@@ -1406,7 +1536,7 @@ static uint32_t preset_pos(uint32_t *total)
 static uint32_t preset_at(uint32_t n, uint32_t *k)
 {
     uint32_t all;
-    if (!list_mode()) return preset_all_at(n, k);
+    if (!list_mode() && !eng_limited(song.sel)) return preset_all_at(n, k);
     preset_all_pos(&all);
     for (uint32_t i = 0; i < all; i++) {
         uint32_t e = preset_all_at(i, k);
@@ -1553,7 +1683,7 @@ static uint32_t preset_visible(uint32_t cur, uint32_t total, uint32_t row)
 static track_t *home_trk(uint32_t k) { return home_levels() ? &trk[k & 3u] : TSEL; }
 static const param_desc_t *home_param(uint32_t k, int16_t **vp)
 {
-    uint32_t id = home_levels() ? (uint32_t)P_LEVEL : ENGINES[TSEL->eng_req % NENGINES]->knob[k & 3u];
+    uint32_t id = home_levels() ? (uint32_t)P_LEVEL : home_id(TSEL, k);
     *vp = &home_trk(k)->p[id];
     return track_desc(home_trk(k), id);
 }
@@ -1595,6 +1725,8 @@ static uint32_t act_cols(void)                   /* the columns that are actions
         return 1u;                               /* PLAY / STOP (also the PLAY button) */
     if (pg->graph == GR_PATS)
         return 2u;                               /* LOAD */
+    if (pg->graph == GR_AMBI)
+        return 1u;                               /* RANDOM */
     if (pg->graph == GR_USER)
         return 14u;                              /* LOAD ERASE SAVE */
     if (pg->graph == GR_SLICES)
@@ -1611,6 +1743,7 @@ static uint32_t act_col(void)
 {
     if (!ui.home && cur_page()->graph == GR_SONG) return 1u;
     if (!ui.home && cur_page()->graph == GR_EVENTS) return 5u;
+    if (!ui.home && cur_page()->graph == GR_AMBI) return 1u;
     return !ui.home && cur_page()->graph == GR_PATS ? 2u : ui.act;
 }
 
@@ -1627,6 +1760,8 @@ static const char *act_name(uint32_t c)          /* column c's action (the foote
         return song.playing || chain_busy() ? "STOP" : "PLAY";
     if (cur_page()->graph == GR_PATS)
         return "LOAD";
+    if (cur_page()->graph == GR_AMBI)
+        return "RANDOM";
     if (cur_page()->graph == GR_USER)
         return UP_GO[(c + 2u) % 3u];
     if (cur_page()->graph == GR_SLICES)
@@ -1649,6 +1784,8 @@ static int act_ready(void)
         return song.playing || chain_busy() || chain_config.count;
     if (cur_page()->graph == GR_PATS)
         return pat_last[s] != pat_pick() + 1u || steps_sig(TSEL) != pat_sig[s];
+    if (cur_page()->graph == GR_AMBI)
+        return !chain_busy();
     if (cur_page()->graph == GR_USER)
         return c == 3u ? !song.playing : up_used(ui.uslot) && (c == 1u || !song.playing);
 #if FELUCCA_SLICE

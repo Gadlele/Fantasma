@@ -247,7 +247,7 @@ static void cdc_task(void) {}
 #undef usb_detach
 
 /* --------------------------------------------------------- the device --- */
-static uint32_t web_booted, web_boot_ms, web_last_frame;
+static uint32_t web_booted, web_boot_ms, web_last_frame, web_splash_t0, web_splash_shown;
 
 /* main.c fm1_main's boot, up to the main loop (no USB, no UART, no panel setup) */
 static void web_power_on(void)
@@ -256,7 +256,11 @@ static void web_power_on(void)
     settings_init();
     usb_serial_apply();
     lcd_init();
-    draw_splash();                        /* main.c: the splash (ui_draw.c) */
+    splash_anim = !(ui_prefs & PREF_ANIM_OFF);   /* main.c: FANTASMA's animated splash (ui_draw.c splash_draw) */
+    if (splash_anim)
+        splash_draw(0);
+    else
+        draw_splash();                    /* main.c: the splash (ui_draw.c) */
     memset(&felucca_dbg, 0, sizeof felucca_dbg);
     felucca_dbg.magic = DBG_MAGIC;
     fm1_input_init();
@@ -268,7 +272,8 @@ static void web_power_on(void)
     audio_init();
     boot_leds();                          /* main.c: the power-on LED sweep, from the scan's start */
     autosave_boot(boot_clean);            /* main.c: the last session's music (1.2, project.c) */
-    web_boot_ms = fm1_ms + 430u;         /* main.c: 30 + 400 ms before the first frame */
+    web_splash_t0 = fm1_ms;
+    web_boot_ms = fm1_ms + (splash_anim ? (uint32_t)SPL_MS + 30u : 430u);   /* main.c: 30 + 400 ms (the animation: SPL_MS) before the first frame */
     web_booted = 1;
 }
 
@@ -309,6 +314,16 @@ static void web_ms(void)
             ring[i + 1] = (float)o[2u * k + 1u] / 8388608.0f;
         }
         web_half ^= 1u;
+    }
+    if (web_booted && web_boot_ms && splash_anim && (int32_t)(fm1_ms - web_boot_ms) < 0) {   /* the splash plays */
+        uint32_t el = fm1_ms - web_splash_t0;
+        if (el < (uint32_t)SPL_MS && fm1_ms - web_splash_shown >= 30u) {
+            web_splash_shown = fm1_ms;
+            splash_draw((int32_t)el);
+        } else if (el >= (uint32_t)SPL_MS && web_splash_shown != 1u) {
+            web_splash_shown = 1u;
+            draw_splash();                                /* the picture it ends on */
+        }
     }
     if (!web_booted || (int32_t)(fm1_ms - web_boot_ms) < 0)
         return;

@@ -477,6 +477,7 @@ static int formats(void)
     static project_store_t st;
     static uint8_t v9[3648], v8[3584], v7[3388];
     track_t *t = seq1(1);
+    felucca_parts();                                /* (FUN9 .. FUN7 below are Felucca's: part 3 not on BELL) */
     t->p[P_LSYNC] = 8; t->p[P_LTRIG] = 1; t->p[P_LPOL] = 1; t->p[P_SQNT] = 0;
     trk[2].p[P_E0 + 3] = 5;
     note_step(t, 0, 60, -8);

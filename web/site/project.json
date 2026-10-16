@@ -1,0 +1,53 @@
+{
+  "name": "Fantasma",
+  "version": "1.0",
+  "tagline": "A ghostly, ambient synth firmware for the M-VAVE FM-1: drones, bells, rain and Omnichord chords in a neon skin.",
+  "lead": "Felucca's thirteen engines and sequencer, plus an <b>ambient machine</b>: a Pad that writes its own chords, bells that grow like a garden, an endless noise of sea, rain or vinyl. In a neon skin, with a ghost.",
+  "repo": "https://github.com/Gadlele/Fantasma",
+  "rescue": "FANTASMA USB RESCUE",
+  "fonts": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap",
+  "theme": "--bg: #000408; --panel: #0a0f1a; --rule: #1d2636; --text: #efffff; --mid: #9fb0b8; --accent: #3af3ff; --on-accent: #001418; --glow: rgba(58, 243, 255, .22); --warn: #ff3dd6; --warn-bg: rgba(255, 61, 214, .07); --err: #ff7096; --good: #5ff2b0; --body: Inter, system-ui, sans-serif; --display: 'Space Grotesk', Inter, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace; --stripes-h: 3px;",
+  "h1_track": ".01em",
+  "h1_extra": "text-transform: uppercase; text-shadow: 4px 4px 0 #ff3dd6, 0 0 32px rgba(58, 243, 255, .45);",
+  "stripes": "linear-gradient(90deg, #ff3dd6, #3af3ff 55%, #000408)",
+  "dot_radius": "50%",
+  "device_title": "Four parts, one ghost",
+  "device_sub": "The FM-1's four tracks become four roles: <b>PAD</b>, <b>LEAD</b>, <b>ECHOES</b> and <b>NOISE</b>, each with its own colour and sounds made for it. Press OCT+ on the AMBIENT page and the machine draws a whole scene at random.",
+  "features_sub": "Everything Felucca 1.5.1 does, and an instrument for slow, warm, drifting music on top.",
+  "features": [
+    {"t": "The ambient machine", "p": "SEQ › AMBIENT: OCT+ picks the sounds, a scale and a key, switches the Pad's progression and the bells on, and sets long envelopes and reverb. The generators keep playing with the transport stopped.", "c": "#3af3ff"},
+    {"t": "AMBI, the noise engine", "p": "Sea, surf, storm, wind, stream, fire, vinyl, rain, cave drip, crickets: filtered noise with swells and crackles. REL at its top means <b>INF</b>: a drone that never stops.", "c": "#ff3dd6"},
+    {"t": "BELL and the garden", "p": "Soft two-operator FM bells. Turn DENS up and they play themselves: four loops of 13, 17, 23 and 29 steps drifting apart. The keys choose which notes grow in the garden.", "c": "#ffd166"},
+    {"t": "A Pad that writes chords", "p": "SCL › CHORD gets DENS, BARS, CHORDS and SEED: the Pad plays a progression of its own in the key, slowly changing, never the same twice.", "c": "#7cf29c"},
+    {"t": "OMNI, an Omnichord", "p": "The black keys become chord buttons (F C G Dm Am Em G7 E7 D7 B♭ A7 in C), the white keys strum the chord. ENV makes it minor, LFO adds the seventh; OMNI H holds the chord.", "c": "#b892ff"},
+    {"t": "Tails up to 90 seconds", "p": "The AMBI reverb: HALL's smooth stereo with tails from 7 s to about 90 s. A fresh start uses it, and every Echoes sound loads with reverb and delay.", "c": "#3af3ff"},
+    {"t": "Warm sounds per part", "p": "Browsing follows the part: slow pads (WARM PAD, TAPE STR, DUSK PAD…), fifteen bells (THUMB, AMBER, SILK, HALO, DEW…) and the AMBI beds.", "c": "#ff9f5a"},
+    {"t": "The neon look", "p": "ECTO: near-black with a blue cast, ice-white text, cyan values, magenta for the active thing. An animated ghost at power-on, and one on the AMBIENT page.", "c": "#ff3dd6"},
+    {"t": "All of Felucca underneath", "p": "Thirteen engines with FM6, a 64-step sequencer with parameter locks, chance and ratchets, songs, arpeggiator, a modulation matrix, INSERT effects and MIDI LEARN.", "c": "#9fb0b8"}
+  ],
+  "gallery_sub": "Real screens of Fantasma 1.0, taken from the emulator.",
+  "gallery": [
+    {"img": "seqpage4.png", "t": "AMBIENT", "p": "the ambient machine, with its ghost"},
+    {"img": "home_ambient.png", "t": "HOME", "p": "the dust moves with the sound"},
+    {"img": "mixer.png", "t": "MIXER", "p": "four parts: Pad, Lead, Echoes, Noise"},
+    {"img": "scl.png", "t": "SCL", "p": "scales and chords on the keys"},
+    {"img": "edit.png", "t": "EDIT", "p": "FM6's algorithms, drawn"},
+    {"img": "lfo.png", "t": "LFO", "p": "the wave as it runs"},
+    {"img": "env.png", "t": "ENV", "p": "the envelope's shape"},
+    {"img": "seq.png", "t": "SEQ", "p": "a piano roll of the steps"},
+    {"img": "fx.png", "t": "FX", "p": "distortion, chorus, delay, reverb"},
+    {"img": "glo.png", "t": "GLO", "p": "songs: sections and repeats"},
+    {"img": "save.png", "t": "SAVE", "p": "user presets, projects, phrases"},
+    {"img": "ambient_on.png", "t": "RANDOMIZE", "p": "a new scene in E major"}
+  ],
+  "credits": "; the ambient machine after Charles Vestal's <a href=\"https://github.com/charlesvestal/fm1-amb\">AMB-1</a> and <a href=\"https://github.com/charlesvestal/fm1-fomni\">FoMni</a>; the USB rescue after zvenson's <a href=\"https://github.com/zvenson/dinghy\">dinghy</a>",
+  "emu_replace": [
+    ["<title>Felucca</title>", "<title>Fantasma · in your browser</title>"],
+    ["<meta name=\"description\" content=\"Felucca, the multi-engine synth firmware for the FM-1, running in your browser: the same code the instrument runs.\">", "<meta name=\"description\" content=\"Fantasma, the ambient synth firmware for the FM-1, running in your browser: the same code the instrument runs.\">"],
+    ["@VERSION@@PREVIEW@", "Fantasma 1.0"],
+    ["  Felucca by Leo Kuroshita, Hügelton Instruments · ", "  <strong>Fantasma</strong> by Gadlele, based on Felucca by Leo Kuroshita, Hügelton Instruments · "],
+    ["<nav><a href=\"../installer/\">Install</a><a href=\"../editor/\">Editor</a><a href=\"https://github.com/hugelton/Felucca\">Source</a></nav>", "<nav><a href=\"../\">Home</a><a href=\"../install/\">Install</a><a href=\"https://github.com/Gadlele/Fantasma\">Source</a></nav>"],
+    ["Felucca is not affiliated with or endorsed by them.", "Fantasma is not affiliated with or endorsed by them."],
+    ["const STORE = \"felucca-emu-flash\";", "const STORE = \"fantasma-emu-flash\";"]
+  ]
+}

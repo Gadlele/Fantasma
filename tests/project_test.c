@@ -131,7 +131,7 @@ static void fill_v3_track(proj_trk_v3_t *d, uint32_t t)
     uint32_t k;
     for (k = 0; k < PROJ_NP_V3; k++)
         d->p[k] = oldv3(t, k);
-    d->engine = (uint8_t)(t * 3u);
+    d->engine = (uint8_t)(t == 1u ? 2u : t * 3u);   /* (Fantasma: not 3, LOFI there, AMBI here: proj_from_felucca, below) */
     d->preset = (uint8_t)(t + 1u);
     for (k = 0; k < NSTEP; k++) {
         step8_t *s = &d->step[k];
@@ -175,8 +175,8 @@ int main(void)
     bad += check("layout: SLICER after DETUNE, then the matrix just before P_E0",
                  P_SLCR == P_DETUNE + 1 && P_SLDEPTH + 1 == P_M1SRC && P_M4AMT + 1 == P_FM1_ATK && P_FM4_LEVEL + 1 == P_CHRD && P_VOIC + 1 == P_LN0 &&
                  P_LN7 + 1 == P_LSYNC && P_LSYNC + 3 == P_SQNT && P_SQNT + 1 == P_SPRD && P_SPRD + 1 == P_ITYPE &&
-                 P_ITYPE + 4 == P_IMIX && P_IMIX + 1 == P_FTYPE && P_FTYPE + 1 == P_ESYNC && P_ESYNC + 1 == P_E0 && P_E0 == 103 &&
-                 P_COUNT == PROJ_NP_V3 + 54u && PROJ_NP_V3 == PROJ_NP_V2 + 4u);
+                 P_ITYPE + 4 == P_IMIX && P_IMIX + 1 == P_FTYPE && P_FTYPE + 1 == P_ESYNC && P_ESYNC + 1 == P_PDEN && P_PDEN + 1 == P_PLEN && P_PLEN + 1 == P_PEV && P_PEV + 1 == P_PSEED && P_PSEED + 1 == P_E0 && P_E0 == 107 &&
+                 P_COUNT == PROJ_NP_V3 + 58u && PROJ_NP_V3 == PROJ_NP_V2 + 4u);
     bad += check("FUN10 fits one flash object, the retained cache in NOINIT", sizeof(project_store_t) <= 4096u - 256u &&
                  sizeof(project_store_t) == 3840u && 0xC8u + 4u * sizeof(project_store_t) <= 0x3D50u);
 
@@ -208,7 +208,7 @@ int main(void)
                  str_eq(ENGINES[7]->name, "WHEEL") && str_eq(ENGINES[6]->name, "TRIO") && NENGINES > 8);
     bad += check("FUN2 -> FUN6: the drum track -> part 4, DRUM (its kit on load), steps kept (lanes as hits)",
                  q.parts == NPART && q.t[3].engine == ENGI_DRUM && str_eq(ENGINES[ENGI_DRUM]->name, "DRUM") &&
-                 TRK_DEF[3][0] == ENGI_DRUM && q.t[3].preset == PROJ_DEF_KEEP &&
+                 q.t[3].preset == PROJ_DEF_KEEP &&
                  steps_grid_same(q.t[3].step, v2.t[3].step));
 
     /* format 3 (1.0, four parts), as written before the modulation matrix */
@@ -261,7 +261,7 @@ int main(void)
     bad += check("FUN6 -> FUN6: as stored (a matrix slot, engine 8, a DRUM step with notes and hits)",
                  proj_import(&q2, &buf, (int)sizeof q) && !memcmp(&q, &q2, sizeof q) && q2.t[1].engine == 8 &&
                  q2.t[2].p[P_M2AMT] == -17 && q2.t[0].step[0].n == 2u && q2.t[0].step[0].hit == 1u << DV_SNARE);
-    q.t[0].engine = 3;
+    q.t[0].engine = 2;                          /* (Fantasma: not 3, LOFI in Felucca's formats: proj_from_felucca) */
     q.t[0].step[0] = q.t[0].step[1];
     q.sum = proj_sum(&q);
 
@@ -418,9 +418,9 @@ int main(void)
         project_t a, c;
         project_store_t st, st2;
         uint32_t i, zero = 1;
-        bad += check("FUN10 name at the end of the reserved tail, the FM6 patches before it, after the data (16 spare)",
+        bad += check("FUN10 name at the end of the reserved tail, the FM6 patches before it, after the data (no spare: Fantasma's DENS, BARS, EVOLVE and SEED took the 16)",
                      PROJ_NAME_OFF == 3824u && PROJ_FM6_OFF == 3312u && 68u + NTRK * (P_COUNT + 2u + NSTEP * 9u) +
-                     sizeof(chain_config_t) + sizeof(motion_store_t) + 16u == PROJ_FM6_OFF);
+                     sizeof(chain_config_t) + sizeof(motion_store_t) == PROJ_FM6_OFF);
         memset(&a, 0, sizeof a);
         a.magic = PROJ_MAGIC; a.size = sizeof a; a.parts = NPART; a.phys = PROJ_PHYS;
         chain_defaults(&a.chain);
@@ -631,8 +631,8 @@ int main(void)
         w1.sum = proj_hash(&w1, sizeof w1 - 4u);
         memcpy(&buf, &w1, sizeof w1);
         ok = proj_import(&c, &buf, (int)sizeof w1) && c.t[0].engine == ENGI_FM6 && c.t[0].preset == 1u &&
-             c.t[1].engine == ENGI_FM6 && c.t[1].preset == PROJ_DEF_SOUND;   /* (track 2: the power-on FM6 PAD) */
-        bad += check("FUN1 with DIGITAL: track 1 FM6 (BELL), track 2 the power-on sound (FM6 now)", ok);
+             c.t[1].engine == trk_def_engine(1) && c.t[1].preset == PROJ_DEF_SOUND;   /* (track 2: the power-on sound) */
+        bad += check("FUN1 with DIGITAL: track 1 FM6 (BELL), track 2 the power-on sound", ok);
 #undef FM4_OK
     }
 #endif
@@ -684,6 +684,47 @@ int main(void)
         ok = proj_import(&c, &buf, (int)sizeof w4) && PERC_OK(c);
         bad += check("FUN4 with a SAMPLE PERC track: DRUM's kit, the same", ok);
 #undef PERC_OK
+    }
+    {   /* Fantasma 1.0: engine 3 is AMBI where Felucca has LOFI, 13 BELL where it has SLICE (project.c proj_from_felucca):
+         * a project Fantasma writes carries its mark in byte 65 and loads as it is; one without it (Felucca's, Fantasma's
+         * before 1.0) gives those tracks the engine's defaults and drops their motion on the EDIT values */
+        project_t a, c;
+        project_store_t st;
+        uint32_t i, keep = 1, def = 1, sum;
+        int ok;
+        memset(&a, 0, sizeof a);
+        a.magic = PROJ_MAGIC; a.size = sizeof a; a.parts = NPART; a.phys = PROJ_PHYS;
+        chain_defaults(&a.chain);
+        a.t[1].engine = 0;                          /* ANALOG: untouched either way */
+        a.t[2].engine = ENGI_BELL;
+        a.t[3].engine = ENGI_AMBI;
+        for (i = 0; i < 8u; i++) {
+            a.t[1].p[P_E0 + i] = (int16_t)(20 + i);
+            a.t[2].p[P_E0 + i] = 2;                 /* (SLICE's MODE 2 at E4: BELL's DENS) */
+            a.t[3].p[P_E0 + i] = (int16_t)(10 + i);
+        }
+        a.t[3].p[P_LEVEL] = 77;
+        a.motion.count = 2;
+        a.motion.event[0] = (motion_event_t){1u << 6 | 1u, P_E1, 50};   /* track 2 (ANALOG): stays */
+        a.motion.event[1] = (motion_event_t){3u << 6 | 1u, P_E1, 50};   /* track 4 (AMBI / LOFI) */
+        a.sum = proj_sum(&a);
+        ok = proj_pack(&st, &a);
+        bad += check("Fantasma 1.0: a project it writes carries its mark (byte 65)", ok && st.raw[65] == 0x50u);
+        ok = ok && proj_import(&c, &st, sizeof st);
+        for (i = 0; i < 8u; i++)
+            keep &= c.t[3].p[P_E0 + i] == (int16_t)(10 + i) && c.t[2].p[P_E0 + i] == 2;
+        bad += check("  it loads as it is: AMBI and BELL keep their values and motion", ok && keep && c.motion.count == 2u);
+        st.raw[65] = 0;                             /* (as Felucca writes it) */
+        sum = proj_hash(st.raw, PROJ_STORE_SIZE - 4u);
+        memcpy(st.raw + PROJ_STORE_SIZE - 4u, &sum, 4);
+        ok = proj_import(&c, &st, sizeof st);
+        for (i = 0; i < 8u; i++)
+            def &= c.t[3].p[P_E0 + i] == param_desc_of(ENGI_AMBI, P_E0 + i)->def &&
+                   c.t[2].p[P_E0 + i] == param_desc_of(ENGI_BELL, P_E0 + i)->def && c.t[1].p[P_E0 + i] == (int16_t)(20 + i);
+        bad += check("Felucca's (no mark): LOFI / SLICE tracks take AMBI's / BELL's defaults (BELL's DENS 0), the rest kept",
+                     ok && def && c.t[2].p[P_E4] == 0 && c.t[3].p[P_LEVEL] == 77 && c.t[3].engine == ENGI_AMBI);
+        bad += check("  their motion on the EDIT values goes, the other track's stays",
+                     c.motion.count == 1u && c.motion.event[0].place >> 6 == 1u && motion_valid(&c.motion) && proj_ok(&c));
     }
     printf("%s\n", bad ? "PROJECT FORMAT TEST FAILED" : "project format test passed");
     return bad != 0;

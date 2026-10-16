@@ -1,0 +1,46 @@
+name: Firmware package (.fwsc)
+# Builds the installable package of the branch it runs on (JieLi toolchain and AC79 SDK are downloaded here).
+# Runs when a branch named fw-<something> is pushed (e.g. git push origin fantasma:fw-fantasma), or by hand once this
+# file is on the default branch. The .fwsc is in the run's Artifacts.
+# NOT TESTED ON AN FM-1: a beta. Keep M-VAVE's FM-1.fwsc at hand to go back.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['fw-*']
+permissions:
+  contents: write
+jobs:
+  fwsc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Python packages
+        run: pip install Pillow fonttools
+      - name: JieLi toolchain
+        run: sh tools/get_toolchain.sh
+      - name: JieLi AC79 SDK (three files of it)
+        run: git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+      - name: Build
+        run: ./build.sh
+      - name: Package name
+        run: |
+          mkdir -p out
+          cp build/felucca.fwsc "out/${GITHUB_REF_NAME##*/}.fwsc"
+          sha256sum out/*.fwsc | tee out/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fwsc-${{ github.ref_name }}
+          path: out/
+      - name: Publish the package on branch fwsc-<branch>
+        run: |
+          B="fwsc-$(echo "$GITHUB_REF_NAME" | sed 's#.*/##')"
+          cp -r out /tmp/pkg
+          cd /tmp/pkg
+          git init -q -b "$B"
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Package of $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "$B"

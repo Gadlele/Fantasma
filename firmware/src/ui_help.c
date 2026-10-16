@@ -38,6 +38,7 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"OPERATOR", H_FMOP},
     {"OP ENV", H_FMOP},
     {"OPERATOR 2", H_FMOP},
+    {"GEN", "[K1]DENS[K3]EVOLVE[K4]SEED"},
     {"VOICE", "[K1]POLY, MONO[K2]GLIDE"},
     {"VOICE 2", "[K2]DETUNE[K3]PAN[K4]MUTE"},
     {"VOICE 3", "[K1]STEREO SPREAD[EDIT]EDIT 1"},
@@ -52,6 +53,7 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"STEP", "[KEYS]WRITE[K1]STEP[SEQ]RATCH"},   /* (1.5.1: SEQ to DETAIL) */
     {"DETAIL", "[PRESETS]STEP[K1]CHANCE[K2]RATCH"},
     {"AUTOMATION", "[K1]ROW[OCT+]DO[EDIT]DELETE"},
+    {"AMBIENT", "[OCT+]RANDOMIZE[OCT-]STOP"},
     {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]CLOCK"},
     {"CLOCK", "[SELECT]TEMPO[GLO]HOLD: TAP"},
 };

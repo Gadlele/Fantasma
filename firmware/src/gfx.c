@@ -84,6 +84,7 @@ static struct {
     uint16_t bg, surf, text, theme, accent;
     uint16_t mid, dim, line, sel, tint, ink, rec, raise, key, lane, grid;
     uint8_t light, mono;
+    uint8_t trk;                 /* Fantasma: the selected track 0..3 (ui_draw.c track_tint_apply): THEME turns with it */
     uint8_t style;               /* MENU > STYLE (ui.c style_apply): ST_FLAT, ST_LINE */
     uint32_t gen;                /* bumped by palette_set (the text ramps follow) */
 } ux;
@@ -132,6 +133,26 @@ static uint32_t ux_luma(uint16_t c)        /* 0..255 */
     return ((c >> 11) * 255u / 31u * 54u + ((c >> 5) & 63u) * 255u / 63u * 183u + (c & 31u) * 255u / 31u * 19u) >> 8;
 }
 
+/* Fantasma: the THEME colour turns with the selected track (PAD, LEAD, ECHOES, NOISE): the palette's own for the first, the
+ * others its hue turned 150, 250 and 60 degrees (a rotation about the grey axis: lightness and saturation stay, so the
+ * contrast the palette was made with stays; GREY and MONO have no hue to turn). Q8 matrices, rows sum to 256 */
+static const int16_t UX_TURN[4][3][3] = {
+    {{256, 0, 0}, {0, 256, 0}, {0, 0, 256}},
+    {{-62, 85, 233}, {233, -62, 85}, {85, 233, -62}},
+    {{27, 253, -24}, {-24, 27, 253}, {253, -24, 27}},
+    {{171, -85, 171}, {171, 171, -85}, {-85, 171, 171}}
+};
+static uint16_t ux_turn(uint16_t c, uint32_t k)
+{
+    const int16_t(*m)[3] = UX_TURN[k & 3u];
+    int32_t v[3] = {(int32_t)(c >> 11) * 255 / 31, (int32_t)((c >> 5) & 63u) * 255 / 63, (int32_t)(c & 31u) * 255 / 31}, o[3], j;
+    for (j = 0; j < 3; j++) {
+        o[j] = (m[j][0] * v[0] + m[j][1] * v[1] + m[j][2] * v[2] + 128) >> 8;
+        o[j] = o[j] < 0 ? 0 : o[j] > 255 ? 255 : o[j];
+    }
+    return RGB(o[0], o[1], o[2]);
+}
+
 static void palette_set(uint32_t i)
 {
     const ui_pal_t *p = &UI_PALETTES[i % NPALETTES];
@@ -154,6 +175,12 @@ static void palette_set(uint32_t i)
         ux.mid = ux.sel = ux.key = ux.rec = p->text;   /* a selection, a keycap, REC: white, its INK black */
         ux.dim = ux.line = ux.raise = ux.lane = UI_BW_GREY;   /* the one grey: inactive, tracks, wells */
         ux.tint = ux.grid = p->bg;
+    }
+    if (ux.trk && !ux.mono && i != UI_BW_INDEX) {  /* Fantasma: the selected track's hue (THEME and what is blended from it) */
+        ux.theme = ux_turn(p->theme, ux.trk);
+        ux.sel = ux_mix(p->bg, ux.theme, UI_SEL_PCT);
+        ux.tint = ux_mix(p->bg, ux.theme, UI_TINT_PCT);
+        ux.lane = ux_mix(ux.surf, ux.theme, 10);
     }
     ux.gen++;                                    /* the text ramps change with the coverage curve */
 }
@@ -309,6 +336,66 @@ static void cv_rrect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint
             cv_pset(x + i, y + h - 1 - j, px);
             cv_pset(x + w - 1 - i, y + h - 1 - j, px);
         }
+}
+
+/* a filled disc of radius r at (cx, cy) (the corner of pixel cx, cy), the edge anti-aliased (4 x 4 samples a
+ * pixel) against what is already on the canvas, so discs of one colour join into one shape: the splash's clouds
+ * (Fantasma). Clipped to the canvas */
+static void cv_disc(int32_t cx, int32_t cy, int32_t r, uint16_t c)
+{
+    int32_t x, y, sx, sy, x0 = cx - r, x1 = cx + r - 1, y0 = cy - r, y1 = cy + r - 1;
+    if (x0 < 0) x0 = 0;
+    if (x1 > (int32_t)cv_w - 1) x1 = (int32_t)cv_w - 1;
+    if (y0 + cv_oy < 0) y0 = -cv_oy;
+    if (y1 + cv_oy > (int32_t)cv_h - 1) y1 = (int32_t)cv_h - 1 - cv_oy;
+    for (y = y0; y <= y1; y++)
+        for (x = x0; x <= x1; x++) {
+            int32_t n = 0;
+            for (sy = 0; sy < 4; sy++)
+                for (sx = 0; sx < 4; sx++) {
+                    int32_t dx = (x - cx) * 8 + sx * 2 + 1, dy = (y - cy) * 8 + sy * 2 + 1;   /* 1/8 px */
+                    n += dx * dx + dy * dy <= r * r * 64;
+                }
+            if (n >= 16)
+                cv_pset(x, y, c);
+            else if (n > 0)
+                cv_pset(x, y, ux_mix(swap16(cv_px[(uint32_t)(y + cv_oy) * cv_w + (uint32_t)x]), c, n * 100 / 16));
+        }
+}
+
+/* FANTASMA: a stylised ghost, a dome, a straight body and three teeth for the hem, drawn as an outline: shape(inset) is the
+ * whole figure shrunk by inset pixels (a negative one grows it). cx the middle, top the dome's top, w and h its size.
+ * cv_ghost: the glow (GLOW, 3 px out), the trail (TRAIL, the same outline set back to the left and down), the outline
+ * (LINE, 2 px) with FILL inside it, and the eyes (EYE): two bars, no mouth. Colours of 0 are left out */
+static void cv_ghost_shape(int32_t cx, int32_t top, int32_t w, int32_t h, int32_t inset, uint16_t c)
+{
+    int32_t r = w / 2, th = h / 6, yb = top + h - th, tw = w / 3, i, j;
+    if (r - inset > 0)
+        cv_disc(cx, top + r, r - inset, c);
+    cv_rect(cx - r + inset, top + r, w - 2 * inset, yb - top - r, c);
+    for (i = 0; i < 3; i++) {
+        int32_t tc = cx - r + tw * i + tw / 2;
+        for (j = 0; j < th - inset; j++) {
+            int32_t hw = tw * (th - j) / (2 * th) - inset;
+            if (hw > 0)
+                cv_rect(tc - hw, yb + j, 2 * hw, 1, c);
+        }
+    }
+}
+static void cv_ghost(int32_t cx, int32_t top, int32_t w, int32_t h, uint16_t line, uint16_t fill, uint16_t glow,
+                     uint16_t trail, uint16_t eye)
+{
+    int32_t t = w >= 60 ? 2 : 1;
+    if (glow)
+        cv_ghost_shape(cx, top, w, h, -3, glow);
+    if (trail) {
+        cv_ghost_shape(cx - w / 7, top + h / 24, w, h, 0, trail);
+        cv_ghost_shape(cx - w / 7, top + h / 24, w, h, t, fill);
+    }
+    cv_ghost_shape(cx, top, w, h, 0, line);
+    cv_ghost_shape(cx, top, w, h, t, fill);
+    cv_rect(cx - w / 4 - w / 18, top + h * 2 / 5, w / 9 + 1, h / 6, eye);
+    cv_rect(cx + w / 4 - w / 18, top + h * 2 / 5, w / 9 + 1, h / 6, eye);
 }
 
 /* ------------------------------------------------- 4-bit alpha blit --- */

@@ -54,6 +54,7 @@ static void fresh(void)
     memset(&chain, 0, sizeof chain);
     memset(&midi_clock, 0, sizeof midi_clock);
     host_tracks_init();
+    song.g[G_BPM] = 120;                              /* (the tests count in 120 BPM; power-on is 30) */
     for (p = 0; p < NPART; p++) host_preset(&trk[p], 0, 0);
     for (p = 0; p < NPART; p++)
         trk[p].p[P_DIST] = trk[p].p[P_CHOR] = trk[p].p[P_DLY] = trk[p].p[P_REV] = 0;

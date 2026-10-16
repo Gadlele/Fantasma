@@ -263,7 +263,7 @@ static void job_song(const job_t *j)
     host_tracks_init();
     song.g[G_BPM] = 120;
     host_preset(t1, 0, 4);
-    host_preset(t2, TRK_DEF[1][0], TRK_DEF[1][1]);
+    host_preset(t2, ENGI_FM6, 4);                    /* (the pad the mix was made with) */
     host_preset(t3, 3, 0);
     host_drums(td);
     for (i = 0; i < 16u; i++) {

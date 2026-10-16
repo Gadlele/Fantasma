@@ -8,7 +8,7 @@ whole string (advances and GPOS kerning at 16 x the size).
 
 Per glyph: its displacement d = ink centroid (tables) - ink centroid (reference); area coverage keeps the first
 moment, so d is how far the glyph sits from its true place. Per pair: gap error = d[i+1] - d[i], the error of
-the space between two neighbours. Fails when a pair of S or M is off by more than 0.25 px or L by more than 0.5 px.
+the space between two neighbours. Fails when a pair of S or M is off by more than 0.25 px, T (10 px) 0.3 or L 0.5 px.
 
   text_spacing_test.py [ui_fonts.h] [--png DIR [--tag NAME]] [--rule gfx|rounded] [--no-limit]
   (PNG: the specimen strings x4, gray on black; --rule rounded measures tables made before the phases)
@@ -33,7 +33,7 @@ LOWER = ["oeo", "coco", "eco", "nono", "minimum", "hello", "level", "decay", "re
 UPPER = ["CUTOFF", "RESO", "LEVEL", "DECAY", "RELEASE", "SOUND", "OCOE", "COCO", "NONO", "MINIMUM", "SUPER SAW",
          "FELUCCA", "PRESETS", "ANALOG", "DIGITAL", "PITCH", "SWING", "AV AW LT TA YO"]
 RULE = ["gfx"]   # "gfx": src/gfx.c cv_text; "rounded": the earlier rule (each glyph at the rounded pen, 1 phase)
-LIMIT = {"S": 0.25, "M": 0.25, "L": 0.5}
+LIMIT = {"S": 0.25, "M": 0.25, "L": 0.5, "T": 0.3}   # T: the page tabs (FANTASMA), 10 px: S's 0.25 at 12 px, scaled
 
 
 def parse(path):

@@ -272,7 +272,10 @@ static const preset_t WHEEL_PRESETS[] = {
     {"JAZZ PERC", {4, 0, 0, 0, 2, 50, 8, 1}, {0, 64, 127, 40}, 0, 0, FX(0, 0, 0, 25), PAT(3)},
     {"GOSPEL", {6, 0, 0, 0, 1, 60, 40, 2}, {0, 64, 127, 45}, 0, 0, FX(0, 0, 0, 40), PAT(6)},
     {"SOFT FLUTE", {1, 0, -2, 0, 0, 10, 0, 1}, {0, 64, 127, 55}, 0, 0, FX(0, 20, 15, 55), PAT(5)},
-    {"ROCK DRIVE", {7, 0, 0, 0, 0, 70, 100, 2}, {0, 64, 127, 40}, 0, 0, FX(35, 0, 10, 25), PAT(4)},
+    {"ROCK DRIVE", {7, 0, 0, 0, 0, 70, 100, 2}, {0, 64, 127, 40}, 0, 0, FX(35, 0, 10, 25), PAT(4)},    /* Fantasma: warm and soft, for ambient music (slow attacks, long tails, a lot of reverb) */
+    {"AIR ORGAN", {1, 0, -2, 0, 0, 0, 0, 1}, {100, 64, 127, 100}, 0, 0, FX(0, 40, 20, 80), PAT(5)},
+    {"CHAPEL PAD", {12, 0, -2, -3, 0, 0, 0, 2}, {100, 64, 127, 105}, 0, 0, FX(0, 50, 25, 88), PAT(5)},
+    {"STRING ORGAN", {11, 0, -1, -3, 0, 0, 0, 1}, {90, 64, 127, 100}, 0, 0, FX(0, 40, 20, 85), PAT(5)},
 };
 
 static const engine_t ENG_WHEEL = {

@@ -361,8 +361,8 @@ static int cc_map_test(void)
     };
     int bad = 0, ok = 1; uint32_t i, e; int16_t before[P_COUNT];
     midi_test_reset();
-    bad += check("power-on parts: ANALOG, FM6, LOFI, DRUM", trk[0].eng_req == 0u && trk[1].eng_req == ENGI_FM6 &&
-                 trk[2].eng_req == 3u && trk[3].eng_req == ENGI_DRUM);
+    bad += check("power-on parts: ANALOG, FM6, BELL (LOFI with SLICE), DRUM", trk[0].eng_req == 0u && trk[1].eng_req == ENGI_FM6 &&
+                 trk[2].eng_req == (FELUCCA_BELL ? ENGI_BELL : 3u) && trk[3].eng_req == ENGI_DRUM);
     for (i = 0; i < NELEM(COMMON); i++) {
         queued(0xB0, COMMON[i].cc, 127, 1);
         ok &= trk[0].p[COMMON[i].id] == TP[COMMON[i].id].max;
@@ -562,7 +562,7 @@ static int learn_test(void)
 
     /* the stored codes with 1.5's parameters (the INSERT 96..100, TYPE 101, ESYNC 102, P_E0 103): a common parameter
      * id + 1, below ML_E0; an engine one ML_E0 + k whatever P_E0 is; every id back as it went in */
-    ok = P_E0 == 103u && P_COUNT == 111u && P_E0 < ML_E0;
+    ok = P_E0 == 107u && P_COUNT == 115u && P_E0 < ML_E0;
     for (i = 0; i < P_COUNT; i++)
         ok &= ml_id(ml_code(i)) == i && (i < P_E0 ? ml_code(i) == i + 1u && ml_code(i) < ML_E0 : ml_code(i) == ML_E0 + i - P_E0);
     ok &= ml_id(0) == P_COUNT && ml_id(P_E0 + 1u) == P_COUNT && ml_id(ML_E0 - 1u) == P_COUNT;   /* (no such parameter) */
@@ -643,13 +643,14 @@ static int pc_test(void)
         if (!eng_ok(e) || e == ENGI_DRUM || !preset_shown(e))
             continue;
         set_engine_of(t, e);
-        for (n = 0, last = -1; n < preset_shown(e); n++) {
+        for (n = 0, last = -1; n < (e == ENGI_FM6 && preset_shown(e) > FM6_NFACTORY ? FM6_NFACTORY : preset_shown(e)); n++) {    /* (FM6: F1..F8, the bank after them) */
             pc(0, n); frame();
             ok &= t->eng_req == e && (int32_t)t->preset > last && preset_orig(ENGINES[e], t->preset) == t->preset;
             last = t->preset;
         }
         was = *t;
-        pc(0, n); frame(); pc(0, 127); frame();
+        if (e != ENGI_FM6) { pc(0, n); frame(); }
+        pc(0, 127); frame();
         ok &= !memcmp(was.p, t->p, sizeof was.p) && t->preset == was.preset && t->eng_req == e;
     }
     bad += check("  every engine: 0.. its presets in PRESETS' order (no alias twice); past the last ignored", ok);

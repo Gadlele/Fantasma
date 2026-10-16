@@ -1,0 +1,415 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     The installer of {{NAME}} {{VERSION}}: Felucca's web installer (web/index_pkg.html, fm1ota.js, fm1pkg.js, fm1backup.js
+     by Leo Kuroshita, Hügelton Instruments) with {{NAME}}'s steps and look. Built by web/site/make_pages.py. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install {{NAME}} {{VERSION}}</title>
+<meta name="description" content="Install {{NAME}} {{VERSION}} on your M-VAVE FM-1 from the browser, over USB.">
+<link rel="icon" href="../img/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="{{FONTS}}">
+<style>
+:root { {{THEME}} color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--text); font: 16px/1.6 var(--body); }
+a { color: var(--accent); text-underline-offset: 3px; }
+main { max-width: 680px; margin: 0 auto; padding: 0 16px 64px; }
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; }
+header.top .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none;
+                    font: 700 18px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+header.top .brand img { width: 28px; height: 28px; image-rendering: pixelated; }
+header.top nav { display: flex; gap: 18px; font-size: 14px; }
+header.top nav a { color: var(--mid); text-decoration: none; }
+header.top nav a:hover { color: var(--text); }
+.hero { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 24px; align-items: center; padding: 24px 0 8px; }
+.hero img { width: 132px; height: 132px; image-rendering: pixelated; border-radius: 14px; border: 1px solid var(--rule); }
+.hero h1 { margin: 0; font: 700 clamp(30px, 6vw, 44px)/1.05 var(--display); letter-spacing: .02em; }
+.hero h1 span { color: var(--accent); }
+.hero p { margin: 8px 0 0; color: var(--mid); }
+@media (max-width: 520px) { .hero { grid-template-columns: 1fr; } .hero img { width: 104px; height: 104px; } }
+.note { border: 1px solid var(--warn); background: var(--warn-bg); border-radius: 12px; padding: 14px 16px; margin: 20px 0 8px; font-size: 15px; }
+.note p { margin: 0 0 8px; } .note p:last-child { margin: 0; }
+.browser { font-size: 13px; color: var(--mid); margin: 12px 0 0; }
+.browser.bad { color: var(--err); font-weight: 600; }
+section.step { border-top: 1px solid var(--rule); padding: 28px 0 8px; }
+section.step h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; font: 700 20px/1.2 var(--display); }
+section.step h2 .n { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+                     background: var(--accent); color: var(--on-accent); font: 700 15px/1 var(--display); }
+section.step h2 small { font: 400 14px var(--body); color: var(--mid); }
+section.step > p { margin: 0 0 12px; }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; margin: 8px 0; }
+.card.main { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset, 0 0 32px var(--glow); }
+.card.official { border-color: var(--rule); }
+.card > :first-child { margin-top: 0; }
+.card p { margin: 0 0 12px; }
+.card h3 { margin: 0 0 8px; font: 700 15px/1.3 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.card.official h3 { color: var(--text); }
+.check { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; margin: 0 0 10px; cursor: pointer; }
+.check input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--accent); }
+.small { font-size: 13px; color: var(--mid); }
+.small p { margin: 0 0 8px; }
+button { font: 600 15px/1 var(--body); background: var(--accent); color: var(--on-accent); border: 0; border-radius: 10px;
+         padding: 13px 20px; cursor: pointer; min-height: 44px; }
+button.ghost { background: transparent; color: var(--text); border: 1px solid var(--rule); }
+button:hover:not(:disabled) { filter: brightness(1.1); }
+button:disabled { opacity: .35; cursor: default; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 12px 0; }
+.unit { font-size: 14px; color: var(--mid); }
+.unit b { color: var(--text); }
+.build { font: 13px/1.6 var(--mono); color: var(--mid); overflow-wrap: anywhere; }
+.build b { color: var(--text); font-weight: 600; }
+.ok { color: var(--good); } .bad { color: var(--err); }
+progress { width: 100%; height: 8px; margin: 14px 0 0; appearance: none; border: 0; border-radius: 99px; background: var(--rule); overflow: hidden; }
+progress::-webkit-progress-bar { background: var(--rule); border-radius: 99px; }
+progress::-webkit-progress-value { background: var(--accent); border-radius: 99px; }
+progress::-moz-progress-bar { background: var(--accent); }
+.status { min-height: 1.6em; margin: 10px 0 0; font-weight: 600; }
+.status.err { color: var(--err); } .status.done { color: var(--good); }
+details { margin: 10px 0 0; }
+summary { cursor: pointer; color: var(--mid); font-size: 13px; }
+pre.log { font: 12px/1.5 var(--mono); color: var(--mid); white-space: pre-wrap; max-height: 220px; overflow: auto; margin: 8px 0 0; }
+input[type=file] { font: inherit; font-size: 14px; color: var(--mid); max-width: 100%; }
+ol.help { padding-left: 20px; margin: 0; } ol.help li { margin: 0 0 10px; }
+footer { border-top: 1px solid var(--rule); margin-top: 36px; padding-top: 20px; font-size: 13px; color: var(--mid); }
+footer p { margin: 0 0 10px; } footer a { color: var(--mid); }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <a class="brand" href="../"><img src="../img/icon.png" alt="">{{NAME}}</a>
+    <nav><a href="../">Home</a><a href="../try/">Try it</a><a href="{{REPO}}">Source</a></nav>
+  </header>
+
+  <div class="hero">
+    <img src="../img/splash.gif" alt="{{NAME}}'s power-on animation">
+    <div>
+      <h1>Install {{NAME}} <span>{{VERSION}}</span></h1>
+      <p>{{TAGLINE}} Installs from this page over USB, in Chrome or Edge. No extra hardware.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><b>Custom firmware, at your own risk.</b> {{NAME}} is a fork of Felucca, not made or supported by M-VAVE. It was
+      tested in the computer and in a simulated FM-1; it comes with no warranty.</p>
+    <p><b>Safety nets:</b> the firmware can never overwrite the FM-1's boot code. Hold <b>OCT−</b> while switching on
+      for the <b>USB rescue</b> (it also starts by itself after two failed starts), and the official firmware can always
+      be put back from the last card on this page.</p>
+  </div>
+  <p class="browser" id="browser">Checking the browser…</p>
+
+  <section class="step" aria-labelledby="s1">
+    <h2 id="s1"><span class="n">1</span>Before you start</h2>
+    <p>Tick each box. The Install button stays off until all four are ticked.</p>
+    <label class="check"><input type="checkbox" class="pre"><span>I use a <b>data</b> USB cable (some only charge),
+      plugged <b>straight into the computer</b>, no hub or dock.</span></label>
+    <label class="check"><input type="checkbox" class="pre"><span>I will <b>not unplug, close this tab or let the
+      computer sleep</b> while it writes (about two minutes).</span></label>
+    <label class="check"><input type="checkbox" class="pre"><span>I have <b>backed up</b> what I care about (step 2),
+      or I accept losing it.</span></label>
+    <label class="check"><input type="checkbox" class="pre"><span>I understand this is <b>custom firmware</b> and I
+      install it at my own risk.</span></label>
+  </section>
+
+  <section class="step" aria-labelledby="s2">
+    <h2 id="s2"><span class="n">2</span>Back up <small>recommended</small></h2>
+    <div class="card">
+      <p>Saves a file with your projects, sounds, samples and settings to this computer. Nothing is written to the FM-1.
+        It works when the FM-1 runs Felucca, Fantasma or Golana; the official M-VAVE firmware has no backup.</p>
+      <p class="small">A backup is restored in the editor. Projects do not always move between different firmwares
+        (Felucca, Fantasma, Golana): keep the backup of each.</p>
+      <div class="row"><button id="backup" class="ghost" disabled>Save a backup file</button></div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="s3">
+    <h2 id="s3"><span class="n">3</span>The {{NAME}} build</h2>
+    <p class="build" id="build">Loading the package…</p>
+  </section>
+
+  <section class="step" aria-labelledby="s4">
+    <h2 id="s4"><span class="n">4</span>Connect</h2>
+    <p>Connect the FM-1 by USB and switch it on. Close other programs that use MIDI (a DAW, the editor, another tab).
+      The browser asks to allow <b>MIDI with SysEx</b>: allow it.</p>
+    <div class="row"><button id="check" class="ghost" disabled>Check the FM-1</button>
+      <span class="unit" id="unit">Not checked yet.</span></div>
+  </section>
+
+  <section class="step" aria-labelledby="s5">
+    <h2 id="s5"><span class="n">5</span>Install</h2>
+    <div class="card main">
+      <h3>Install {{NAME}} {{VERSION}}</h3>
+      <p class="small">Two steps, both automatic: the FM-1 checks the package and switches to update mode, then writes it
+        and restarts. The page then asks the FM-1 what it runs, to be sure.</p>
+      <div class="row"><button id="go" disabled>Install {{NAME}} {{VERSION}}</button></div>
+      <progress id="bar" max="100" value="0"></progress>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <p class="small">If it stops: replug the cable and press Install again. The FM-1 stays in update mode until the
+        write is finished, and the page resumes it. When it says <b>Done</b>, the FM-1 is ready.</p>
+      <details><summary>Details</summary><pre class="log" id="log"></pre></details>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="s6">
+    <h2 id="s6">If something goes wrong</h2>
+    <ol class="help">
+      <li><b>The install stopped.</b> Replug the USB cable and press Install again: it picks up where it was.</li>
+      <li><b>The FM-1 does not start properly.</b> Switch it off, then on while holding <b>OCT−</b>. It shows
+        <b>{{RESCUE}}</b>: no sound, only USB. Come back to this page and press Install.</li>
+      <li><b>The screen stays black</b> and the computer sees a USB device called <b>WL80UBOOT</b>: that is the
+        chip's own boot mode. Try another cable and close every MIDI app, then press Install again. Last resort:
+        <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1 Transporter</a>.</li>
+      <li><b>Questions or problems:</b> <a href="{{REPO}}/issues" target="_blank" rel="noopener">open an issue</a>.</li>
+    </ol>
+  </section>
+
+  <section class="step" aria-labelledby="s7">
+    <h2 id="s7">Go back to the official firmware</h2>
+    <div class="card official">
+      <h3>Return to official V15</h3>
+      <p>Download the official FM-1 firmware (<code>FM-1.fwsc</code>, V15) from
+        <a href="https://www.m-vave.com/download" target="_blank" rel="noopener">M-VAVE's download page</a> and select the
+        unmodified file here. The page checks it in your browser (it is never uploaded) and accepts only V15.</p>
+      <p><input id="stock-file" type="file" accept=".fwsc" aria-label="Official FM-1.fwsc"></p>
+      <div class="row"><button id="stock-go" class="ghost" disabled>Back up and return to official V15</button></div>
+      <p class="small">Your music and settings are saved to a file first. {{NAME}} music cannot be opened by the official
+        firmware.</p>
+      <label class="check small"><input id="stock-recovery" type="checkbox"><span>Resume an interrupted return: I
+        already saved a complete backup to this computer.</span></label>
+    </div>
+  </section>
+
+  <footer>
+    <p>{{NAME}} {{VERSION}} by Gadlele is free software under the
+      <a href="../firmware/LICENSE">GPL-3.0</a>, with <b>no warranty</b>. Source:
+      <a href="{{REPO}}">{{REPO_SHORT}}</a>.</p>
+    <p>Based on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita (@kurogedelic), Hügelton
+      Instruments; this installer is Felucca's. The package also holds three JieLi AC79 SDK files (uboot.boot,
+      cfg_tool.bin, eq_cfg_hw.bin; JieLi Technology, Apache-2.0). <a href="../firmware/LICENSING.md">LICENSING.md</a> ·
+      <a href="../firmware/LICENSES/">licence texts</a>.</p>
+    <p>M-VAVE and FM-1 are trademarks of their respective owners. {{NAME}} is independent and not affiliated with,
+      endorsed by or supported by them.</p>
+  </footer>
+</main>
+<script type="module">
+/*LIB*/
+const $ = (id) => document.getElementById(id);
+const P = /*META*/;
+const TXT = {
+  nomidi: "This browser cannot talk to the FM-1. Open the page in Chrome or Edge on a computer.",
+  insecure: "Open this page over https (the browser allows MIDI only there).",
+  loadfail: "Could not load the package: ", badpkg: "The package did not pass its checks. Reload the page.",
+  start: "Starting…", verify: "Checking the package on the FM-1…", loader: "Switching to update mode…",
+  write: "Writing… do not unplug", reboot: "Restarting…", done: "Done. The FM-1 runs ",
+  stopped: "Stopped. Replug the USB cable and press Install again.",
+  error: "Error: ",
+  denied: "MIDI (SysEx) access was not allowed. Allow MIDI in the site settings (address bar) and try again.",
+  notfound: "FM-1 not found. Check the cable (a data cable), switch the FM-1 on, close other MIDI apps, and try again.",
+  model: "The connected device is not an FM-1.",
+  lost: "The USB connection was lost. Replug it and press Install again.",
+  noloader: "The FM-1 in update mode was not found. Replug the USB cable and press Install again (it stays in update mode until it is finished).",
+  noreturn: "The FM-1 did not come back. Switch it off and on.",
+  mismatch: "Written, but the FM-1 reports another firmware: ",
+  leave: "Writing. Do not close the page.",
+  backup: "Saving the backup… ", backupDone: "Backup saved: ",
+  backupUnsupported: "This firmware cannot make a complete backup (the official firmware and old Felucca cannot).",
+  backupOta: "The FM-1 is in update mode: it cannot make a backup now. Finish the install first.",
+  stockValid: "Official V15 verified. Press the button to return to it.", stockError: "Not the official V15: ",
+  stockConfirm: "Has the backup file been saved to this computer? Continue to return to the official V15. It cannot open your music.",
+  stockNeedBackup: "The FM-1 is in update mode, where no backup can be made. Tick the resume box only if you already saved one.",
+  stockUnsupported: "This firmware cannot make a complete backup. Install the current version first, or tick the resume box if you have one.",
+};
+let writing = false, image = null, stock = null, stockEpoch = 0, midi = null;
+const sayK = (k, arg = "", cls = "") => { const s = $("status"); s.textContent = TXT[k] + arg; s.className = "status " + cls; };
+const log = (t) => { $("log").textContent += t + "\n"; };
+const ticked = () => [...document.querySelectorAll(".pre")].every((c) => c.checked);
+const midiOk = !!navigator.requestMIDIAccess && window.isSecureContext;
+function lock(on) {
+  writing = on;
+  $("go").disabled = on || !image || !ticked() || !midiOk;
+  $("backup").disabled = on || !midiOk;
+  $("check").disabled = on || !midiOk;
+  $("stock-go").disabled = on || !stock || !midiOk;
+  $("stock-file").disabled = on;
+  $("stock-recovery").disabled = on;
+}
+document.querySelectorAll(".pre").forEach((c) => c.addEventListener("change", () => lock(writing)));
+window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = TXT.leave; } });
+
+const br = $("browser");
+if (!navigator.requestMIDIAccess) { br.textContent = TXT.nomidi; br.className = "browser bad"; }
+else if (!window.isSecureContext) { br.textContent = TXT.insecure; br.className = "browser bad"; }
+else br.textContent = "Browser OK (Web MIDI available).";
+
+async function access() {
+  if (midi) return midi;
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { const x = new Error(TXT.denied); x.code = "denied"; throw x; }
+  return midi;
+}
+const fmtErr = (e) => (e && e.code && TXT[e.code]) ? TXT[e.code] + (e.detail || "") : TXT.error + (e && e.message);
+
+(async () => {
+  try {
+    const r = await fetch(P.pkg);
+    if (!r.ok) throw new Error(`${P.pkg}: HTTP ${r.status}`);
+    const pkg = new Uint8Array(await r.arrayBuffer());
+    const sha = await sha256hex(pkg);
+    if (pkg.length !== P.size || sha !== P.sha256 || productOf(pkg) !== P.product) {
+      $("build").innerHTML = `<span class="bad">${TXT.badpkg}</span>`; return;
+    }
+    image = logicalImage(pkg);
+    $("build").innerHTML = `<span class="ok">Ready</span> · <b>${P.name} ${P.version}</b> · identity ${P.product} · ` +
+      `${pkg.length.toLocaleString("en")} bytes<br>SHA-256 ${sha}<br>` +
+      `<a href="${P.pkg}" download>Download the .fwsc</a> (for <code>tools/fm1_install.py</code> or the FM-1 Firmware Hub)`;
+    lock(false);
+  } catch (e) { $("build").innerHTML = `<span class="bad">${TXT.loadfail}${e.message}</span>`; }
+})();
+lock(false);
+
+/* what the connected FM-1 runs: the identity from the update protocol, then (Felucca and its forks) INFO's engines */
+function parseInfo(a) {
+  let pos = a.indexOf(0); if (pos < 0) throw new Error("Invalid INFO");
+  const version = String.fromCharCode(...a.slice(0, pos)); pos++;
+  const n = a[pos]; pos += 5;
+  const engines = [];
+  for (let i = 0; i < n; i++) { const end = a.indexOf(0, pos); if (end < 0) throw new Error("Invalid INFO"); engines.push(String.fromCharCode(...a.slice(pos, end))); pos = end + 1; }
+  const ext = a.slice(pos + 1);
+  const backup = /^FELUCCA /i.test(version) && ext[0] === 16 && ext[1] === 0x55 && ext[2] === 1 &&
+    ext[4] === 0x4d && ext[5] === 1 && ext[8] === 0x42 && ext[9] === 1 && !!(ext[10] & 1);
+  const v = version.replace(/^FELUCCA\s*/i, "");
+  const fw = engines.includes("GOLANA") ? "Golana" : engines.includes("BELL") && engines.includes("AMBI") ? "Fantasma" : "Felucca";
+  return { version, v, engines, backup, fw };
+}
+async function probe(up) {
+  const dev = await up.find(() => true);
+  if (!dev) return null;
+  const id = dev.id;
+  if (/^ota-/i.test(id.model)) { dev.link.close(); return { id, ota: true, text: "<b>update mode</b>: an install was interrupted. Press Install to finish it." }; }
+  const input = dev.link.input, output = dev.link.output; dev.link.close();
+  if (id.text === "FM-1_000") return { id, input, output, text: `<b>USB rescue</b> (${id.text}): ready to install.` };
+  if (!/^FM-1_9/.test(id.text)) return { id, input, output, text: `the <b>official M-VAVE firmware</b> (${id.text}). There is no backup to make from it.` };
+  let info = null;
+  const link = new BackupConnection(input, output);
+  try { info = parseInfo(await link.request([1, []])); } catch (_) { /* busy or an old build */ } finally { link.close(); }
+  return { id, input, output, info, text: info ? `<b>${info.fw} ${info.v}</b> (${id.text}).` : `Felucca or a fork of it (${id.text}).` };
+}
+
+$("check").addEventListener("click", async () => {
+  if (writing) return;
+  lock(true);
+  try {
+    const p = await probe(new Updater(await access(), log));
+    $("unit").innerHTML = p ? "Your FM-1 runs " + p.text : TXT.notfound;
+  } catch (e) { $("unit").textContent = fmtErr(e); }
+  lock(false);
+});
+
+function saveArchive(archive) {
+  const name = `${P.name}-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(archive)], { type: "application/json" }));
+  const a = document.createElement("a"); a.href = url; a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return name;
+}
+/* a complete backup from the running firmware -> the file's name, or throws with .code */
+async function backupNow(up, show) {
+  const p = await probe(up);
+  if (!p) { const e = new Error(TXT.notfound); e.code = "notfound"; throw e; }
+  if (p.ota) { const e = new Error(TXT.backupOta); e.code = "backupOta"; throw e; }
+  if (!p.info || !p.info.backup) { const e = new Error(TXT.backupUnsupported); e.code = "backupUnsupported"; throw e; }
+  const link = new BackupConnection(p.input, p.output);
+  try {
+    const archive = await captureBackup((r, o) => link.request(r, o), p.info.version,
+      (done, total) => show(`${Math.round(done / Math.max(1, total) * 100)}%`));
+    return saveArchive(archive);
+  } finally { link.close(); }
+}
+$("backup").addEventListener("click", async () => {
+  if (writing) return;
+  lock(true);
+  try {
+    const name = await backupNow(new Updater(await access(), log), (pc) => { $("unit").textContent = TXT.backup + pc; });
+    $("unit").innerHTML = `<span class="ok">${TXT.backupDone}${name}</span>`;
+  } catch (e) { $("unit").textContent = fmtErr(e); }
+  lock(false);
+});
+
+const TOTAL = 74 + 1167;
+function stepper() {
+  return (k, a) => {
+    log(`${k} ${a ?? ""}`);
+    if (k === "start") sayK("start");
+    if (k === "verify") { sayK("verify"); $("bar").value = Math.min(100, (a / TOTAL) * 100); }
+    if (k === "loader") sayK("loader");
+    if (k === "write") { sayK("write"); $("bar").value = Math.min(100, ((74 + a) / TOTAL) * 100); }
+    if (k === "reboot") sayK("reboot");
+    if (k === "done") { $("bar").value = 100; sayK("done", `${P.name} ${P.version}.`, "done"); }
+  };
+}
+
+$("go").addEventListener("click", async () => {
+  if (writing || !image) return;
+  lock(true); $("bar").value = 0;
+  try {
+    const up = new Updater(await access(), log), step = stepper();
+    const ota = await up.find((id) => /^ota-/i.test(id.model));
+    if (ota) {
+      ota.link.close();
+      if (!(await up.resume(image, step, P.product))) sayK("stopped", "", "err");
+    } else {
+      await up.install(image, P.product, step);
+    }
+  } catch (e) {
+    $("status").textContent = fmtErr(e); $("status").className = "status err";
+    log(String(e && e.stack || e));
+  }
+  lock(false);
+});
+
+$("stock-file").addEventListener("change", async () => {
+  const epoch = ++stockEpoch, file = $("stock-file").files[0]; stock = null; lock(false);
+  if (!file) return;
+  try {
+    if (file.size !== STOCK_V15_SIZE) throw new Error("this is not FM-1.fwsc V15");
+    const v = await validateStockPackage(new Uint8Array(await file.arrayBuffer()));
+    if (epoch !== stockEpoch) return;
+    stock = v; sayK("stockValid"); lock(false);
+  } catch (e) { if (epoch === stockEpoch) sayK("stockError", e.message, "err"); }
+});
+$("stock-go").addEventListener("click", async () => {
+  if (!stock || writing) return;
+  const sel = stock; lock(true); $("bar").value = 0;
+  try {
+    const up = new Updater(await access(), log), step = (k, n) => { log(`${k} ${n ?? ""}`);
+      if (["start", "verify", "loader", "write", "reboot"].includes(k)) sayK(k);
+      if (k === "write") $("bar").value = Math.min(100, ((74 + n) / TOTAL) * 100);
+      if (k === "done") { $("bar").value = 100; $("status").textContent = "Done. The FM-1 runs the official firmware."; $("status").className = "status done"; } };
+    const loader = await up.find((id) => /^ota-/i.test(id.model));
+    if (loader) {
+      loader.link.close();
+      if (!$("stock-recovery").checked) { sayK("stockNeedBackup", "", "err"); return; }
+      if (!confirm(TXT.stockConfirm)) return;
+      if (!(await up.resume(sel.image, step, sel.product))) sayK("stopped", "", "err");
+    } else {
+      if (!$("stock-recovery").checked) {
+        try { await backupNow(up, (pc) => sayK("backup", pc)); }
+        catch (e) { if (e.code === "backupUnsupported") { sayK("stockUnsupported", "", "err"); return; } throw e; }
+      }
+      if (!confirm(TXT.stockConfirm)) return;
+      await up.install(sel.image, sel.product, step);
+    }
+  } catch (e) {
+    $("status").textContent = fmtErr(e); $("status").className = "status err";
+    log(String(e && e.stack || e));
+  } finally { lock(false); }
+});
+</script>
+</body>
+</html>

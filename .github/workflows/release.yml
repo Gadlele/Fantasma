@@ -1,0 +1,38 @@
+name: Release
+# A tag NAME-vX.Y (git tag golana-v1.1 && git push origin golana-v1.1; NAME is project.json's name, lower case:
+# Felucca's own tags v1.0 .. v1.5.1 came with its history) makes the GitHub Release of that version: its notes from
+# CHANGELOG.md (web/site/changelog.py) and, attached, the package the website serves (gh-pages: firmware/), the very
+# file that was tested and published, not a new build. So: publish the site first (web/site/make_pages.py), then tag.
+# Or by hand (Actions > Release > Run workflow, the version): the tag is made on the branch it runs on, with the Release.
+on:
+  push:
+    tags: ['*-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'the version, as in CHANGELOG.md (e.g. 1.1)'
+        required: true
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Notes and package
+        run: |
+          NAME=$(python3 -c "import json; print(json.load(open('web/site/project.json'))['name'])")
+          if [ "$GITHUB_REF_TYPE" = tag ]; then V="${GITHUB_REF_NAME##*-v}"; TAG="$GITHUB_REF_NAME"; else V="$IN_VERSION"; TAG="$(echo "$NAME" | tr A-Z a-z)-v$V"; fi
+          [ "$TAG" = "$(echo "$NAME" | tr A-Z a-z)-v$V" ] || { echo "tag $TAG is not ${NAME}'s"; exit 1; }
+          python3 web/site/changelog.py --check "$V"
+          python3 web/site/changelog.py "$V" > notes.md
+          git fetch -q --depth 1 origin gh-pages
+          git show "FETCH_HEAD:firmware/$NAME-$V.fwsc" > "$NAME-$V.fwsc"
+          git show "FETCH_HEAD:firmware/SHA256SUMS" > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          printf '\n---\nInstall it from the browser: %s\n' \
+            "$(python3 -c "import json; r=json.load(open('web/site/project.json'))['repo']; o, n = r.split('/')[-2:]; print(f'https://{o.lower()}.github.io/{n}/install/')")" >> notes.md
+          gh release create "$TAG" "$NAME-$V.fwsc" SHA256SUMS --target "$GITHUB_SHA" --title "$NAME $V" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IN_VERSION: ${{ inputs.version }}

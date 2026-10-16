@@ -62,7 +62,7 @@ static __attribute__((noinline)) void midi_clock_pulse(uint32_t ms)
                     clk_pos = (uint32_t)(((uint64_t)clk_pos * ratio + 2048u) >> 12);
             }
             midi_beat_samples = new_beat;
-            song.g[G_BPM] = (int16_t)clamp((int32_t)((15000u + dt / 2u) / dt), 40, 240);
+            song.g[G_BPM] = (int16_t)clamp((int32_t)((15000u + dt / 2u) / dt), 30, 240);
         }
     }
     if (song.playing) {

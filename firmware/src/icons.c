@@ -136,7 +136,7 @@ static const icon_map_t ICON_MAP[] = {
     /* engines (eng_*.c edit[] labels) */
     {"DTN", ICON_DETUNE}, {"NOIS", ICON_NOISE}, {"CUT", ICON_CUTOFF}, {"RES", ICON_RESO},
     {"DRV", ICON_DRIVE}, {"KTR", ICON_KEYTRACK}, {"ALG", ICON_ALGORITHM}, {"R2", ICON_RATIO},
-    {"R3", ICON_RATIO}, {"R4", ICON_RATIO}, {"IDX", ICON_MOD}, {"MDEC", ICON_DECAY},
+    {"R3", ICON_RATIO}, {"R4", ICON_RATIO}, {"RATIO", ICON_RATIO}, {"IDX", ICON_MOD}, {"MDEC", ICON_DECAY},
     {"FB", ICON_FEEDBACK}, {"CHIP", ICON_CHIP}, {"DUTY", ICON_PULSE}, {"CRSH", ICON_BITS},
     {"SWP", ICON_SWEEP}, {"VIB", ICON_VIBRATO}, {"ARP", ICON_ARP}, {"TONE", ICON_TONE},
     {"SET", ICON_SAMPLE}, {"BITS", ICON_BITS}, {"LOOP", ICON_LOOP}, {"WAVE2", ICON_WAVE},
@@ -244,9 +244,15 @@ static uint32_t engine_icon(const char *name)
 #if FELUCCA_FM4
         {"DIGITAL", ICON_ALGORITHM},
 #endif
-        {"PHASE", ICON_PHASE}, {"LOFI", ICON_BITS},
+        {"PHASE", ICON_PHASE},
+#if FELUCCA_LOFI
+        {"LOFI", ICON_BITS},
+#else
+        {"AMBI", ICON_NOISE},
+#endif
         {"SAMPLE", ICON_SAMPLE}, {"VOICE", ICON_MOUTH}, {"TRIO", ICON_TRIO}, {"WHEEL", ICON_DRAWBAR},
         {"SLICE", ICON_SLICE},
+        {"BELL", ICON_MOD},                   /* (two-operator FM: the modulator glyph, as FM6) */
         {"GRAIN", ICON_GRAIN},
         {"PHYS", ICON_PHYS},
         {"DRUM", ICON_DRUM},
@@ -271,6 +277,7 @@ static uint32_t page_icon(const page_t *pg)
     case GR_PATS: return ICON_X_PATTERN;      /* SAVE > PHRASES: the pattern loader */
     case GR_SONG: return ICON_X_SONG;         /* SONG: the disc */
     case GR_EVENTS: return motion_icon();     /* AUTOMATION */
+    case GR_AMBI: return ICON_X_SONG;         /* AMBIENT */
     default: return ICON_NONE;
     }
 }

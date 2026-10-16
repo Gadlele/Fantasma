@@ -128,11 +128,21 @@ static int ota_send_msg(uint32_t cmd, const uint8_t *body, uint32_t n)   /* n <=
 
 static void ota_reply_identity(void)
 {
+#ifdef OTA_IDENTITY
+    const char *ID = OTA_IDENTITY;               /* (the USB rescue answers as the stock firmware) */
+    uint8_t id[27];
+    uint32_t i, k;
+    for (k = 0; ID[k]; k++)
+        ;
+    for (i = 0; i < sizeof id; i++)
+        id[i] = i < k ? (uint8_t)ID[i] : 0;
+#else
     static const char ID[] = FELUCCA_ID;         /* == the package marker string */
     uint8_t id[27];
     uint32_t i;
     for (i = 0; i < sizeof id; i++)
         id[i] = i < sizeof ID - 1u ? (uint8_t)ID[i] : 0;
+#endif
     ota_send_msg(0x11, id, sizeof id);
 }
 
