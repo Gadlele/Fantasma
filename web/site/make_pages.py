@@ -51,6 +51,10 @@ def fill(page, cfg):
     return page
 
 
+DEFAULT_SOUNDS_SUB = ("Eight short pieces, each played by the firmware's own engines on the four tracks, as the FM-1 "
+                      "plays them: no effects added afterwards.")
+
+
 def sounds_html(p, sounds):
     """the Sounds section: the pieces of tools/render_sounds.c, each with its sounds ("" without SOUNDS_DIR)"""
     if not sounds:
@@ -69,8 +73,7 @@ def sounds_html(p, sounds):
     return f'''<section id="sounds">
   <div class="wrap">
     <h2>Sounds</h2>
-    <p class="sub">Eight short pieces, each played by the firmware's own engines on the four tracks, as the FM-1 plays
-      them: no effects added afterwards.</p>
+    <p class="sub">{p.get("sounds_sub", DEFAULT_SOUNDS_SUB)}</p>
     <div class="pieces">
 {chr(10).join(cards)}
     </div>
