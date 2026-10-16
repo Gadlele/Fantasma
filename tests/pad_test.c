@@ -14,7 +14,7 @@ int main(void)
     int bad = 0;
     uint32_t e, k, n, total, cnt[NENGINES] = {0}, all = 0, seen;
     static const uint8_t OKENG[6] = {0, 2, 5, 7, 9, 12};
-    static const uint8_t WANT[NENGINES] = {14, 0, 2, 0, 0, 7, 0, 5, 0, 2, 0, 0, 3, 0};
+    static const uint8_t WANT[NENGINES] = {15, 0, 2, 0, 0, 8, 0, 5, 0, 2, 0, 0, 3, 0};
     ui_power_on();
     for (e = 0; e < NENGINES; e++) {
         uint32_t in = 0, j;
@@ -33,7 +33,7 @@ int main(void)
         CHK(cnt[e] == WANT[e]);
         all += cnt[e];
     }
-    CHK(all == 33);
+    CHK(all == 35);                                           /* (1.1: NOSTALGIA, FADED CHOIR) */
     CHK(!eng_allowed(0, 8) && !eng_allowed(0, ENGI_DRUM) && !eng_allowed(0, ENGI_SAMPLE));    /* GRAIN is gone from the Pad */
     CHK(eng_allowed(1, 8));                                   /* ...not from the Lead */
     song.sel = 0;

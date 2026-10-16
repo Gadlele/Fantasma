@@ -20,17 +20,17 @@ static uint32_t cat_of_engine(uint32_t e) { return e == 10u || (e == 13u && FELU
  * only; SAMPLE's retired PERC, past SMP_NPRESETS): its engine's (cat_of_engine). tests/ui_test.c checks every string
  * against its engine's preset count. A preset's category is a hint for browsing: nothing else reads it */
 static const char *const PRESET_CAT[16] = {
-    "LPBPBKLBULLPPPPPPPPPPPPLLLL",       /* 0 ANALOG: SAW LEAD, SOFT PAD, SQR BASS, PWM STR, ACID, SINE KEY, RAVE, SUB BASS,
-                                  * PLUCK, BRASS, WIND, STRINGS, AIR, DRONE, GLASS PAD, SWELL, HAZE, MOON */
+    "LPBPBKLBULLPPPPPPPPPPPPLLLLPL",       /* 0 ANALOG: SAW LEAD, SOFT PAD, SQR BASS, PWM STR, ACID, SINE KEY, RAVE, SUB BASS,
+                                  * PLUCK, BRASS, WIND, STRINGS, AIR, DRONE, GLASS PAD, SWELL, HAZE, MOON .. (1.1) NOSTALGIA, HAZY LEAD */
     "",                          /* 1 DIGITAL (retired) */
     "LKPLUUP",                 /* 2 PHASE: BRASS, ORGAN, STRING, RESO, BELL, WIRE */
 #if FELUCCA_LOFI
     "LBLLL",                     /* 3 LOFI: PULSE LD, WAVE BASS, ARP 8BIT, WAVE LEAD, STEP LEAD */
 #else
-    "FFFFFFFFFFFF",              /* 3 AMBI: SEA, SURF, STORM, WIND, STREAM, HISS, FIRE, VINYL, RAIN, STORM RAIN, CAVE DRIP, CRICKETS */
+    "FFFFFFFFFFFFF",             /* 3 AMBI: SEA, SURF, STORM, WIND, STREAM, HISS, FIRE, VINYL, RAIN, STORM RAIN, CAVE DRIP, CRICKETS, (1.1) VHS HISS */
 #endif
     "KKLL",                      /* 4 SAMPLE: PIANO, (PIANO: the retired TRANH's alias), FLUTE, SAX */
-    "PLBFPPPPP",                  /* 5 VOICE: CHOIR AAH, VOX LEAD, WOW BASS, WHISPER */
+    "PLBFPPPPPP",                 /* 5 VOICE: CHOIR AAH, VOX LEAD, WOW BASS, WHISPER .. (1.1) FADED CHOIR */
     "BLLUP",                     /* 6 TRIO: FAT BASS, ARP LEAD, SYNC LEAD, RING BELL, CHIP CHOIR */
     "KKKKKKKK",                  /* 7 WHEEL: the organs */
     "PFPPPP",                  /* 8 GRAIN: CLOUD PAD, GLITCH, FROZEN, SHIMMER */
@@ -38,11 +38,11 @@ static const char *const PRESET_CAT[16] = {
                                   * STRING, HARP */
     "D",                         /* 10 DRUM: DRUM KIT */
     "FFFFFFFFFFFF",              /* 11 NOISE: WIND, RAIN, ARCADE, METAL, SEA, SURF, FIRE, VINYL, STREAM, STORM, DRIPS, HISS */
-    "KUBLPUKUP",                  /* 12 FM6: TINE EP, BELL, FM BASS, BRASS, PAD, MARIMBA, ORGAN, PLUCK */
+    "KUBLPUKUPK",                 /* 12 FM6: TINE EP, BELL, FM BASS, BRASS, PAD, MARIMBA, ORGAN, PLUCK, SLOW STRINGS FM, (1.1) TAPE EP */
 #if FELUCCA_SLICE
     "DD",                        /* 13 SLICE: CHOP, STUTTER */
 #else
-    "UUUUUUUUUUUUUUU",                 /* 13 BELL: THUMB, TOY, HEARTH, AMBER, COPPER, SOFT TOLL, SILK, COTTON, PETAL, HALO, DAWN, PRAYER, CLOISTER, DEW, WIND CHIME */
+    "UUUUUUUUUUUUUUUU",                /* 13 BELL: THUMB, TOY, HEARTH, AMBER, COPPER, SOFT TOLL, SILK, COTTON, PETAL, HALO, DAWN, PRAYER, CLOISTER, DEW, WIND CHIME, (1.1) MUSIC BOX */
 #endif
 };
 static uint32_t preset_cat(uint32_t e, uint32_t k)    /* factory preset k of engine e */

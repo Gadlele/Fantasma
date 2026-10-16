@@ -82,7 +82,7 @@ ambient machine. All AMBI sounds have REL 64 (half), so they let go as before un
 
 **Sounds per part** (Fantasma): browsing follows the part. **Echoes** offers the BELL sounds only, **Noise** the AMBI
   engine only (the older NOISE engine is no longer offered; ARCADE and METAL went with it), **Lead** everything else, and the **Pad** only the engines that make pads: ANALOG, PHASE, VOICE,
-  WHEEL, PHYS and FM6 (no GRAIN, SAMPLE, TRIO or DRUM), of them 33 pad-like sounds, all polyphonic (the ambient machine picks
+  WHEEL, PHYS and FM6 (no GRAIN, SAMPLE, TRIO or DRUM), of them 35 pad-like sounds, all polyphonic (the ambient machine picks
   from those too). This holds for the PRESETS list and its ENG knob and
   for the EDIT layer; a project, a user preset or MIDI can still put another sound on a part.
 - **Warm ambient sounds** (Fantasma): soft, slow presets for the three tonal parts. Pad: ANALOG WARM PAD, TAPE STR, DUSK PAD,

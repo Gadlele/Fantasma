@@ -105,6 +105,12 @@ static void host_preset_values(track_t *t, uint32_t e, uint32_t pi, const preset
     t->p[P_VOICE] = p->mono ? V_LEGATO : V_POLY;
     for (i = 0; i < 4u; i++)
         t->p[P_DIST + i] = (int16_t)(p->fx[i] ? p->fx[i] - 1 : FX_DEF[i]);
+    if (p->wow[0]) {                              /* (1.1) the tape's wow, as ui.c apply_preset_to */
+        t->p[P_LWAVE] = (int16_t)(p->wow[0] - 1);
+        t->p[P_LRATE] = (int16_t)(p->wow[1] - 1);
+        t->p[P_LD_PIT] = (int16_t)(p->wow[2] - 1);
+        t->p[P_LTRIG] = 1;
+    }
     fm6_track_loaded(t);                          /* FM6: the preset's patch (ui.c apply_preset_to) */
 }
 static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
