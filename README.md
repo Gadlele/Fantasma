@@ -13,11 +13,11 @@
   <a href="https://gadlele.github.io/Fantasma/install/"><b>Install</b></a> ·
   <a href="https://gadlele.github.io/Fantasma/try/"><b>Try it in your browser</b></a> ·
   <a href="https://gadlele.github.io/Fantasma/">Website</a> ·
-  <a href="https://gadlele.github.io/Fantasma/firmware/Fantasma-1.0.fwsc">Download 1.0</a>
+  <a href="https://gadlele.github.io/Fantasma/firmware/Fantasma-1.1.fwsc">Download 1.1</a>
 </p>
 
 <p align="center">
-  <img alt="version 1.0" src="https://img.shields.io/badge/version-1.0-3af3ff?style=flat-square&labelColor=000408">
+  <img alt="version 1.1" src="https://img.shields.io/badge/version-1.1-3af3ff?style=flat-square&labelColor=000408">
   <img alt="FM-1" src="https://img.shields.io/badge/for-M--VAVE%20FM--1-ff3dd6?style=flat-square&labelColor=000408">
   <img alt="GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-efffff?style=flat-square&labelColor=000408">
 </p>
@@ -43,6 +43,7 @@ noise of sea, rain or vinyl, and an Omnichord on the keys. In a neon skin, with 
 | **AMBI reverb** | Tails from 7 s up to about 90 s. |
 | **Four parts** | PAD, LEAD, ECHOES and NOISE, each with its own colour and warm sounds made for it. |
 | **The neon look** | The ECTO palette, an animated ghost at power-on, and one on the AMBIENT page. |
+| **Tape sounds (1.1)** | NOSTALGIA, HAZY LEAD, TAPE EP, FADED CHOIR, MUSIC BOX and VHS HISS, with a slow wow on the pitch, like a worn cassette. [Hear every sound](https://gadlele.github.io/Fantasma/#sounds). |
 
 ## On the screen
 
@@ -64,7 +65,7 @@ noise of sea, rain or vinyl, and an Omnichord on the keys. In a neon skin, with 
 2. Connect the FM-1 with a USB **data** cable, straight into the computer.
 3. Follow the five steps: the checklist, a backup, the build, connect, install. About two minutes.
 
-From a terminal instead: `python3 tools/fm1_install.py Fantasma-1.0.fwsc` (needs `pip install mido python-rtmidi`).
+From a terminal instead: `python3 tools/fm1_install.py Fantasma-1.1.fwsc` (needs `pip install mido python-rtmidi`).
 
 **If something goes wrong:** switch the FM-1 on while holding **OCT−**. It starts **FANTASMA USB RESCUE**, with
 only USB, ready for a new install (it also starts by itself after two failed starts). The firmware never writes the
@@ -74,14 +75,14 @@ FM-1's boot code, and the installer can put the official M-VAVE firmware back at
 
 | | |
 | --- | --- |
-| `main` | the latest release, now **1.0** |
+| `main` | the latest release, now **1.1** |
 | `next` | the work on the next version |
 | [Releases](https://github.com/Gadlele/Fantasma/releases) | every version: its notes and its package |
 | [`gh-pages`](https://github.com/Gadlele/Fantasma/tree/gh-pages) | the website: project page, installer, emulator, package |
 
 - [The manual](docs/MANUAL.md): every page, engine and control
 - [What changed](CHANGELOG.md), version by version · [How a version is released](RELEASING.md)
-- Building: [BUILDING.md](BUILDING.md) (`./build.sh --release 1.0`); the tests: `sh tests/run_tests.sh`
+- Building: [BUILDING.md](BUILDING.md) (`./build.sh --release 1.1`); the tests: `sh tests/run_tests.sh`
 
 ## Credits
 

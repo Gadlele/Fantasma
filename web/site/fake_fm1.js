@@ -42,7 +42,7 @@
       waiting = null; st.served++;
       if (st.served >= cfg.unplugAfter) { input.state = output.state = "disconnected"; st.log.push("unplugged"); return; }
       if (addr === 0xE0000000) setTimeout(() => boot("ota-FM-1_900", "Felucca Update", null), 300);
-      else if (addr === 0xF0000000) setTimeout(() => boot(cfg.product, "Felucca", cfg.after || ["ANALOG"]), 300);
+      else if (addr === 0xF0000000) setTimeout(() => boot((window.__fm1cfg && window.__fm1cfg.product) || cfg.product, "Felucca", cfg.after || ["ANALOG"]), 300);
       else next();
     }
   }

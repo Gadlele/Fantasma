@@ -3,7 +3,7 @@
 Fantasma's versions, newest first. The numbers: **X.Y** adds something (saved music still opens), **X.Y.Z** only
 fixes, a new **X** may change how things are saved.
 
-## 1.1 — not released yet
+## 1.1 — 2026-10-16
 
 Tape sounds, in the manner of Boards of Canada:
 

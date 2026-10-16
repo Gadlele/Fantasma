@@ -16,6 +16,8 @@ async function page(cfg) {
   p.on("dialog", (d) => d.accept());
   await p.goto(base + "install/");
   await p.waitForFunction(() => /Ready/.test(document.getElementById("build").textContent), null, { timeout: 15000 });
+  const id = (await p.textContent("#build")).match(/identity (FM-1_\d+)/)[1];   // the package's: what the FM-1 reports after
+  await p.evaluate((id) => { window.__fm1cfg = Object.assign(window.__fm1cfg || {}, { product: id }); }, id);
   await p.evaluate(async (fw) => {   // the logical image, for the fake to check what it is served
     const f = new Uint8Array(await (await fetch(fw)).arrayBuffer()), out = new Uint8Array(f.length - 20);
     for (let i = 0; i < 20; i++) out.set(f.subarray(i * 0x30, i * 0x30 + 0x2F), i * 0x2F);
@@ -41,7 +43,7 @@ const waitUnit = (p, re) => p.waitForFunction((r) => new RegExp(r).test(document
   await waitStatus(p, /^Done|^Error|lost|^Stopped|not found|another/);
   const st = await p.evaluate(() => window.__fm1);
   ok(/^Done\. The FM-1 runs /.test(await status(p)), "install: Done (" + (await status(p)) + ")");
-  ok(st.bad === 0 && st.served >= 10 && st.sysex && st.identity === "FM-1_910", `install: every read served right (${st.served} reads, ${st.bad} bad), SysEx asked, the FM-1 reports ${st.identity}`);
+  ok(st.bad === 0 && st.served >= 10 && st.sysex && st.identity === (await p.evaluate(() => window.__fm1cfg.product)), `install: every read served right (${st.served} reads, ${st.bad} bad), SysEx asked, the FM-1 reports ${st.identity}`);
   ok(+(await p.getAttribute("#bar", "value")) === 100 || (await p.evaluate(() => document.getElementById("bar").value)) === 100, "progress at 100 %");
   await p.click("#check"); await waitUnit(p, /runs/); ok(new RegExp(name).test(await unit(p)), "check after the install: " + (await unit(p)));
   await ctx.close();

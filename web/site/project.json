@@ -45,7 +45,7 @@
   "emu_replace": [
     ["<title>Felucca</title>", "<title>Fantasma · in your browser</title>"],
     ["<meta name=\"description\" content=\"Felucca, the multi-engine synth firmware for the FM-1, running in your browser: the same code the instrument runs.\">", "<meta name=\"description\" content=\"Fantasma, the ambient synth firmware for the FM-1, running in your browser: the same code the instrument runs.\">"],
-    ["@VERSION@@PREVIEW@", "Fantasma 1.0"],
+    ["@VERSION@@PREVIEW@", "Fantasma 1.1"],
     ["  Felucca by Leo Kuroshita, Hügelton Instruments · ", "  <strong>Fantasma</strong> by Gadlele, based on Felucca by Leo Kuroshita, Hügelton Instruments · "],
     ["<nav><a href=\"../installer/\">Install</a><a href=\"../editor/\">Editor</a><a href=\"https://github.com/hugelton/Felucca\">Source</a></nav>", "<nav><a href=\"../\">Home</a><a href=\"../install/\">Install</a><a href=\"https://github.com/Gadlele/Fantasma\">Source</a></nav>"],
     ["Felucca is not affiliated with or endorsed by them.", "Fantasma is not affiliated with or endorsed by them."],
