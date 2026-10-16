@@ -197,9 +197,12 @@ typedef struct {
     uint8_t pat;                 /* suggested pattern (PATTERNS[pat - 1], 0 = none): only a hint. A sound load
                                   * never touches the steps; SEQ > PATTERNS loads a pattern (ui.c pat_load). The
                                   * arp is the track's too: a preset does not set it */
+    uint8_t wow[3];              /* (1.1) the tape's wow: the LFO's WAVE, RATE and PIT depth, each + 1, set FREE; 0 = the
+                                  * LFO stays at its defaults, as every preset before 1.1 */
 } preset_t;
 #define FX(d, c, dl, r) .fx = {(d) + 1, (c) + 1, (dl) + 1, (r) + 1}
 #define PAT(n) .pat = (n)
+#define WOW(w, r, d) .wow = {(w) + 1, (r) + 1, (d) + 1}   /* WAVE (N_LWAVE: 0 SIN, 1 TRI), RATE 0..127, PIT 0..63 */
 
 struct track;
 typedef struct {                 /* an engine (engines.c ENGINES[]; the eng_*.c files) */

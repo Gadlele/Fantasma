@@ -1265,6 +1265,13 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         for (i = 0; i < 4u; i++)
             t->p[P_DIST + i] = (int16_t)(pr->fx[i] ? pr->fx[i] - 1 : FX_DEF[i]);
     }
+    if (e->presets[pi].wow[0]) {                      /* (1.1) the tape's wow: a slow, free LFO on the pitch */
+        const uint8_t *w = e->presets[pi].wow;
+        t->p[P_LWAVE] = (int16_t)(w[0] - 1);
+        t->p[P_LRATE] = (int16_t)(w[1] - 1);
+        t->p[P_LD_PIT] = (int16_t)(w[2] - 1);
+        t->p[P_LTRIG] = 1;                            /* FREE: one wow for every voice, as one tape */
+    }
     if (FELUCCA_BELL && t->eng_req % NENGINES == ENGI_BELL) {   /* Echoes' sounds: reverb 100 %, delay 50 % */
         t->p[P_REV] = 127;
         t->p[P_DLY] = 64;

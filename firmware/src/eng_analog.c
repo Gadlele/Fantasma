@@ -229,6 +229,9 @@ static const preset_t ANALOG_PRESETS[] = {
     {"FLUTE", {3, 3, 20, 10, 85, 0, 0, 64}, {25, 80, 105, 65}, 0, 1, FX(0, 10, 40, 60), PAT(4)},
     {"GLASS LEAD", {2, 10, 70, 0, 100, 10, 0, 64}, {12, 80, 95, 70}, 0, 1, FX(0, 30, 50, 65), PAT(4)},
     {"MELLOW SAW", {0, 8, 60, 0, 55, 10, 0, 64}, {30, 85, 100, 75}, 8, 1, FX(0, 20, 45, 55), PAT(4)},
+    /* (1.1) tape sounds: a slow wow on the pitch (WOW), in the manner of Boards of Canada */
+    {"NOSTALGIA", {0, 18, 70, 6, 50, 8, 0, 40}, {100, 90, 115, 112}, 0, 0, FX(0, 85, 20, 80), PAT(5), WOW(1, 30, 1)},
+    {"HAZY LEAD", {2, 4, 64, 2, 68, 0, 0, 50}, {40, 90, 110, 90}, 0, 1, FX(0, 40, 55, 60), PAT(4), WOW(0, 72, 1)},
 };
 
 static const engine_t ENG_ANALOG = {

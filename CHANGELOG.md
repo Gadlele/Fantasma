@@ -3,6 +3,17 @@
 Fantasma's versions, newest first. The numbers: **X.Y** adds something (saved music still opens), **X.Y.Z** only
 fixes, a new **X** may change how things are saved.
 
+## 1.1 — not released yet
+
+Tape sounds, in the manner of Boards of Canada:
+
+- **WOW**: a preset can now set the LFO for a slow, free wobble of the pitch, a worn tape that slows down and
+  speeds up again. The presets before 1.1 do not use it and sound as they did.
+- **Six new sounds** with it, at the end of their engine's list (the numbers of the others do not change):
+  **NOSTALGIA** (ANALOG, a detuned pad; on the Pad too), **HAZY LEAD** (ANALOG, a mono triangle with a slow delay),
+  **TAPE EP** (FM6, the tine piano with a lot of chorus), **FADED CHOIR** (VOICE; on the Pad too), **MUSIC BOX**
+  (BELL, a toy bell drifting in pitch) and **VHS HISS** (AMBI, the hiss and crackle of a running tape).
+
 ## 1.0 — 2026-10-16
 
 The first release. Fantasma is [Felucca](https://github.com/hugelton/Felucca) 1.5.1 with:
