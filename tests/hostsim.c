@@ -111,6 +111,10 @@ static void host_preset_values(track_t *t, uint32_t e, uint32_t pi, const preset
         t->p[P_LD_PIT] = (int16_t)(p->wow[2] - 1);
         t->p[P_LTRIG] = 1;
     }
+    if (p->sprd)                            /* (1.1) */
+        t->p[P_SPRD] = (int16_t)(p->sprd - 1);
+    if (p->glide)
+        t->p[P_GLIDE] = (int16_t)(p->glide - 1);
     fm6_track_loaded(t);                          /* FM6: the preset's patch (ui.c apply_preset_to) */
 }
 static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)

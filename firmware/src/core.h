@@ -199,10 +199,13 @@ typedef struct {
                                   * arp is the track's too: a preset does not set it */
     uint8_t wow[3];              /* (1.1) the tape's wow: the LFO's WAVE, RATE and PIT depth, each + 1, set FREE; 0 = the
                                   * LFO stays at its defaults, as every preset before 1.1 */
+    uint8_t sprd, glide;         /* (1.1) SPREAD (EDIT > VOICE 3) and GLIDE, each + 1; 0 = their defaults */
 } preset_t;
 #define FX(d, c, dl, r) .fx = {(d) + 1, (c) + 1, (dl) + 1, (r) + 1}
 #define PAT(n) .pat = (n)
 #define WOW(w, r, d) .wow = {(w) + 1, (r) + 1, (d) + 1}   /* WAVE (N_LWAVE: 0 SIN, 1 TRI), RATE 0..127, PIT 0..63 */
+#define SPRD(n) .sprd = (n) + 1                   /* the voices across the stereo field, 0..127 */
+#define GLD(n) .glide = (n) + 1                   /* the glide between notes, 0..127 */
 
 struct track;
 typedef struct {                 /* an engine (engines.c ENGINES[]; the eng_*.c files) */

@@ -12,7 +12,10 @@
   "What's new" and the list of versions come from CHANGELOG.md (web/site/changelog.py); its newest entry must
   be project.json's version.
 
-  web/site/make_pages.py PACKAGE.fwsc EMU_DIR_OR_PAGE OUT_DIR
+  web/site/make_pages.py PACKAGE.fwsc EMU_DIR_OR_PAGE OUT_DIR [SOUNDS_DIR]
+
+SOUNDS_DIR (tools/render_sounds.sh, where there is one): sounds.json and a clip per factory sound, the project
+page's Sounds section (sounds/); project.json's "new_sounds" are marked NEW.
 
 The package must be a release build of tools/build.py (Felucca's loader, no vendor files)."""
 import hashlib
@@ -48,7 +51,49 @@ def fill(page, cfg):
     return page
 
 
-def main(pkg, emu, out):
+CAT = {"B": "BASS", "L": "LEAD", "P": "PAD", "U": "PLUCK", "K": "KEYS", "D": "DRUM", "F": "FX", "O": "OTHER"}
+
+
+def sounds_html(p, sounds):
+    """the Sounds section: every factory sound by engine, a button that plays its clip ("" without SOUNDS_DIR)"""
+    if not sounds:
+        return ""
+    engines = json.loads((Path(sounds) / "sounds.json").read_text(encoding="utf-8"))
+    new = set(p.get("new_sounds", []))
+    total = sum(len(e["sounds"]) for e in engines)
+    cards = []
+    for e in engines:
+        items = "".join(
+            f'<li><button type="button" data-src="sounds/{e["engine"]}_{x["k"]}.mp3">'
+            f'<span class="play" aria-hidden="true"></span><span class="nm">{html.escape(x["name"])}</span>'
+            f'{"<em>NEW</em>" if x["name"] in new else ""}<small>{CAT.get(x["cat"], "")}</small></button></li>'
+            for x in e["sounds"])
+        cards.append(f'      <div class="eng"><h3>{html.escape(e["name"])} <span>{len(e["sounds"])}</span></h3><ul>{items}</ul></div>')
+    return f'''<section id="sounds">
+  <div class="wrap">
+    <h2>Sounds</h2>
+    <p class="sub">All {total} factory sounds, a few seconds of each, played by the firmware's own engines. Press one to
+      hear it.</p>
+    <div class="sounds">
+{chr(10).join(cards)}
+    </div>
+  </div>
+</section>
+<script>
+(() => {{
+  const a = new Audio(); let cur = null;
+  const stop = () => {{ if (cur) cur.classList.remove("on"); cur = null; }};
+  a.addEventListener("ended", stop);
+  document.querySelectorAll("#sounds button").forEach((b) => b.addEventListener("click", () => {{
+    if (cur === b) {{ a.pause(); stop(); return; }}
+    stop(); cur = b; b.classList.add("on"); a.src = b.dataset.src; a.play().catch(stop);
+  }}));
+}})();
+</script>
+'''
+
+
+def main(pkg, emu, out, sounds=None):
     pkg, emu, out = Path(pkg), Path(emu), Path(out)
     p = json.loads((HERE / "project.json").read_text(encoding="utf-8"))
     raw = pkg.read_bytes()
@@ -94,13 +139,17 @@ def main(pkg, emu, out):
         **common, "LEAD": p["lead"], "H1_TRACK": p["h1_track"], "H1_EXTRA": p["h1_extra"], "STRIPES": p["stripes"],
         "DOT_RADIUS": p["dot_radius"], "DEVICE_TITLE": p["device_title"], "DEVICE_SUB": p["device_sub"],
         "FEATURES_SUB": p["features_sub"], "FEATURES": feats, "GALLERY_SUB": p["gallery_sub"], "GALLERY": gal,
-        "CREDITS": p["credits"], "NEWS": cl.html(log[0][2]), "NEWS_DATE": html.escape(log[0][1]),
+        "CREDITS": p["credits"], "SOUNDS": sounds_html(p, sounds), "NEWS": cl.html(log[0][2]), "NEWS_DATE": html.escape(log[0][1]),
         "VERSIONS": "\n".join(
             f'      <li><a href="{p["repo"]}/releases/tag/{p["name"].lower()}-v{v}"><b>{v}</b></a>'
             f'<span>{html.escape(d)}</span>{" <em>latest</em>" if i == 0 else ""}</li>'
             for i, (v, d, _) in enumerate(log))})
     (out / "index.html").write_text(page, encoding="utf-8")
     shutil.copytree(HERE / "img", out / "img")
+    if sounds:
+        (out / "sounds").mkdir()
+        for f in Path(sounds).glob("*.mp3"):
+            shutil.copy(f, out / "sounds" / f.name)
 
     # the emulator: a directory (index.html, felucca.wasm, worklet.js, fonts/) or one self-contained page
     try_dir = out / "try"
@@ -142,6 +191,6 @@ def main(pkg, emu, out):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])

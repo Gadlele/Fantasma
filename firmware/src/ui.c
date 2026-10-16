@@ -1272,6 +1272,10 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         t->p[P_LD_PIT] = (int16_t)(w[2] - 1);
         t->p[P_LTRIG] = 1;                            /* FREE: one wow for every voice, as one tape */
     }
+    if (e->presets[pi].sprd)                            /* (1.1) */
+        t->p[P_SPRD] = (int16_t)(e->presets[pi].sprd - 1);
+    if (e->presets[pi].glide)
+        t->p[P_GLIDE] = (int16_t)(e->presets[pi].glide - 1);
     if (FELUCCA_BELL && t->eng_req % NENGINES == ENGI_BELL) {   /* Echoes' sounds: reverb 100 %, delay 50 % */
         t->p[P_REV] = 127;
         t->p[P_DLY] = 64;

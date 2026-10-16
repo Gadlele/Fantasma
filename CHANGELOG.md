@@ -8,11 +8,13 @@ fixes, a new **X** may change how things are saved.
 Tape sounds, in the manner of Boards of Canada:
 
 - **WOW**: a preset can now set the LFO for a slow, free wobble of the pitch, a worn tape that slows down and
-  speeds up again. The presets before 1.1 do not use it and sound as they did.
+  speeds up again, and its SPREAD and GLIDE. The presets before 1.1 do not use them and sound as they did.
 - **Six new sounds** with it, at the end of their engine's list (the numbers of the others do not change):
   **NOSTALGIA** (ANALOG, a detuned pad; on the Pad too), **HAZY LEAD** (ANALOG, a mono triangle with a slow delay),
   **TAPE EP** (FM6, the tine piano with a lot of chorus), **FADED CHOIR** (VOICE; on the Pad too), **MUSIC BOX**
   (BELL, a toy bell drifting in pitch) and **VHS HISS** (AMBI, the hiss and crackle of a running tape).
+- **The website plays every sound**: the Sounds section has a few seconds of each of the 129 factory sounds,
+  rendered by the firmware itself.
 
 ## 1.0 — 2026-10-16
 
