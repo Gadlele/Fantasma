@@ -72,7 +72,7 @@ def sounds_html(p, sounds):
     return f'''<section id="sounds">
   <div class="wrap">
     <h2>Sounds</h2>
-    <p class="sub">All {total} factory sounds, a few seconds of each, played by the firmware's own engines. Press one to
+    <p class="sub">All {total} factory sounds, each in a small piece (Dmaj7, Bm9, Gmaj7, Aadd9), played by the firmware's own engines. Press one to
       hear it.</p>
     <div class="sounds">
 {chr(10).join(cards)}
