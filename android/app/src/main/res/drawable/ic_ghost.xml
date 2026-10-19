@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- FANTASMA's ghost as on the splash: a cyan outline, a magenta trail behind it, two eyes, no mouth -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#F3EEE3"
-        android:pathData="M30,80 L30,52 A24,24 0 0 1 78,52 L78,80 L70,73 L62,80 L54,73 L46,80 L38,73 Z"/>
-    <path android:fillColor="#2A2F4D" android:pathData="M42,50 a4,5 0 1 0 8,0 a4,5 0 1 0 -8,0 M58,50 a4,5 0 1 0 8,0 a4,5 0 1 0 -8,0"/>
-    <path android:fillColor="#2A2F4D" android:pathData="M50,62 a4,5 0 1 0 8,0 a4,5 0 1 0 -8,0"/>
+    <path android:strokeColor="#FF3DD6" android:strokeWidth="3" android:fillColor="#00000000"
+        android:pathData="M28,78 L28,52 A22,22 0 0 1 72,52 L72,78 L65,71 L57,78 L50,71 L43,78 L35,71 Z"/>
+    <path android:strokeColor="#3AF3FF" android:strokeWidth="3" android:fillColor="#00000000"
+        android:pathData="M34,78 L34,52 A22,22 0 0 1 78,52 L78,78 L71,71 L63,78 L56,71 L49,78 L41,71 Z"/>
+    <path android:fillColor="#EFFFFF" android:pathData="M45,47 h5 v10 h-5 Z M62,47 h5 v10 h-5 Z"/>
 </vector>
