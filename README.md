@@ -94,3 +94,5 @@ and the USB rescue follows zvenson's [dinghy](https://github.com/zvenson/dinghy)
 
 Fantasma is free software under the [GPL-3.0](LICENSE), with no warranty. M-VAVE and FM-1 are trademarks of their
 respective owners; Fantasma is independent and not affiliated with, endorsed by or supported by them.
+
+You can also try Fantasma in the browser, no flashing needed, in the free community [FM-1 Emulator](https://fm1-emulator.atst.tools/).
