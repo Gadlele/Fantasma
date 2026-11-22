@@ -3,7 +3,7 @@
 /* web/emu/felucca_web.c built natively (cc, as the host tests), playing emu_test.mjs's heavy song with the same
  * gestures and the same render calls: its samples, float32 L R interleaved, to OUT. emu_test.mjs compares the
  * WebAssembly build's against them (the browser plays what the host build plays).
- *   cc -O2 -ffp-contract=off -w -Ibuild/gen -Ifirmware/src -o build/emu/native_check web/emu/native_check.c -lm
+ *   cc -O2 -ffp-contract=off -w -Ibuild/gen -Ifirmware/src -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -o build/emu/native_check web/emu/native_check.c -lm
  *   build/emu/native_check OUT.f32 */
 #include "felucca_web.c"
 

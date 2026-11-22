@@ -116,8 +116,8 @@ static int page_cycle(void)
         page_title(ti);
         ok = str_eq(ti, "DETAIL 2/4");
     }
-    ok &= help_page() && str_eq(help_page(), "[PRESETS]STEP[K1]CHANCE[K2]RATCH");
-    bad += check("  its footer title DETAIL 2/4 (not the scale), its HELP hint", ok);
+    ok &= help_page() && str_eq(help_page(), "[PRESETS]STEP[K1]CHANCE+FILL");
+    bad += check("  its footer title DETAIL 2/4 (not the scale; Fantasma's SEQ has AMBIENT too), its HELP hint", ok);
     return bad;
 }
 
@@ -183,13 +183,13 @@ static int knobs(void)
     go_detail();
     ui.msg_t = 0;
     kt(EN_K3, 2);
-    ok = msg_is("QUANTIZE IS ON") && step_nudge(&trk[0].step[2]) == 2;
+    ok = msg_is("QUANTIZE ON: SEQ>AUTO") && step_nudge(&trk[0].step[2]) == 2;
     t = &trk[0];
     t->step[2].flags |= SF_ACCENT;
     ui.msg_t = 0;
     kt(EN_K4, -2);
     ok &= msg_is("ACC PLAYS 127") && t->step[2].vel == 94u;
-    bad += check("  NUDGE with QUANTIZE ON: QUANTIZE IS ON (kept); VEL on an ACC step: ACC PLAYS 127 (kept)", ok);
+    bad += check("  NUDGE with QUANTIZE ON: QUANTIZE ON: SEQ>AUTO (kept); VEL on an ACC step: ACC PLAYS 127 (kept)", ok);
 
     pattern(0);
     go_detail();

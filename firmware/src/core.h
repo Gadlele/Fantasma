@@ -32,28 +32,32 @@
 #define FELUCCA_RESCUE 0
 #endif
 #endif
-#define NENGINES 14              /* engine 13 comes last: SLICE or, in Fantasma's default build, BELL */
 #define ENGI_BELL 13u
 #define ENGI_AMBI 3u
+#ifndef FELUCCA_CPU2
+#define FELUCCA_CPU2 1           /* the second core (src/felucca.c): 1 = built in, MENU > 2ND CORE ON lets it render
+                                  * some parts; 0 = none of it */
+#endif
+#define C1_NP (FELUCCA_CPU2 ? NPART : 1)   /* the copies of the state a part's render writes that parts shared before the
+                                            * second core (mod.c, voice.c SPREAD, eng_formant.c): one each with two cores,
+                                            * one for all with one, as up to 1.6 */
+#define C1_PI(t) ((uint32_t)((t) - trk) % C1_NP)   /* a part's copy */
+#ifndef FELUCCA_ADPCM
+#define FELUCCA_ADPCM 0          /* the ADPCM engine (eng_adpcm.c), engine 14: not built by default (FELUCCA_ADPCM=1 builds
+                                  * it): on the FM-1 it costs about three ANALOG voices a voice (eng_adpcm.c, the figures) */
+#endif
+#define NENGINES (14 + FELUCCA_ADPCM)   /* engine 13 is SLICE or, in Fantasma's default build, BELL; then ADPCM (14):
+                                        * the other engines keep their numbers */
+#define ENGI_ADPCM 14u
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
 #define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
-#define NELEM(a) (sizeof(a) / sizeof((a)[0]))
 
 /* ------------------------------------------------------- parameters --- */
-enum {
-    F_INT, F_PCT, F_BIPCT, F_TIME, F_LFOHZ, F_CUTOFF, F_DB, F_SEMI, F_ENUM, F_BPM, F_NOTE,
-    F_ONOFF, F_OCT, F_STEPS
-};
-
-typedef struct {
-    const char *label;
-    uint8_t fmt;
-    int16_t min, max, def;
-    const char *const *names;   /* F_ENUM */
-    const char *unit;           /* F_INT / F_ENUM optional unit */
-} param_desc_t;
+/* the engine interface (Felucca-Engines, MIT: engines/, in this tree since Fantasma 2.0): param_desc_t and F_*, voice_t,
+ * vmod_t, preset_t with FX() / PAT(), engine_t, NELEM */
+#include "../engines/src/felucca_engine.h"
 
 enum {                          /* per-track parameters */
     P_LEVEL,
@@ -86,6 +90,7 @@ enum {                          /* per-track parameters */
     P_FTYPE,                                   /* 1.5 (#104): ANALOG's filter TYPE, LP (as before) / BP / HP (eng_analog.c) */
     P_ESYNC,                                   /* 1.5 (#175): ENV SYNC: ATK DEC REL as note values of the tempo (voice.c) */
     P_PDEN, P_PLEN, P_PEV, P_PSEED,            /* Fantasma: the Pad's chord progression (seq.c prog_step): DENS, BARS, EVOLVE, SEED */
+    P_ATSNS, P_ATDST, P_ATAMT,                 /* 1.8: AFTERTOUCH: the keys' pressure (keytouch.c) and its routing (mod.c) */
     P_E0, P_E1, P_E2, P_E3, P_E4, P_E5, P_E6, P_E7,
     P_COUNT
 };
@@ -95,7 +100,7 @@ enum {                          /* global parameters */
     G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX,
     G_RSIZE, G_RDAMP, G_CRATE, G_CDEPTH,
     G_MIDI, G_SYNC, G_ROUTE, G_INFO,   /* G_ROUTE: MIDI IN, 0 CH1-4 (channels 1..4 -> parts 1..4, 5..16 ignored), 1 SEL;
-                                        * 1.2: 2..4 CH5-8 CH9-12 CH13-16 (seq.c midi_base) */
+                                        * 1.2: 2..4 CH5-8 CH9-12 CH13-16 (seq.c midi_base); 1.5.5: 5 TRACK (song.mch) */
     G_SLOT, G_NAME, G_LOAD, G_SAVE,
     G_ENGSEL, G_ENGGO,          /* no page: the editor switches the engine with a SET of G_ENGSEL; G_ENGGO is
                                  * unused (ids are fixed by the formats and the protocol) */
@@ -160,89 +165,7 @@ static int drum_from_perc(uint32_t engine, int16_t *e)
 
 /* ------------------------------------------------- voices, engines --- */
 enum { V_POLY, V_MONO, V_LEGATO, V_UNISON };   /* P_VOICE */
-typedef struct {
-    uint8_t note, vel, gate, active;
-    uint8_t stage;               /* env: 0 off, 1 attack, 2 decay/sustain, 3 release, (4 given up, 5 AMBI INF crossfade out: voice.c) */
-    uint8_t side;                /* SPREAD (fx.c mix_spread): 0 left of PAN, 1 right; set as the voice starts */
-    int32_t env;                 /* Q24 */
-    int32_t env_out;             /* last control-rate amplitude, Q15 */
-    int32_t pitch16, pitch_cur;  /* 1/16 semitone, with glide */
-    int32_t gstep;               /* glide TIME mode: 1/16 st per control tick, 0 = RATE mode */
-    int32_t fine;                /* unison detune: phase increment * (1 + fine / 4096) */
-    uint32_t ph[3];
-    int32_t s[8];                /* engine state (filters, envs) */
-    uint32_t age;
-    uint8_t mvel;                /* mod.c: the note-on velocity (before UNISON scaling) and RAND of the note */
-    int16_t mrnd;
-} voice_t;
-
-typedef struct {                 /* per-voice control-rate modulation, computed in voice.c */
-    uint32_t inc;                /* phase increment of the base pitch */
-    int32_t pitch16;
-    int32_t amp0, amp1;          /* Q15 ramp over the block */
-    int32_t cutoff;              /* 0..127 << 8 */
-    int32_t shape;               /* 0..127 << 8 */
-    int32_t envq15;              /* env value (for engines that use it as a mod source) */
-    int32_t fine;                /* the residual below 1/16 semitone in inc: unison detune, TUNE, bend (1/4096) */
-} vmod_t;
-
-typedef struct {
-    const char *name;
-    int8_t e[8];                 /* P_E0..P_E7 (signed: an interval below the note; every value fits) */
-    uint8_t env[4];              /* ATK DEC SUS REL */
-    int8_t fenv;                 /* ENV -> FILTER amount (-64..63) */
-    uint8_t mono;                /* 1 = MONO (bass / lead), 0 = POLY */
-    /* the rest of the patch; each value is stored + 1, 0 = the default */
-    uint8_t fx[4];               /* DIST, CHORUS, DELAY, REVERB sends */
-    uint8_t pat;                 /* suggested pattern (PATTERNS[pat - 1], 0 = none): only a hint. A sound load
-                                  * never touches the steps; SEQ > PATTERNS loads a pattern (ui.c pat_load). The
-                                  * arp is the track's too: a preset does not set it */
-    uint8_t wow[3];              /* (1.1) the tape's wow: the LFO's WAVE, RATE and PIT depth, each + 1, set FREE; 0 = the
-                                  * LFO stays at its defaults, as every preset before 1.1 */
-    uint8_t sprd, glide;         /* (1.1) SPREAD (EDIT > VOICE 3) and GLIDE, each + 1; 0 = their defaults */
-} preset_t;
-#define FX(d, c, dl, r) .fx = {(d) + 1, (c) + 1, (dl) + 1, (r) + 1}
-#define PAT(n) .pat = (n)
-#define WOW(w, r, d) .wow = {(w) + 1, (r) + 1, (d) + 1}   /* WAVE (N_LWAVE: 0 SIN, 1 TRI), RATE 0..127, PIT 0..63 */
-#define SPRD(n) .sprd = (n) + 1                   /* the voices across the stereo field, 0..127 */
-#define GLD(n) .glide = (n) + 1                   /* the glide between notes, 0..127 */
-
-struct track;
-typedef struct {                 /* an engine (engines.c ENGINES[]; the eng_*.c files) */
-    const char *name;            /* "ANALOG" (PRESETS, the editor) */
-    const char *page_title[2];   /* EDIT 1 and EDIT 2 */
-    param_desc_t edit[8];        /* P_E0..P_E7 */
-    const preset_t *presets;
-    uint8_t npresets;
-    uint8_t knob[4];             /* HOME: the four parameters on KNOB 1..4 */
-    uint8_t poly;                /* voice cap for POLY and UNISON, 0 = NVOICE */
-    uint8_t sampled;             /* 1 = plays recorded material (a position, not a phase): voice.c keeps
-                                  * no phases over a retrigger, spreads none for UNISON, renders at SUS 0 */
-    uint8_t keep;                /* bit k: s[k] is kept when a sounding voice is retriggered (filters) */
-    uint8_t oneshot;             /* 1 = hits (DRUM): always POLY, no glide; amp ends its voices (eng_drum.c) */
-    void (*note_on)(struct track *t, voice_t *v);
-    void (*render)(struct track *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m);
-    /* optional (0 = none): the voice amplitude instead of the ADSR curve, once per control tick;
-     * gets the ADSR value (Q15, env_tick already ran: it still gates the voice), returns Q15 */
-    int32_t (*amp)(struct track *t, voice_t *v, int32_t adsr);
-    /* optional: a mode-dependent descriptor of EDIT k (the same range and default as edit[k],
-     * another label / value names), 0 = edit[k] */
-    const param_desc_t *(*desc)(const struct track *t, uint32_t k);
-    /* optional: once per block and part, before its voices (also with no voice sounding) */
-    void (*block)(struct track *t);
-    /* optional: the note of key k (0 = the lowest) when the engine maps the keys itself, else -1
-     * (then the scale keyboard of seq.c kb_map) */
-    int32_t (*keys)(const struct track *t, uint32_t k);
-    /* 1 = the engine's own envelopes are the voice's amplitude (FM6): voice.c renders it at 1.0 (no ADSR, no
-     * velocity; LFO -> AMP, the matrix's AMP and the fades still apply; ENV is 0) and the voice ends when
-     * done() says so (once per control tick, before the render), not at the end of the ADSR's release */
-    uint8_t ownenv;
-    int (*done)(struct track *t, voice_t *v);
-    /* bytes of the part's engine memory (engines.c eng_mem, at most ENG_MEM_PART) the engine keeps its state
-     * in, 0 = none: a part plays one engine at a time, so they share one region; on a switch to the engine
-     * (after the old one's fade) the region is zeroed when another engine had it (eng_mem_claim) */
-    uint16_t mem;
-} engine_t;
+/* voice_t, vmod_t, preset_t, engine_t: felucca_engine.h (above) */
 
 /* ------------------------------------------------- tracks, the song --- */
 enum { ST_NOTE, ST_TIE, ST_REST };
@@ -259,7 +182,7 @@ typedef struct {                 /* acid-style step: up to 4 notes (POLY), time,
     uint8_t vel;
     uint8_t hit;                 /* bit l: lane l hits (its GM note, on any engine): the DRUM grid */
     uint8_t acc;                 /* bit l: that hit is accented (velocity 127) */
-    uint8_t probability;         /* 0 = legacy 100%; 1..100 = percent, 101 = silent */
+    uint8_t probability;         /* 0 = legacy 100%; 1..100 = percent, 101 = silent; 1.5.5: 102..112 a condition */
 } step_t;
 typedef struct {                 /* a step as formats 1..4 (projects to FUN4) stored it: no hits */
     uint8_t note[4];
@@ -267,8 +190,33 @@ typedef struct {                 /* a step as formats 1..4 (projects to FUN4) st
 } step8_t;
 
 /* Probability keeps zero-initialized and legacy patterns at 100%. */
-static uint32_t step_chance(const step_t *s) { return !s->probability ? 100u : s->probability <= 100u ? s->probability : 0u; }
+/* 1.5.5 (#209): CONDITIONS, in the chance byte's free values (no format change): COND_FIRST + c - 1 is condition c
+ * (1..NCOND): a:b (1:2 2:2 1:3 2:3 3:3 1:4 2:4 3:4 4:4) plays on loop a of every b of its track (seq.c seq_cond), FILL
+ * while FILL is held (GLO + E4), !FILL while not. A step has a chance or a condition (one byte): a condition plays at
+ * 100 %. Firmware before 1.5.5 refuses a project holding one (its proj_unpack wants 0..101): the slot reads empty there.
+ * The knobs and the lists show the two as one value (step_chance_v): 0..100 %, then 101..100 + NCOND the conditions */
+#define COND_FIRST 102u
+#define NCOND 11u
+#define COND_FILL 10u                    /* FILL, NOT FILL: the last two */
+#define COND_NFILL 11u
+#define CHANCE_V_MAX (100u + NCOND)
+static uint32_t step_cond(const step_t *s)   /* its condition 1..NCOND, 0 none */
+{
+    return s->probability >= COND_FIRST && s->probability < COND_FIRST + NCOND ? s->probability - COND_FIRST + 1u : 0u;
+}
+static uint32_t step_chance(const step_t *s)
+{
+    return !s->probability ? 100u : s->probability <= 100u ? s->probability : s->probability == 101u ? 0u : 100u;
+}
 static void step_set_chance(step_t *s, uint32_t chance) { s->probability = (uint8_t)(chance >= 100u ? 0u : chance ? chance : 101u); }
+static uint32_t step_chance_v(const step_t *s) { uint32_t c = step_cond(s); return c ? 100u + c : step_chance(s); }
+static void step_set_chance_v(step_t *s, uint32_t v)
+{
+    if (v > 100u)
+        s->probability = (uint8_t)(COND_FIRST - 101u + (v < CHANCE_V_MAX ? v : CHANCE_V_MAX));
+    else
+        step_set_chance(s, v);
+}
 /* RATCH: a NOTE step plays its notes and hits this many times (1..4), in equal parts of the step; every older
  * pattern holds 0 there, x1 */
 static uint32_t step_ratchet(const step_t *s) { return ((s->flags & SF_RATCH) >> SF_RATCH_SH) + 1u; }
@@ -293,7 +241,8 @@ static void step_set_nudge(step_t *s, int32_t v)
     uint32_t u = (uint32_t)(v < -8 ? -8 : v > 7 ? 7 : v) & 15u;
     s->flags = (uint8_t)((s->flags & ~SF_NUDGE) | (u & 7u) << 5 | (u >> 1 & 4u));
 }
-#define MOTION_MAX 128u          /* 1.2 (FUN10): 64 before */
+#define MOTION_MAX 122u          /* 1.2 (FUN10): 64 before; 128 up to Fantasma 1.1 (2.0: six fewer, the room 1.8's
+                                  * AFTERTOUCH and Fantasma's Pad parameters take in FUN10, project.c) */
 /* Four tracks x64 steps fit one byte. Values retain their signed parameter range (-64..127: an int8_t, 1.2).
  * param: the P_* id (< 128: P_COUNT is at most 127, project.c), bit 7 (MOTION_LOCK, 1.1) a parameter lock: the value
  * sounds on that step only and goes back after it (motion.c motion_step); without it an automation event, the
@@ -302,7 +251,7 @@ static void step_set_nudge(step_t *s, int32_t v)
 #define MOTION_ID(e) ((uint32_t)(e)->param & 0x7Fu)
 typedef struct { uint8_t place, param; int8_t value; } motion_event_t;
 typedef struct { uint8_t count, on, rsv[2]; motion_event_t event[MOTION_MAX]; } motion_store_t;
-_Static_assert(sizeof(motion_store_t) == 388u, "motion disk layout (FUN10)");
+_Static_assert(sizeof(motion_store_t) == 370u, "motion disk layout (FUN10; 388 with 128 records, up to Fantasma 1.1)");
 #define CHAIN_ROWS 16u
 /* A song section (1.2, FUN10): the PROJECT slot each track plays (0..3, A..D; CHAIN_SILENT "-": that track plays
  * nothing there) and its repeats (1..16). Up to 1.1 a row was {slot, repeat}, all four tracks on that slot
@@ -377,7 +326,17 @@ typedef struct track {
     int32_t dist_hp, dist_lp1, dist_lp2;   /* DIST insert state (fx.c) */
     uint8_t tail;                /* blocks to mix after the last voice (the DIST / INSERT tail) */
     uint8_t ins_run;             /* the INSERT still sounds (fx.c track_insert: its wet share above 0) */
-    uint8_t rsv_sz[9];          /* (sizeof(track_t) a multiple of 16: below) */
+    uint8_t cond_loop;           /* 1.5.5 (#209): the loop of its LEN playing (0..COND_LOOPS - 1, seq.c seq_tick) */
+#if FELUCCA_CPU2
+    /* the second core: a part's render state, its own, so the two cores' parts share nothing (fx.c mix_block); in
+     * the pad that keeps sizeof(track_t) a multiple of 16 (14 bytes before) */
+    uint8_t lfo_wrap;            /* the LFO's phase wrapped this block: its S&H is drawn after the parts (voice.c) */
+    uint32_t esync_k[3];         /* ATK's step, DEC's and REL's coefficient (Q16) this block (voice.c esync_coef) */
+    uint8_t spread_on;           /* SPREAD this block (fx.c mix_part, voice.c track_render) */
+    uint8_t rsv_sz[7];           /* (sizeof(track_t) a multiple of 16: below; 1.8's AFTERTOUCH grew it by 14, Fantasma's 4 Pad parameters took 8) */
+#else
+    uint8_t rsv_sz[4];           /* (sizeof(track_t) a multiple of 16: below; 1.8's AFTERTOUCH took 2 of it, Fantasma's Pad parameters 8) */
+#endif
     int16_t armp, aholdp;        /* P_AMODE / P_AHOLD as last seen by the ISR */
     /* engine switch (voice.c engine_block): the old engine's voices fade out, then it switches */
     uint8_t xf_on, xf;           /* fading; blocks of the fade still to render */
@@ -408,11 +367,28 @@ typedef struct {
     uint32_t cpu_q8;             /* audio ISR load, 1/256 */
     uint32_t master_q12;
     int32_t batt_raw;            /* smoothed ADC ch3 (battery divider), 0 = not read yet */
+    uint8_t mch[NTRK];           /* 1.5.5 (#202): MIDI IN TRACK (G_ROUTE ROUTE_TRACK), each track's channel as stored: 0..15
+                                  * the channel's distance up from the track's own (track i: channel (i + v) % 16, so 0, the
+                                  * zeroed default, is T1..T4 on channels 1..4), MCH_OMNI (any channel no track has), MCH_OFF
+                                  * (none); mch_get / mch_set. The project's, in FUN10's spare bytes (project.c PROJ_MIDI_OFF);
+                                  * MENU > MIDI > T1..T4 CHANNEL */
 } song_t;
+#define ROUTE_SEL 1
+#define ROUTE_TRACK 5                /* G_ROUTE: TRACK, each track on its own channel (song.mch) */
+#define MCH_OMNI 16u
+#define MCH_OFF 17u
+#define MCH_N 18u                    /* channels 1..16, OMNI, OFF */
 
 static track_t trk[NTRK];        /* the instrument: four parts */
 static song_t song;
 #define TSEL (&trk[song.sel])    /* the selected track */
+/* MIDI IN TRACK: track i's channel 0..15, MCH_OMNI or MCH_OFF (song.mch), and set */
+static inline uint32_t mch_get(uint32_t i)
+{
+    uint32_t v = song.mch[i % NTRK];
+    return v < 16u ? (v + i) & 15u : v < MCH_N ? v : (i & 15u);
+}
+static inline void mch_set(uint32_t i, uint32_t ch) { song.mch[i % NTRK] = (uint8_t)(ch < 16u ? (ch - i) & 15u : ch < MCH_N ? ch : 0u); }
 
 /* SWING of a track's step clock: the track's own plus the global one, at most 100 (#31). The sequencer
  * (seq.c step_samples) and the SLICER (slicer.c sl_enter) both time steps with it. At 100 the even

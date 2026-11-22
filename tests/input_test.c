@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* Host test of the key / button debounce in hal/fm1_input.h (fm1__key, fm1__frame), against a model
+/* Host test of the key / button debounce in bsp/boards/fm1/fm1_input.h (fm1__key, fm1__frame), against a model
  * of the scan and of bouncing contacts. The scan is the TIMER5 one (fm1_input_tick): one column every
  * 100 us, sampled one tick after it was latched; a frame (the debounce step) every 11 ticks.
  * A contact closes at time T, bounces (closed / open runs of 30..700 us) for up to 3 ms, stays closed,
@@ -31,8 +31,8 @@
 static uint32_t host_now;                          /* TIMER4 ticks (24 MHz) */
 #define FM1_INPUT_NOW() host_now
 #pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
-#include "../firmware/hal/fm1_time.h"
-#include "../firmware/hal/fm1_gpio.h"
+#include "../firmware/bsp/chip/fm1_time.h"
+#include "../firmware/bsp/chip/fm1_gpio.h"
 static volatile uint32_t host_reg[16][64];        /* the GPIO registers, as memory (the LED test below) */
 static uint32_t host_step = 2400u;                /* TIMER4 ticks per read of the clock (the LED test: finer) */
 static uint32_t host_ticks(void) { return host_now += host_step; }
@@ -46,7 +46,7 @@ static uint32_t host_bus;
 #undef FM1_PR
 #define FM1_PR(p, r) (*(host_now += host_bus, &host_reg[(p) & 15u][((r) / 4u) & 63u]))
 #define fm1_ticks host_ticks
-#include "../firmware/hal/fm1_input.h"
+#include "../firmware/bsp/boards/fm1/fm1_input.h"
 
 #define TICK_US 100u
 static int fails;
@@ -223,7 +223,7 @@ static int32_t en_run(uint32_t until)
     return fm1_in.enc_steps[0];
 }
 
-/* The power-on LED sweep (hal/fm1_led_anim.h, fm1_led_anim_start) through fm1_input_tick, from the trace of the line
+/* The power-on LED sweep (bsp/boards/fm1/fm1_led_anim.h, fm1_led_anim_start) through fm1_input_tick, from the trace of the line
  * writes: each LED's state each scan frame (lit: the lines left on for its column; the glow: its dim pulse alone).
  * Checked, with the idle glow (LEDS DIM HI), without (OFF), and with a key pressed half way:
  *   - it runs FM1_ANIM_FRAMES frames (~0.70 s) and its end picture, then fm1_led_anim_on() is 0 (a press: the frame after);
@@ -451,7 +451,7 @@ static void anim_test(void)
     memset(fm1_led_breath, 0, sizeof fm1_led_breath);
 }
 
-/* 1.2 (Discussion #135): the idle animation (hal/fm1_led_anim.h fm1_idle_level, hal/fm1_input.h fm1_led_idle_start)
+/* 1.2 (Discussion #135): the idle animation (bsp/boards/fm1/fm1_led_anim.h fm1_idle_level, bsp/boards/fm1/fm1_input.h fm1_led_idle_start)
  * through fm1_input_tick, the LEDs read after each scan frame:
  *   - endless: over a cycle and a half it keeps running (the frame wraps at FM1_IDLE_FRAMES), fm1_led_idle_on() 1;
  *   - every LED, every frame, as its level asks (lit frames by the same first order sigma-delta, the glow flag);

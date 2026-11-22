@@ -25,21 +25,27 @@ static void audio_silence(void)                 /* IRQs off: the DMA would loop 
     for (i = 0; i < sizeof abuf / sizeof abuf[0]; i++)
         abuf[i] = 0;
 }
+/* the store: fm1_flash.h FL_STORE_OK, and the FM6 voice bank (fm6_vbank.c FVB_HOME, 1.4.1): one sector at 0xE7000, the first
+ * of felucca-bsp's FL_XDATA1 (a firmware's own data), which Felucca uses for nothing else */
+#define ST_VBANK_LO 0x000E7000u
+#define ST_VBANK_HI 0x000E8000u
+#define ST_OK(off, n) (FL_STORE_OK(off, n) || FL_IN(off, n, ST_VBANK_LO, ST_VBANK_HI))
 static int st_erase(uint32_t off)
 {
     uint32_t took, f;
     int rc;
-    if (!FL_STORE_OK(off, 0x1000u))
+    if (!ST_OK(off, 0x1000u))
         return -8;
     f = irq_save();
     audio_silence();
-    rc = FL_FAR(fl_erase4k_ram)(off, &took);
-    irq_restore(f);
-    return rc;
+    fm1__led_lines(0);                          /* (#236) the erase stops the LED scan for ~17 ms (the IRQs are off and its code */
+    rc = FL_FAR(fl_erase4k_ram)(off, &took);    /* is in the flash): one column would stay lit at full duty and the rest dark, a */
+    irq_restore(f);                             /* flash of the whole panel. Dark rows: the panel just drops out; the tick lights */
+    return rc;                                  /* the rows again at its next pass */
 }
 static int st_prog(uint32_t off, const void *src, uint32_t n)
 {
-    if (!FL_STORE_OK(off, n))                   /* only inside the storage areas */
+    if (!ST_OK(off, n))                         /* only inside the storage areas */
         return -8;
     return fl_write(off, src, n);
 }

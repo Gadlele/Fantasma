@@ -230,6 +230,8 @@ static uint32_t mod_dst_icon(const track_t *t, int32_t d)
     d = clamp(d, 0, MD_N - 1);
     if (d == MD_DEPTH)
         return ICON_LFO_WAVE;
+    if (d >= MD_VEL)                                   /* (1.5.6: VEL, TIME) */
+        return d == MD_VEL ? ICON_ACCENT : ICON_TIME;
     if (d < MD_E1)
         return I[d];
     id = P_E0 + (uint32_t)(d - MD_E1);
@@ -258,6 +260,7 @@ static uint32_t engine_icon(const char *name)
         {"DRUM", ICON_DRUM},
         {"NOISE", ICON_NOISE},
         {"FM6", ICON_MOD},                    /* (symbol_modular: six operators patched; a glyph of its own wanted) */
+        {"ADPCM", ICON_SAMPLE},               /* (short sampled waves) */
     };
     uint32_t i;
     for (i = 0; i < sizeof M / sizeof M[0]; i++)

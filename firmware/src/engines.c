@@ -2,7 +2,7 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* Engine table (order = PRESETS browsing order and the engine numbers of the editor protocol), the
  * factory patterns (SAVE > PHRASES) and the parts' sounds at power-on. */
-#include "dsp.c"
+#include "../engines/src/dsp.c"   /* Felucca-Engines (MIT): the shared DSP blocks */
 
 /* The parts' engine memory (1.5): a part plays one engine at a time, so the engines with large per-part state
  * (engine_t.mem: PHYS's slots, GRAIN's grains and index, DRUM's lanes, FM6's notes, SLICE's reverse windows)
@@ -10,9 +10,13 @@
  * last claimed it (eng_mem_owner); a switch to another such engine zeroes its engine_t.mem bytes, which is
  * the state each had at power-on, so a switch sounds as it did with the arrays (tests/union_test.c). State
  * that runs on across notes and switches stays outside (WHEEL's wheels, GRAIN's random numbers).
- * Sized by the largest, PHYS (3 x SYMP's slot); an engine that needs more than ENG_MEM_PART grows it for
+ * Sized by the largest, ADPCM when it is built (else PHYS, 3 x SYMP's slot); an engine that needs more than ENG_MEM_PART grows it for
  * every part (x NPART of the pool). Zero-initialised pool section: main.c fm1_cstart clears it. */
+#if FELUCCA_ADPCM
+#define ENG_MEM_PART 13344u    /* ADPCM: its 192 ms echo line, 8 voices and the DSP (13288 B; the host's pointers 13320) */
+#else
 #define ENG_MEM_PART 12888u
+#endif
 static union {
     uint64_t align;
     uint8_t b[ENG_MEM_PART];
@@ -21,19 +25,19 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #define ENG_MEM(p) ((void *)eng_mem[p].b)  /* part p's region (p < NPART) */
 #define ENG_MEM_FITS(name, size) _Static_assert((size) <= ENG_MEM_PART, name " state over ENG_MEM_PART")
 
-#include "eng_analog.c"
-#include "eng_phase.c"
+#include "../engines/src/eng_analog.c"   /* Felucca-Engines (MIT): ANALOG LOFI TRIO WHEEL NOISE */
+#include "../engines/src/eng_phase.c"   /* Felucca-Engines (MIT): PHASE */
 #if FELUCCA_LOFI
-#include "eng_lofi.c"
+#include "../engines/src/eng_lofi.c"
 #endif
 #include "eng_sample.c"
 #include "eng_formant.c"
-#include "eng_trio.c"
-#include "eng_wheel.c"
+#include "../engines/src/eng_trio.c"
+#include "../engines/src/eng_wheel.c"
 #include "eng_grain.c"
 #include "eng_phys.c"           /* PHYS: DaisySP physical models (phys_dsp.c, MIT) */
 #include "eng_drum.c"           /* DRUM: the 8-lane kit (drum_voice.c) */
-#include "eng_noise.c"
+#include "../engines/src/eng_noise.c"
 #if FELUCCA_AMBI
 #include "eng_ambi.c"          /* AMBI: an ambient noise generator (Fantasma), engine 3 in LOFI's place (uses eng_noise.c's isqrt32) */
 #endif
@@ -46,6 +50,9 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #include "eng_slice.c"
 #else
 #include "eng_bell.c"           /* BELL: a two-operator FM bell (Fantasma), engine 13 in SLICE's place */
+#endif
+#if FELUCCA_ADPCM
+#include "eng_adpcm.c"           /* ADPCM: BRR waves and an FIR echo, its DSP ported from snes_spc (adpcm_dsp.c, LGPL-2.1+) */
 #endif
 
 /* the editor protocol, user presets and projects store these indices: append, never reorder */
@@ -75,6 +82,9 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_SLICE,                  /* 13 (FELUCCA_SLICE=0 builds without it) */
 #else
     &ENG_BELL,                   /* 13 (Fantasma: BELL, where SLICE was) */
+#endif
+#if FELUCCA_ADPCM
+    &ENG_ADPCM,                  /* 14 (ENGI_ADPCM; FELUCCA_ADPCM=0 builds without it) */
 #endif
 };
 
@@ -134,6 +144,9 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
     11,                          /* NOISE */
     13,                          /* SLICE, or BELL */
     10,                          /* DRUM */
+#if FELUCCA_ADPCM
+    14,                          /* ADPCM (1.8): last, so the EDIT layer's white keys keep the 13 above (ui_layer.c LY_ENG_KEYS) */
+#endif
 };
 
 /* the engines one can pick (engine 1 only with FELUCCA_FM4), in ENGINE_ORDER: eng_ok(e), the n-th of them

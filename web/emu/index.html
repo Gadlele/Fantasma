@@ -17,8 +17,8 @@
         --lit: #fff4d6; --green: #5fe08a; color-scheme: light; }
 html, body { background: var(--bg); }
 body { margin: 0; color: var(--fg); font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
-main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 32px; }
-@media (orientation: portrait) and (max-width: 700px) { main { padding: 8px 8px 24px; } }
+main { position: relative; max-width: 1040px; margin: 0 auto; padding: 52px 16px 32px; }
+@media (orientation: portrait) and (max-width: 700px) { main { padding: 48px 8px 24px; } }
 a { color: inherit; }
 .device { position: relative; width: 100%; aspect-ratio: 1000 / 624; user-select: none; -webkit-user-select: none;
           -webkit-touch-callout: none; touch-action: manipulation; }
@@ -28,31 +28,34 @@ a { color: inherit; }
 .hit.knob { cursor: ns-resize; border-radius: 50%; }
 .hit:focus-visible { outline: 2px solid var(--lit); outline-offset: 2px; }
 .face { transition: fill .05s; }
-.dim .face.btn { fill: #3a3934; }
-.lit .face.btn { fill: var(--lit); }
-.lit text { fill: #1d1d1f; }
-.green .face.btn { fill: var(--green); }
-.green text { fill: #0d2414; }
+/* the buttons are the body's black; what lights is the label (lit, the glow under it, PLAY's green, REC's red) */
+.b .face.btn { fill: var(--body); }
+.b text { fill: #6e6e73; transition: fill .05s; }
+.b.rec text { fill: #8c3a34; }
+.b.dim text { fill: #8e8a80; }
+.b.lit text { fill: var(--lit); filter: drop-shadow(0 0 4px rgba(255, 244, 214, .75)); }
+.b.rec.lit text { fill: #ff453a; filter: drop-shadow(0 0 4px rgba(255, 69, 58, .75)); }
+.b.green text { fill: var(--green); filter: drop-shadow(0 0 4px rgba(95, 224, 138, .75)); }
 .face.key { fill: #0c0c0d; stroke: var(--edge); stroke-width: 1.5; }
 .slit { fill: #3a3a3c; transition: fill .05s; }
 .dim .slit { fill: #77777b; }
 .lit .slit { fill: #ececee; filter: drop-shadow(0 0 3px rgba(255, 255, 255, .6)); }
-/* #119: what can be pressed breathes, dark .. ~60 % of lit and back (hal/fm1_input.h fm1_led_breath, ~1.1 s; MENU >
+/* #119: what can be pressed breathes, dark .. ~60 % of lit and back (bsp/boards/fm1/fm1_input.h fm1_led_breath, ~1.1 s; MENU >
  * LEDS DIM LO ~30 %): the peaks between dark and lit at ~0.8 / ~0.58 on screen (the LED's share, gamma-encoded) */
-@keyframes breath-btn { 0%, 100% { fill: #3a3934; } 50% { fill: #d8cfb6; } }
+@keyframes breath-btn { 0%, 100% { fill: #6e6e73; } 50% { fill: #e2d9c2; } }
 @keyframes breath-slit { 0%, 100% { fill: #3a3a3c; } 50% { fill: #c8c8ca; } }
-@keyframes breath-btn-lo { 0%, 100% { fill: #3a3934; } 50% { fill: #aca592; } }
+@keyframes breath-btn-lo { 0%, 100% { fill: #6e6e73; } 50% { fill: #c2bcac; } }
 @keyframes breath-slit-lo { 0%, 100% { fill: #3a3a3c; } 50% { fill: #a1a1a3; } }
-.breath .face.btn { animation: breath-btn 1.13s ease-in-out infinite; }
+.b.breath text { animation: breath-btn 1.13s ease-in-out infinite; }
 .breath .slit { animation: breath-slit 1.13s ease-in-out infinite; }
-.dimlo .breath .face.btn { animation-name: breath-btn-lo; }
+.dimlo .b.breath text { animation-name: breath-btn-lo; }
 .dimlo .breath .slit { animation-name: breath-slit-lo; }
 @media (prefers-reduced-motion: reduce) {
-  .breath .face.btn, .breath .slit { animation: none; }
-  .breath .face.btn { fill: #aca592; }
+  .b.breath text, .breath .slit { animation: none; }
+  .b.breath text { fill: #c2bcac; }
   .breath .slit { fill: #a1a1a3; }
 }
-/* the DRUM grid's beats (hal/fm1_input.h fm1_led_mid): a steady level between the glow and lit, ~15 % (DIM LO ~10 %) */
+/* the DRUM grid's beats (bsp/boards/fm1/fm1_input.h fm1_led_mid): a steady level between the glow and lit, ~15 % (DIM LO ~10 %) */
 .mid .slit { fill: #9a9a9e; }
 .dimlo .mid .slit { fill: #8a8a8e; }
 .held .face { stroke: var(--lit); stroke-width: 3; }
@@ -63,12 +66,27 @@ a { color: inherit; }
 .start button { font: inherit; font-size: 18px; padding: 12px 28px; background: #fff; color: #000; border: 0; cursor: pointer; }
 .start button:disabled { opacity: .4; cursor: progress; }
 .start p { margin: 0; max-width: 32em; text-align: center; color: #fff; }
-.keys, footer { margin: 16px 0 0; color: var(--dim); text-align: center; }
-.keys span { white-space: nowrap; margin: 0 8px; }
-kbd { font: 600 11px ui-monospace, Menlo, monospace; border: 1px solid var(--rule); padding: 0 4px; color: var(--fg); }
-footer { margin-top: 12px; font-size: 12px; }
-footer nav a { margin: 0 6px; }
-footer small { font-size: 11px; opacity: .8; }
+.keys { margin: 12px 0 0; color: var(--dim); text-align: center; }
+.keys select { font: inherit; font-size: 12px; }
+.keys:not(:has(span:not([hidden]))) { display: none; }
+.info { position: absolute; top: 12px; right: 16px; width: 32px; height: 32px; border-radius: 50%; border: 0; cursor: pointer;
+        background: var(--body); color: var(--label); font: 600 italic 16px/32px Georgia, "Times New Roman", serif; padding: 0; z-index: 2; }
+.info:hover, .info:focus-visible { color: var(--lit); outline: none; box-shadow: 0 0 0 2px var(--lit); }
+dialog { max-width: min(34em, calc(100vw - 32px)); border: 0; border-radius: 14px; padding: 20px 24px;
+         background: var(--body); color: var(--label); font-size: 13px; }
+dialog::backdrop { background: rgba(0, 0, 0, .45); }
+dialog h2 { margin: 0 0 8px; font-size: 17px; color: #fff; }
+dialog h2 small { font-size: 12px; font-weight: 400; color: #8e8e93; margin-left: 6px; }
+dialog h3 { margin: 16px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #8e8e93; }
+dialog p { margin: 0 0 6px; }
+dialog .kb span { display: inline-block; white-space: nowrap; margin: 0 14px 4px 0; }
+dialog kbd { color: #fff; border-color: #48484c; }
+dialog nav { margin: 12px 0 8px; }
+dialog nav a { margin-right: 14px; }
+dialog small { font-size: 11px; color: #8e8e93; }
+dialog .close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #8e8e93; font-size: 22px; line-height: 1; cursor: pointer; }
+dialog .close:hover { color: #fff; }
+kbd { font: 600 11px ui-monospace, Menlo, monospace; border: 1px solid var(--rule); padding: 0 4px; border-radius: 3px; color: var(--fg); }
 </style>
 </head>
 <body>
@@ -80,23 +98,48 @@ footer small { font-size: 11px; opacity: .8; }
 </div>
 
 <p class="keys">
-  <span><kbd>Z</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> keys</span>
+  <span id="midiknobs" hidden><label><input type="checkbox" id="knobson"> MIDI CC 20–27 turn the panel's knobs</label>
+  <select id="knobmode" aria-label="How the controller sends CC 20–26" hidden>
+    <option value="abs">absolute</option>
+    <option value="bin">relative 64±n</option>
+    <option value="twos">relative 2's complement</option>
+    <option value="sign">relative sign bit</option>
+  </select></span>
+</p>
+
+<button class="info" id="info" type="button" aria-label="About this page" aria-haspopup="dialog">i</button>
+<dialog id="about" aria-labelledby="about-h">
+  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+  <h2 id="about-h">Felucca <small>@VERSION@@PREVIEW@</small></h2>
+  <p>A demo of the Felucca firmware for the FM-1, running in your browser. No FM-1 needed.</p>
+  <h3>Keys</h3>
+  <p class="kb">
+<span><kbd>Z</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> keys</span>
   <span><kbd>1</kbd>–<kbd>=</kbd> FX … REC</span>
   <span><kbd>[</kbd> <kbd>]</kbd> OCT</span>
   <span><kbd>↑</kbd> <kbd>↓</kbd> SELECT</span>
   <span><kbd>←</kbd> <kbd>→</kbd> ALGORITHM</span>
   <span><kbd>Shift</kbd>-click holds a button</span>
-</p>
-
-<footer>
-  <small class="version">@VERSION@@PREVIEW@</small><br>
-  Felucca by Leo Kuroshita, Hügelton Instruments · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> · browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, <a href="fonts/OFL.txt">SIL OFL 1.1</a><br>
+  </p>
+  <h3>Credits</h3>
+  <p>Felucca by Leo Kuroshita, Hügelton Instruments · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a><br>
+  Browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, <a href="fonts/OFL.txt">SIL OFL 1.1</a></p>
   <nav><a href="../installer/">Install</a><a href="../editor/">Editor</a><a href="https://github.com/hugelton/Felucca">Source</a></nav>
-  <small>M-VAVE and FM-1 are trademarks of their respective owners. Felucca is not affiliated with or endorsed by them.</small>
-</footer>
+  <p><small>M-VAVE and FM-1 are trademarks of their respective owners. Felucca is not affiliated with or endorsed by them.</small></p>
+</dialog>
 </main>
 
+<script>
+  { const d = document.getElementById("about");
+    document.getElementById("info").onclick = () => d.showModal();
+    d.addEventListener("click", (e) => {                 // a click outside the box (on the backdrop) closes it
+      const r = d.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
+    });
+  }
+</script>
 <script type="module">
+import { midiKnob, KNOB_MODES } from "./worklet.js";
 const NS = "http://www.w3.org/2000/svg";
 // panel.c's labels (bit = label) and encoder roles
 const B = { FX: 0, SCL: 1, ENV: 2, LFO: 3, EDIT: 4, GLO: 5, HOME: 6, SAVE: 7, ARP: 8, SEQ: 9, PLAY: 10, REC: 11, "OCT-": 12, "OCT+": 13 };
@@ -106,7 +149,7 @@ const PLAY_GREEN = 14;
 const WHITE = [0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26];
 const BLACK = [1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25];
 const BLACK_AFTER = [0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 14];      // the white key each black one follows
-const STORE = "felucca-emu-flash";
+const STORE = "felucca-emu-flash", KNOBS_ON = "felucca-emu-knobs", KNOB_MODE = "felucca-emu-knobmode";
 
 // ------------------------------------------------------------------ the panel
 // Two drawings of the same controls: WIDE after the FM-1's own layout, TALL for a phone held upright (the
@@ -178,9 +221,9 @@ function build(name) {
     knobs.push({ g, ind, x, y, name: n, role: n === "MASTER" ? "master" : EN[n] });
   });
   const button = ([x, y, w, h], n, sub) => {
-    const g = el("g", {});
+    const g = el("g", { class: n === "REC" ? "b rec" : "b" });
     el("rect", { x, y, width: w, height: h, rx: 8, fill: "var(--part)", stroke: "var(--edge)", "stroke-width": 1.5, class: "face btn" }, g);
-    const ink = n === "REC" ? "#ff453a" : undefined;
+    const ink = undefined;                         // (.b text: the label is the light)
     if (sub) { label(g, x + w / 2, y + h / 2 - 2, n, 10.8, SANS, ink); label(g, x + w / 2, y + h / 2 + 11, sub, 9.9); }
     else label(g, x + w / 2, y + h / 2 + 4.5, n, 12.6, SANS, ink);
     buttons.push({ g, bit: B[n], name: sub ? `${n} / ${sub}` : n });
@@ -195,16 +238,16 @@ function build(name) {
   const [x0, y0, w, h] = L.keybed;
   el("rect", { x: x0, y: y0, width: w, height: h, rx: 18, fill: "var(--tray)" });
   // the keys: two rows of the same black keys, each with a slit down its middle that lights
-  const pitch = (w - 24) / 16, kw = pitch * 0.78, kh = h * 0.425, sw = Math.max(3, kw * 0.14);
+  const pitch = (w - 24) / 16, kw = pitch * 0.78, kh = h * 0.3825, sw = Math.max(3, kw * 0.14);
   const key = (cx, cy, k) => {
     const g = el("g", {}), y = cy - kh / 2;
     el("rect", { x: cx - kw / 2, y, width: kw, height: kh, rx: kw / 2, class: "face key" }, g);
     el("rect", { x: cx - sw / 2, y: y + kw * 0.4, width: sw, height: kh - kw * 0.8, rx: sw / 2, class: "slit" }, g);
-    el("rect", { x: cx - pitch / 2, y: cy - h * 0.24, width: pitch, height: h * 0.48, fill: "transparent" }, g);   // its target
+    el("rect", { x: cx - pitch / 2, y: cy - h * 0.215, width: pitch, height: h * 0.43, fill: "transparent" }, g);   // its target
     keys[k] = { g, name: keyName(k) };
   };
-  WHITE.forEach((k, i) => key(x0 + 12 + (i + 0.5) * pitch, y0 + h * 0.75, k));
-  BLACK_AFTER.forEach((a, j) => key(x0 + 12 + (a + 1) * pitch, y0 + h * 0.25, BLACK[j]));
+  WHITE.forEach((k, i) => key(x0 + 12 + (i + 0.5) * pitch, y0 + h * 0.715, k));
+  BLACK_AFTER.forEach((a, j) => key(x0 + 12 + (a + 1) * pitch, y0 + h * 0.285, BLACK[j]));
   // HTML targets over the drawing (pointer-events: none): touch-action and pointer capture work on them everywhere
   const hit = (c, cls, role) => {
     const b = c.g.getBBox(), d = document.createElement("div");
@@ -278,13 +321,15 @@ function release(e) {
 for (const t of ["pointerup", "pointercancel", "lostpointercapture"]) device.addEventListener(t, release);
 
 function drawKnob(k) { if (k.ind) k.ind.setAttribute("transform", `rotate(${angle[k.name]} ${k.x} ${k.y})`); }
+function setMaster(v) {
+  masterValue = Math.max(0, Math.min(1023, v));
+  angle.MASTER = -135 + 270 * masterValue / 1023;
+  send({ type: "master", value: masterValue });
+}
 function turn(k, n) {
   if (!n) return;
-  if (k.role === "master") {
-    masterValue = Math.max(0, Math.min(1023, masterValue + n * 16));
-    angle.MASTER = -135 + 270 * masterValue / 1023;
-    send({ type: "master", value: masterValue });
-  } else {
+  if (k.role === "master") setMaster(masterValue + n * 16);
+  else {
     angle[k.name] = (angle[k.name] + n * 18) % 360;            // 20 detents a turn
     send({ type: "enc", role: k.role, n });
   }
@@ -295,11 +340,13 @@ function bindKnob(k) {
   k.hit.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     k.hit.setPointerCapture(e.pointerId);
-    drag = { y: e.clientY, acc: 0 };
+    drag = { x: e.clientX, y: e.clientY, acc: 0 };
   });
   k.hit.addEventListener("pointermove", (e) => {
     if (!drag) return;
-    drag.acc += drag.y - e.clientY;
+    const dx = e.clientX - drag.x, dy = drag.y - e.clientY;   // up or right: clockwise
+    drag.acc += Math.abs(dx) > Math.abs(dy) ? dx : dy;          // the larger of the two
+    drag.x = e.clientX;
     drag.y = e.clientY;
     const step = k.role === "master" ? 3 : 8, n = Math.trunc(drag.acc / step);
     if (n) { drag.acc -= n * step; turn(k, n); }
@@ -371,17 +418,17 @@ function drawScreen(fb) {
   }
   ctx.putImageData(img, 0, 0);
 }
-// the power-on sweep (hal/fm1_led_anim.h): a level per LED, lit frames /64 (| 128: the glow under them), drawn as the
+// the power-on sweep (bsp/boards/fm1/fm1_led_anim.h): a level per LED, lit frames /64 (| 128: the glow under them), drawn as the
 // LED's share of lit between its dark (or glowing) colour and the lit one, mixed in linear light
 const lin = (h) => [1, 3, 5].map((i) => (parseInt(h.slice(i, i + 2), 16) / 255) ** 2.2);
-const ANIM = { btn: [lin("#3a3934"), lin("#3a3934"), lin("#fff4d6")], slit: [lin("#3a3a3c"), lin("#77777b"), lin("#ececee")] };
+const ANIM = { btn: [lin("#6e6e73"), lin("#8e8a80"), lin("#fff4d6")], slit: [lin("#3a3a3c"), lin("#77777b"), lin("#ececee")] };
 function animFill(kind, q) {
   const [dark, glow, lit] = ANIM[kind], s = Math.min(q & 127, 64) / 64, base = q & 128 ? glow : dark;
   const c = base.map((v, i) => Math.round(255 * (v + (lit[i] - v) * s) ** (1 / 2.2)));
   return `rgb(${c.join(",")})`;
 }
 function drawAnim(anim) {
-  for (const b of buttons) b.g.querySelector(".face").style.fill = anim ? animFill("btn", anim[b.bit]) : "";
+  for (const b of buttons) for (const t of b.g.querySelectorAll("text")) t.style.fill = anim ? animFill("btn", anim[b.bit]) : "";
   keys.forEach((k, i) => { k.g.querySelector(".slit").style.fill = anim ? animFill("slit", anim[14 + i]) : ""; });
 }
 function drawLights([litB, litK, dimB, dimK, dimLo = 0, brB = 0, brK = 0, midK = 0], anim = null) {
@@ -424,6 +471,30 @@ function saveFlash(sectors) {
 }
 
 // ------------------------------------------------------------------ Web MIDI in (channel messages)
+// With the page's checkbox on, CC 20..27 turn the panel's knobs (worklet.js midiKnob), any channel, CC 20..26 sent
+// as the select says; off (the default), and the rest, go to the firmware
+const knobCC = [], knobBox = document.getElementById("knobson"), knobSelect = document.getElementById("knobmode");
+let knobsOn = false, knobMode = "abs";
+try {
+  knobsOn = localStorage.getItem(KNOBS_ON) === "1";
+  const m = localStorage.getItem(KNOB_MODE);
+  if (KNOB_MODES.includes(m)) knobMode = m;
+} catch {}
+knobBox.checked = knobsOn;
+knobSelect.hidden = !knobsOn;
+knobSelect.value = knobMode;
+knobBox.addEventListener("change", () => {
+  knobsOn = knobBox.checked;
+  knobSelect.hidden = !knobsOn;
+  knobCC.length = 0;
+  try { localStorage.setItem(KNOBS_ON, knobsOn ? "1" : "0"); } catch {}
+});
+knobSelect.addEventListener("change", () => {
+  knobMode = knobSelect.value;
+  knobCC.length = 0;                                              // absolute again: no jump on the first touch
+  try { localStorage.setItem(KNOB_MODE, knobMode); } catch {}
+});
+document.getElementById("midiknobs").hidden = !navigator.requestMIDIAccess;
 async function midiOn() {
   if (!navigator.requestMIDIAccess) return;
   try {
@@ -432,7 +503,11 @@ async function midiOn() {
       for (const input of access.inputs.values()) {
         input.onmidimessage = (e) => {
           const d = e.data;
-          if (d.length >= 2 && d[0] >= 0x80 && d[0] < 0xF0) send({ type: "midi", data: [d[0], d[1], d[2] || 0] });
+          if (d.length < 2 || d[0] < 0x80 || d[0] >= 0xF0) return;
+          const k = knobsOn && (d[0] & 0xF0) === 0xB0 ? midiKnob(knobCC, d[1], d[2] || 0, knobMode) : null;
+          if (!k) send({ type: "midi", data: [d[0], d[1], d[2] || 0] });
+          else if (k.master !== undefined) { setMaster(k.master); drawKnob(knobs.find((x) => x.role === "master")); }
+          else turn(knobs.find((x) => x.role === k.role), k.n);
         };
       }
     };

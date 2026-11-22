@@ -422,12 +422,98 @@ static void arp_follow_test(void)
     puts("scales: the arp's latched / held keys follow TRN, ROOT, SCALE and QNT (#191); octave, MIDI IN, kits as before");
 }
 
+/* QNT SEQ+T (#218): TRN moves the sequence too, before it snaps; with OFF / SNAP / WHITE / SEQ the sequence plays as
+ * written whatever TRN says (saved projects sound the same). A TRN turned while notes ring leaves nothing held;
+ * the steps never change; kits are never transposed; the keys play as SNAP */
+static void seq_trn_test(void)
+{
+    track_t *t = &trk[0];
+    uint32_t period, i, q;
+    static const step_t STEPS[] = {
+        {.note = {60, 64}, .n = 2, .time = ST_NOTE},  /* C4 E4 */
+        {.note = {65}, .n = 1, .time = ST_NOTE},      /* F4, held into a TIE */
+        {.time = ST_TIE},
+        {.time = ST_REST},
+    };
+    memset(trk, 0, sizeof trk);
+    memset(&song, 0, sizeof song);
+    host_tracks_init();
+    song.g[G_BPM] = 120;
+    host_preset(t, 0, 0);                          /* ANALOG, POLY */
+    t->engine = t->eng_req = 0;
+    t->p[P_VOICE] = V_POLY;
+    t->p[P_SLEN] = (int16_t)NELEM(STEPS);
+    for (i = 0; i < NELEM(STEPS); i++)
+        t->step[i] = STEPS[i];
+    t->seq_active = 1;
+    t->p[P_SCALE] = 1;                             /* C major */
+    t->p[P_ROOT] = 0;
+    t->p[P_TRANS] = 2;
+    period = div_samples((uint32_t)t->p[P_SDIV]);
+
+    for (q = QN_OFF; q <= QN_SEQ; q++) {           /* the four older values: TRN leaves the sequence alone */
+        t->p[P_QUANT] = (int16_t)q;
+        seq_start();
+        events_block(CTL);
+        assert(t->seq_n == 2 && t->seq_notes[0] == 60 && t->seq_notes[1] == 64 && gated(t) == 2);
+        seq_stop();
+        assert(gated(t) == 0);
+    }
+
+    t->p[P_QUANT] = QN_SEQT;                       /* +2: D4 F#4 -> D4 F4 in C major */
+    assert(kb_map(t, 7) == kb_map(t, 8) && kb_map(t, 7) == 62u);   /* the keys as SNAP: C4+2, C#4+2 -> D4 */
+    seq_start();
+    events_block(CTL);
+    assert(t->seq_n == 2 && t->seq_notes[0] == 62 && t->seq_notes[1] == 65 && gated_note(t, 62) &&
+           gated_note(t, 65) && gated(t) == 2);
+    t->p[P_TRANS] = -1;                            /* while they ring: they end as they sounded */
+    events_block(period);                          /* step 2: F4-1 = E4 */
+    assert(t->seq_idx == 1 && t->seq_n == 1 && t->seq_notes[0] == 64 && gated_note(t, 64) && gated(t) == 1);
+    t->p[P_TRANS] = 7;                             /* during the TIE: E4 held */
+    events_block(period);
+    assert(t->seq_idx == 2 && gated_note(t, 64) && gated(t) == 1);
+    events_block(period);                          /* REST */
+    assert(t->seq_idx == 3 && gated(t) == 0);
+    events_block(period);                          /* round again at +7: G4 B4 */
+    assert(t->seq_idx == 0 && t->seq_notes[0] == 67 && t->seq_notes[1] == 71 && gated(t) == 2);
+    for (i = 0; i < 4000u; i++) {                  /* TRN on every block: nothing left held */
+        t->p[P_TRANS] = (int16_t)((int32_t)(i * 7u % 49u) - 24);
+        events_block(CTL);
+        assert(!stray(t));
+    }
+    seq_stop();
+    assert(gated(t) == 0 && t->seq_n == 0);
+    for (i = 0; i < NELEM(STEPS); i++)
+        assert(!memcmp(&t->step[i], &STEPS[i], sizeof STEPS[i]));
+    t->p[P_TRANS] = 24;                            /* clamped to 127 at the top */
+    t->step[0] = (step_t){.note = {120}, .n = 1, .time = ST_NOTE};
+    seq_start();
+    events_block(CTL);
+    assert(t->seq_n == 1 && t->seq_notes[0] <= 127);
+    seq_stop();
+
+    host_preset(t, ENGI_DRUM, 0);                  /* a kit: GM drums, never transposed */
+    t->engine = t->eng_req = ENGI_DRUM;
+    t->p[P_QUANT] = QN_SEQT;
+    t->p[P_TRANS] = 5;
+    t->step[0] = (step_t){.note = {37}, .n = 1, .hit = 1u << 0, .time = ST_NOTE};
+    seq_start();
+    events_block(CTL);
+    assert(t->seq_n == 2 && t->seq_notes[0] == 37 && t->seq_notes[1] == DRUM_LANE_NOTE[0]);
+    seq_stop();
+    assert(gated(t) == 0);
+    t->p[P_TRANS] = 0;
+    t->p[P_QUANT] = QN_OFF;
+    puts("scales: QNT SEQ+T moves the sequence by TRN then snaps (steps unchanged, nothing held); other QNT values ignore TRN");
+}
+
 int main(void)
 {
     host_tracks_init();
     mapping_test();
     key_events_test();
     seq_quant_test();
+    seq_trn_test();
     arp_follow_test();
     return 0;
 }

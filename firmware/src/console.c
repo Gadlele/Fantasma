@@ -200,6 +200,14 @@ static void con_status(void)
     con_kv("audio_max_us", (int32_t)felucca_dbg.max_us);
     con_kv("audio_late", (int32_t)felucca_dbg.late);
     con_kv("voices_shed", (int32_t)shed_count);
+#if FELUCCA_CPU2
+    con_kv("cpu2_set", (ui_prefs2 & (PREF_CPU2_ON >> 16)) != 0u);   /* MENU > 2ND CORE: 1 ON (from power-on), 0 OFF */
+    con_kv("cpu2", fm1_cpu1_on);                        /* the second core renders parts (felucca-bsp chip/fm1_cpu1.h) */
+    con_kv("cpu2_gave_up", fm1_cpu1_gave_up);           /* why it is off (chip/fm1_cpu1.h FM1_CPU1_*), 0 = it is not */
+    con_kv("cpu2_bad", (int32_t)fm1_cpu1_mb.rejected);
+    con_kv("cpu2_blocks", (int32_t)c1_blocks);          /* blocks it took parts of (fx.c mix_block) */
+    con_kv("cpu2_stack", (int32_t)fm1_cpu1_stack_used());
+#endif
     con_kv("voices_given_up", (int32_t)voice_kills);
     con_kv("track", (int32_t)song.sel + 1);
     con_kv("batt_raw", song.batt_raw);
@@ -250,7 +258,7 @@ static void con_dbg(void)
 #endif
 }
 
-/* input scan (hal/fm1_input.h fm1_in_stat) since the last `inp`, then cleared: tick gaps (= LED
+/* input scan (bsp/boards/fm1/fm1_input.h fm1_in_stat) since the last `inp`, then cleared: tick gaps (= LED
  * on-time of a column), per-column LED share in 1/1000, the tick cost, the dim pulse (its average width and the
  * bits of the 595 shift it spans), encoder transitions */
 static void con_inp(void)
@@ -341,10 +349,27 @@ static void con_params(void)
     }
 }
 
+/* 1.8 AFTERTOUCH: the readings (keytouch.h), per key of F3 .. C5: its last driven reading and its pressure */
+static void con_at(void)
+{
+    uint32_t k;
+    con_kv("at_on", kt_on);
+    con_kv("an_timeouts", fm1_an.timeouts);
+    con_kv("held", (int32_t)(fm1_in.notes & 0xFFFFFu));
+    for (k = 0; k < KT_ROWKEYS; k++) {
+        con_dec((int32_t)k);
+        con_putc('=');
+        con_dec(kt_d[k]);
+        con_putc('/');
+        con_dec(kt_p[k]);
+        con_puts(k % 5u == 4u ? "\r\n" : " ");
+    }
+}
+
 static void con_exec(const char *p)
 {
     if (con_word(&p, "help") || con_word(&p, "?"))
-        con_puts("status  dbg  inp  crash  params  memr ADDR [LEN]  flr OFF [LEN]  uboot yes\r\n");
+        con_puts("status  dbg  inp  at  crash  params  memr ADDR [LEN]  flr OFF [LEN]  uboot yes\r\n");
     else if (con_word(&p, "status"))
         con_status();
     else if (con_word(&p, "dbg"))
@@ -353,6 +378,8 @@ static void con_exec(const char *p)
         con_crash();
     else if (con_word(&p, "inp"))
         con_inp();
+    else if (con_word(&p, "at"))
+        con_at();
     else if (con_word(&p, "params"))
         con_params();
     else if (con_word(&p, "memr"))

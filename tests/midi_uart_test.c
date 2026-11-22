@@ -11,7 +11,7 @@
 #define FELUCCA_CDC 0
 static void fm1_delay_ms(uint32_t ms) { (void)ms; }
 #pragma GCC diagnostic ignored "-Wint-to-pointer-cast"   /* SIE register macros (never touched here) */
-#include "../firmware/src/usb.c"
+#include "../firmware/bsp/chip/usb.c"
 #include "../firmware/src/midi_uart.c"
 
 static uint32_t now_ms;

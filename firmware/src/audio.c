@@ -4,7 +4,7 @@
  * audio ISR: per half buffer, blocks of CTL samples: mix_block (fx.c: events ->
  * each synth part -> dist -> level / pan -> sends -> buses -> master) -> USB audio (uac_tap) -> the metronome's
  * click (click.c, the DAC only) -> 24-bit stereo. */
-/* registers: hal/fm1_audio.h */
+/* registers: bsp/boards/fm1/fm1_audio.h */
 #define HALF_WORDS (HALF_FRAMES * 2u)
 #define DAC_TICKS 544u            /* TIMER4 ticks per I2S frame (24 MHz / 44,117.6 Hz) */
 #define CPU_AVG (4096u / HALF_FRAMES)   /* halves the load meter averages: ~93 ms whatever the half */
@@ -24,12 +24,27 @@ static volatile uint32_t audio_halves, audio_max_us;
 static volatile uint32_t t5_nested_ticks;              /* TIMER4 ticks TIMER5 spent nested in this ISR (main.c) */
 static uint32_t audio_cpu_rem;                         /* keep the fractional IIR step: no low-load bias */
 
+#if FELUCCA_UAC
+/* bsp/chip/usb.c uac_tap takes the samples as the I2S does (24-bit); here they are still Q15: up for it and back
+ * (exact), only while a computer records (out of line: the audio ISR's own loops stay as they were) */
+static __attribute__((noinline)) void uac_tap_q15(int32_t *out, uint32_t n)
+{
+    uint32_t i;
+    for (i = 0; i < 2u * n; i++)
+        out[i] *= 256;
+    uac_tap(out, n);
+    for (i = 0; i < 2u * n; i++)
+        out[i] >>= 8;
+}
+#endif
+
 static void audio_block(int32_t *out, uint32_t n)       /* mix (fx.c), then Q15 -> 24 bit */
 {
     uint32_t i;
     mix_block(out, n);
 #if FELUCCA_UAC
-    uac_tap(out, n);                                    /* the USB audio input: the same master output */
+    if (uac.feed)                                       /* the USB audio input: the same master output */
+        uac_tap_q15(out, n);
 #endif
     if (fx_usb_fixed)                                   /* USB LEVEL FIXED: USB took the full level, the DAC */
         usb_fixed_dac(out, n);                          /* (speaker, headphones) gets MASTER's (fx.c) */
@@ -94,7 +109,7 @@ static void shed_voice(void)
     }
 }
 
-void fm1_alnk0_irq(void)                       /* via isr_alnk0 (hal/fm1_isr.S) */
+void fm1_alnk0_irq(void)                       /* via isr_alnk0 (bsp/chip/fm1_isr.S) */
 {
     uint8_t p;
     uint32_t t0;

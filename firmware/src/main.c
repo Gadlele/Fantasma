@@ -4,58 +4,11 @@
  * guards; then LCD, input (TIMER5 IRQ, 10 kHz), audio (ALNK0 IRQ). */
 extern uint32_t _data_start[], _data_end[], _data_load[], _bss_start[], _bss_end[];
 extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[];
+#if FELUCCA_CPU2
+#endif
 
 
-/* TIMER5 outranks ALNK0, so the scan keeps its 100 us pace while a half buffer renders: before,
- * the ticks stopped for the whole render (0.7 ms idle, several ms loaded), the column lit when it
- * began stayed lit that long (a ~16 Hz flicker over all LEDs, beating with the scan) and the
- * encoders lost frames. Nested in ALNK0 it only scans (GPIO + fm1_in, nothing the audio ISR touches)
- * and counts ms; USB and UART polls wait for the first tick after the render, as they always did,
- * and the time spent nested is handed to the audio ISR so its load figures stay render-only.
- * The USB audio stream cannot wait for the render (one packet per 1 ms frame, a render takes up to
- * ~5 ms): uac_service also runs nested. It touches only EP4 (INDEX is set on every access) and the
- * consumer side of the audio ring, and usb_poll never runs nested, so the two never interleave. */
-void fm1_timer5_irq(void)
-{
-    static uint32_t sub, owed;
-    uint32_t t0 = fm1_ticks(), usb_due = sub % 5u == 0u;
-    fm1_timer5_ack();
-    felucca_dbg.timer_irqs++;
-    fm1_input_tick();
-    {   /* milliseconds from the 24 MHz TIMER4 (robust to a late tick) */
-        static uint32_t last, acc;
-        acc += t0 - last;
-        last = t0;
-        while (acc >= 1000u * FM1_TICKS_PER_US) {
-            acc -= 1000u * FM1_TICKS_PER_US;
-            fm1_ms++;
-        }
-    }
-    if (usb_due)
-        owed |= 1u;                             /* 2 kHz: all USB SIE traffic lives here */
-#if FELUCCA_UART
-    if (sub % 5u == 2u)
-        owed |= 2u;                             /* 2 kHz: <= ~7 bytes per call at 31250 baud */
-#endif
-    if (++sub == 10u)
-        sub = 0;
-    if (felucca_dbg.in_audio) {
-        felucca_dbg.nested++;
-#if FELUCCA_UAC
-        if (usb_due)
-            uac_service();
-#endif
-        t5_nested_ticks += fm1_ticks() - t0;
-        return;
-    }
-    if (owed & 1u)
-        usb_poll();
-#if FELUCCA_UART
-    if (owed & 2u)
-        uart_midi_poll();
-#endif
-    owed = 0;
-}
+#include "timer5.c"                         /* input/USB tick; host-tested with nested audio */
 extern void isr_timer5(void);
 
 static void timer5_start(void)                 /* OSC /4 = 6 MHz, PRD 600 -> 10 kHz */
@@ -124,7 +77,7 @@ static void felucca_init(void)
     ui.force = 1;
 }
 
-/* The power-on LED sweep (1.1, hal/fm1_led_anim.h: a soft light over the keys left to right, then the buttons swell
+/* The power-on LED sweep (1.1, bsp/boards/fm1/fm1_led_anim.h: a soft light over the keys left to right, then the buttons swell
  * and settle on the glow; ~0.70 s), started before the scan and run by it: nothing waits for it, the splash's 430 ms
  * and the first ~0.27 s of the UI go by under it (the UI's LEDs from its end, or at once on a key or a button down).
  * Every LEDS setting: it is no idle glow; with DIM HI / DIM LO it ends on that glow (and is drawn over that glow
@@ -137,7 +90,8 @@ static uint8_t boot_clean;                    /* no crash, hang (WDT) or failed 
                                                * the sweep runs and the autosave is restored (project.c autosave_boot) */
 static void boot_leds(void)
 {
-    uint32_t crashed = fm1_crash.magic == FM1_CRASH_MAGIC && fm1_crash.count != crash_seen;
+    uint32_t crashed = fm1_crash.magic == FM1_CRASH_MAGIC && fm1_crash.count != crash_seen;   /* (a fault of the
+                                                   * second core's leaves no record: it is retired, core 0 plays on) */
     crash_seen = fm1_crash.count;
     boot_clean = !crashed && !bootguard.failed && !(fm1_boot.p3_rst & 4u);
     fm1_led_dim_level(settings_leds == LEDS_DIM_LO);
@@ -148,6 +102,9 @@ static void boot_leds(void)
 static void fm1_main(void)
 {
     uint32_t ms;
+#if FELUCCA_CPU2
+    uint8_t c1_told = 0;                                /* 2ND CORE MISREAD shown (and ON cleared) */
+#endif
     persist_boot();
 #if FELUCCA_OTA
     if (flash_ok)
@@ -184,6 +141,15 @@ static void fm1_main(void)
     felucca_init();
     master_boot();
     kb_boot_hold = 1;                         /* #137: no notes from the keys before the UI (seq.c keyboard_block) */
+#if FELUCCA_CPU2
+    if (!bootguard.failed && (ui_prefs2 & (PREF_CPU2_ON >> 16))) {
+        /* the second core (felucca-bsp chip/fm1_cpu1.h; fx.c mix_block hands it parts), at power-on, before the
+         * audio and the timers (started later it never reaches its entry). It starts in the chip's ROM: fm1_cpu1_start
+         * opens the PC limits meanwhile. MENU > 2ND CORE OFF (the default), a crash in the last boot's first 30 s, or
+         * no answer: one core, as 1.6 */
+        fm1_cpu1_start();
+    }
+#endif
     audio_init();
     usb_start();
 #if FELUCCA_UART
@@ -219,13 +185,31 @@ static void fm1_main(void)
     for (;;) {
         uint32_t m = fm1_ms;
         fm1_wdt_feed();
+#ifdef KT_ROWKEYS
+        kt_poll(m);                                     /* 1.8 AFTERTOUCH (keytouch.c) */
+#endif
         usb_retry(fm1_ms);
         if (fm1_ms > 30000u && bootguard.pending) {     /* a crash or hang in the first 30 s counts */
             bootguard.pending = 0;
             bootguard.failed = 0;
         }
+#if FELUCCA_CPU2
+        if (*(volatile uint8_t *)&fm1_cpu1_gave_up && !c1_told) {   /* (the ISR's) */
+            c1_told = 1;                                /* (once: ON set again afterwards stays, for the next power-on) */
+            if (ui_prefs2 & (PREF_CPU2_ON >> 16)) {
+                ui_prefs2 &= (uint8_t)~(PREF_CPU2_ON >> 16);   /* core 1 misread or stopped answering on this FM-1: one
+                                                         * core from now on (MENU > 2ND CORE ON tries again) */
+                settings_later();
+            }
+            ui_message("2ND CORE MISREAD: OFF");     /* (ui.msg: 23 characters at most) */
+        }
+#endif
         {
-            int32_t b = fm1_adc_read(FM1_ADC_BATT);     /* battery: slow IIR */
+#ifdef KT_ROWKEYS
+            int32_t b = kt_adc_batt(m);                 /* battery: slow IIR (1.8: once a second while the keys are read) */
+#else
+            int32_t b = fm1_adc_read(FM1_ADC_BATT);     /* battery: slow IIR (the web emulator: no keytouch.c) */
+#endif
             if (b > 0)
                 song.batt_raw = song.batt_raw ? song.batt_raw + (b - song.batt_raw) / 32 : b;
         }
@@ -260,8 +244,8 @@ static void fm1_main(void)
             }
         }
 #if FELUCCA_OTA
-        ed_service();                                   /* web editor SysEx */
-        ota_service();                                  /* M-UPGRADE handshake */
+        if (ed_service())                               /* OTA only for a held non-editor frame */
+            ota_service();                              /* M-UPGRADE handshake */
         if (usb.ota_req) {                              /* M-UPGRADE upgrade command */
             usb.ota_req = 0;
             panic_req = (1u << NTRK) - 1u;               /* every track (bit per track) */
@@ -368,6 +352,11 @@ static void usb_rescue(void)
 void fm1_cstart(void)
 {
     uint32_t *s, *d, p3, src, wdt;
+#if FELUCCA_CPU2
+    fm1_cpu1_stop();                           /* (after Jangada, X0X): a second core still running from before
+                                                * this reset (a watchdog, a fault, another firmware) would read the RAM
+                                                * cleared below */
+#endif
     fm1_time_init();
     fm1_reset_reason();
     p3 = fm1_boot.p3_rst;
@@ -432,7 +421,8 @@ void fm1_cstart(void)
     for (s = _data_load, d = _data_start; d < _data_end; s++, d++)
         *d = *s;
     for (s = _rt_load, d = _rt_start; d < _rt_end; s++, d++)
-        *d = *s;                                /* flash driver code that must run from RAM */
+        *d = *s;                                /* flash driver code that must run from RAM, then the second core's
+                                                 * waiting loop (.c1_text, app.ld) */
     fm1_mailbox_clear();
     fm1_guard_enable(FM1_GUARD_STACK | FM1_GUARD_WRITE | FM1_GUARD_BUS | FM1_GUARD_PC);
     fm1_boot.p3_rst = (uint8_t)p3;

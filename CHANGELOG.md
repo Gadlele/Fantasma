@@ -3,6 +3,15 @@
 Fantasma's versions, newest first. The numbers: **X.Y** adds something (saved music still opens), **X.Y.Z** only
 fixes, a new **X** may change how things are saved.
 
+## 2.0 — in progress
+
+- **Felucca 1.8.3 underneath** (Fantasma 1.x was Felucca 1.5.1): the second core (MENU › SYSTEM › 2ND CORE, beta,
+  off by default), AFTERTOUCH from the keys' pressure, a custom palette, MIDI IN per track, step conditions,
+  recording while playing and Felucca's other fixes since 1.5.1. Fantasma's sounds, AMBI, BELL, the generators,
+  the palettes and the tempo from 30 BPM stay.
+- Projects of Fantasma 1.x load; a project now keeps up to 122 knob movements (128 before: the six last of a
+  full one are let go), to make room for the new parameters.
+
 ## 1.1 — 2026-10-16
 
 Tape sounds, in the manner of Boards of Canada:

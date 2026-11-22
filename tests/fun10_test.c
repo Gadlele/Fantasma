@@ -146,10 +146,10 @@ static int lfo(void)
         int32_t g[4];
         t->p[P_M1SRC] = MS_LFO; t->p[P_M1DST] = MD_AMP; t->p[P_M1AMT] = 63;
         t->lfo_fade = 32767;
-        t->p[P_LPOL] = 0; t->lfo_val = 0; mod_begin(t); g[0] = mod.gain; mod_end(t);
-        t->p[P_LPOL] = 1; t->lfo_val = 0; mod_begin(t); g[1] = mod.gain; mod_end(t);
-        t->lfo_val = 16384; mod_begin(t); g[2] = mod.gain; mod_end(t);
-        t->p[P_LPOL] = 0; t->lfo_val = -32768; mod_begin(t); g[3] = mod.gain; mod_end(t);
+        t->p[P_LPOL] = 0; t->lfo_val = 0; mod_begin(t); g[0] = MOD(t).gain; mod_end(t);
+        t->p[P_LPOL] = 1; t->lfo_val = 0; mod_begin(t); g[1] = MOD(t).gain; mod_end(t);
+        t->lfo_val = 16384; mod_begin(t); g[2] = MOD(t).gain; mod_end(t);
+        t->p[P_LPOL] = 0; t->lfo_val = -32768; mod_begin(t); g[3] = MOD(t).gain; mod_end(t);
         bad += check("  the matrix's LFO > AMP: UNI 0 = BI -1 (closed), UNI 0.5 = BI 0", g[1] == g[3] && abs(g[2] - g[0]) < 64 &&
                      g[1] < 1000);
         t->p[P_M1SRC] = t->p[P_M1DST] = t->p[P_M1AMT] = 0;
@@ -668,6 +668,97 @@ static int formats(void)
     return bad;
 }
 
+/* 1.5.5 (#202): MIDI IN TRACK's channels in the last 3 of FUN10's spare bytes (PROJ_MIDI_OFF), the TRACK bit there and
+ * G_ROUTE stored as the block it falls back to: every project before reads channels 1..4 and its own MIDI IN; a 1.5.5
+ * project without TRACK and with the default channels is byte for byte what 1.5.1 wrote; one with TRACK opens on 1.5.1
+ * as that block (it never reads these bytes) */
+static int midi_track_fmt(void)
+{
+    int bad = 0, ok;
+    uint32_t i, end = 68u + NTRK * (P_COUNT + 2u + NSTEP * 9u) + sizeof(chain_config_t) + sizeof(motion_store_t);
+    project_t a, b;
+    static project_store_t st, old;
+    int16_t r;
+    memset(song.mch, 0, sizeof song.mch);
+    song.g[G_ROUTE] = 0;
+    project_capture(&a);
+    ok = proj_pack(&st, &a) && PROJ_MIDI_OFF == PROJ_FM6_OFF - 3u && end <= PROJ_MIDI_OFF && PROJ_FM6_OFF - end == 6u;   /* (Fantasma 2.0: 3 spare, then MIDI IN TRACK) */
+    for (i = end; i < PROJ_FM6_OFF; i++)
+        ok &= st.raw[i] == 0u;
+    ok &= proj_import(&b, &st, sizeof st) && !memcmp(&a, &b, sizeof a) && !b.mch[0] && !b.mch[3] && !b.g[G_ROUTE];
+    bad += check("MIDI IN TRACK (1.5.5): CH1-4 and the default channels pack as before (the spare bytes all 0)", ok);
+
+    song.g[G_ROUTE] = ROUTE_TRACK;
+    mch_set(0, 9); mch_set(1, 1); mch_set(2, MCH_OMNI); mch_set(3, MCH_OFF);
+    project_capture(&a);
+    ok = a.g[G_ROUTE] == ROUTE_TRACK && a.mch[0] == 9u && a.mch[1] == 0u && a.mch[2] == MCH_OMNI && a.mch[3] == MCH_OFF;
+    ok &= proj_pack(&st, &a);
+    memcpy(&r, st.raw + 8u + 2u * G_ROUTE, 2);
+    ok &= r == 0 && st.raw[PROJ_MIDI_OFF] == 9u && st.raw[PROJ_MIDI_OFF + 1u] == (uint8_t)(MCH_OMNI << 2 | (MCH_OFF & 1u) << 7) &&
+          st.raw[PROJ_MIDI_OFF + 2u] == (uint8_t)(0x80u | MCH_OFF >> 1) &&
+          (st.raw[PROJ_MIDI_OFF + 2u] & 0x70u) == 0u;
+    ok &= proj_import(&b, &st, sizeof st) && !memcmp(&a, &b, sizeof a);
+    bad += check("  TRACK, T1 10 / T2 2 / T3 OMNI / T4 OFF: round trip; G_ROUTE stored CH1-4, the channels and bit 23 in the "
+                 "3 bytes", ok);
+    old = st;                                            /* firmware before 1.5.5: these bytes unread, G_ROUTE CH1-4 */
+    memset(old.raw + PROJ_MIDI_OFF, 0, 3);
+    i = proj_hash(old.raw, PROJ_STORE_SIZE - 4u);
+    memcpy(old.raw + PROJ_STORE_SIZE - 4u, &i, 4);
+    ok = proj_import(&b, &old, sizeof old) && b.g[G_ROUTE] == 0 && !b.mch[0] && !b.mch[1] && !b.mch[2] && !b.mch[3];
+    bad += check("  .. as 1.5.1 reads it (the 3 bytes ignored): MIDI IN CH1-4", ok);
+
+    mch_set(0, 4); mch_set(1, 5); mch_set(2, 6); mch_set(3, 7);   /* channels 5..8 in order: CH5-8 the fallback */
+    project_capture(&a);
+    ok = proj_pack(&st, &a);
+    memcpy(&r, st.raw + 8u + 2u * G_ROUTE, 2);
+    ok &= r == 2 && proj_import(&b, &st, sizeof st) && b.g[G_ROUTE] == ROUTE_TRACK && !memcmp(&a, &b, sizeof a);
+    mch_set(0, 12); mch_set(1, 13); mch_set(2, 14); mch_set(3, 15);
+    project_capture(&a);
+    ok &= proj_pack(&st, &a);
+    memcpy(&r, st.raw + 8u + 2u * G_ROUTE, 2);
+    ok &= r == 4;
+    mch_set(3, 3);
+    project_capture(&a);
+    ok &= proj_pack(&st, &a);
+    memcpy(&r, st.raw + 8u + 2u * G_ROUTE, 2);
+    ok &= r == 0;
+    bad += check("  TRACK on channels 5..8 / 13..16 in order is stored as CH5-8 / CH13-16 (what 1.5.1 then plays), else CH1-4",
+                 ok);
+
+    song.g[G_ROUTE] = 3;                                 /* CH9-12, channels set: kept for TRACK, no bit */
+    mch_set(0, 9); mch_set(1, 9); mch_set(2, MCH_OFF); mch_set(3, 0);
+    project_capture(&a);
+    ok = proj_pack(&st, &a) && !(st.raw[PROJ_MIDI_OFF + 2u] & 0x80u);
+    memcpy(&r, st.raw + 8u + 2u * G_ROUTE, 2);
+    ok &= r == 3 && proj_import(&b, &st, sizeof st) && !memcmp(&a, &b, sizeof a) && b.g[G_ROUTE] == 3;
+    st.raw[PROJ_MIDI_OFF] |= 31u;                        /* a field past OFF: read as 0 (the track's own channel) */
+    i = proj_hash(st.raw, PROJ_STORE_SIZE - 4u);
+    memcpy(st.raw + PROJ_STORE_SIZE - 4u, &i, 4);
+    ok &= proj_import(&b, &st, sizeof st) && b.mch[0] == 0u && b.mch[1] == a.mch[1];
+    bad += check("  another MIDI IN keeps the channels (no TRACK bit); a field past OFF reads as the track's own channel", ok);
+
+    song.g[G_ROUTE] = ROUTE_TRACK;
+    mch_set(0, 9); mch_set(1, 1); mch_set(2, MCH_OMNI); mch_set(3, MCH_OFF);
+    project_save(3);
+    song.g[G_ROUTE] = 0;
+    memset(song.mch, 0, sizeof song.mch);
+    midi_route = 0;
+    project_load(3);
+    ok = song.g[G_ROUTE] == ROUTE_TRACK && mch_get(0) == 9u && mch_get(1) == 1u && mch_get(2) == MCH_OMNI &&
+         mch_get(3) == MCH_OFF && midi_route == MIDI_ROUTE_AGAIN;
+    song.g[G_ROUTE] = 2;
+    memset(song.mch, 0, sizeof song.mch);
+    project_save(3);
+    song.g[G_ROUTE] = ROUTE_TRACK;
+    mch_set(0, 7);
+    project_load(3);
+    ok &= song.g[G_ROUTE] == 2 && !song.mch[0];
+    bad += check("  saved and loaded on the device: TRACK and the channels back (and let go of: midi_route); CH5-8 as saved", ok);
+    song.g[G_ROUTE] = 0;
+    memset(song.mch, 0, sizeof song.mch);
+    return bad;
+}
+
 int main(void)
 {
     int bad = 0;
@@ -675,6 +766,7 @@ int main(void)
     bad += nudge();
     bad += motion128();
     bad += formats();
+    bad += midi_track_fmt();
     printf(bad ? "ui: 1.2 FORMAT (FUN10) TEST FAILED\n" : "1.2 format (FUN10) tests passed\n");
     return bad != 0;
 }

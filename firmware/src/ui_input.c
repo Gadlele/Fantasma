@@ -40,9 +40,20 @@ static const uint8_t FAM_BTN[FAM_COUNT] = {B_HOME, B_ENV, B_LFO, B_FX, B_SCL, B_
 
 static uint32_t cur_fam(void) { return ui.home ? FAM_HOME : cur_page()->fam; }
 
+/* 1.8 AFTERTOUCH: SENS turned on (ui_input.c): with no DEST yet, the engine's (CUT; DRUM, whose hits have no
+ * filter, DIST), AMT +32; and the note that only F3 .. C5 sense pressure (the top seven keys have no converter) */
+static void at_turn_on(track_t *t)
+{
+    if (!t->p[P_ATDST]) {
+        t->p[P_ATDST] = (int16_t)(t->eng_req % NENGINES == ENGI_DRUM ? MD_DIST : MD_CUT);
+        t->p[P_ATAMT] = 32;
+    }
+    ui_message("AT: F3-C5 KEYS ONLY");
+}
+
 static int layer_set_open(void);                       /* (ui_layer.c) */
 /* the OCT LEDs, bit 0 OCT- lit, bit 1 OCT+ lit, OCT_BREATH OCT+ breathing (can be pressed: dark .. ~60 %,
- * hal/fm1_input.h fm1_led_breath, #119). In the dialogs and on action pages OCT- (back) is lit and OCT+ breathes
+ * bsp/boards/fm1/fm1_input.h fm1_led_breath, #119). In the dialogs and on action pages OCT- (back) is lit and OCT+ breathes
  * while it would do something; the menu: on a value row OCT- and OCT+ both breathe while that way has a value to go to,
  * on CALIBRATION / ABOUT OCT+ breathing alone (opens), in ABOUT OCT- lit (back); elsewhere the octave shift */
 #define OCT_BREATH 4u
@@ -107,6 +118,29 @@ static int mom_turn(uint32_t k, int32_t s)
     return 1;
 }
 
+/* 1.5.6 (#84): MENU > SELECT MODW / VEL: SELECT plays. MODW: the selected track's mod wheel 0..127, as MIDI CC1 sets it (the
+ * matrix's MODW source; sent as CC1 on the track's channel, where the keys' notes go); VEL: the panel keys'
+ * velocity 1..127 (100 from power-on, as before; MIDI OUT and live recording take it). Performance state, not saved, as
+ * a keyboard's wheel. The value shows in the header. GLO + SELECT is the tempo, as with PAGE */
+static void sel_play(uint32_t m, int32_t s)
+{
+    char b[8];
+    if (m == SEL_MODW) {
+        track_t *t = TSEL;
+        t->mw = (uint8_t)clamp((int32_t)t->mw + accel(EN_SELECT, s, 127), 0, 127);   /* (a byte: the ISR sees one or the
+                                                                                  * other) */
+        fm1_irq_off();                                 /* (the out ring is the audio ISR's: it must not run now) */
+        midi_out_event(0x0Bu | (0xB0u | trk_midi_ch(song.sel)) << 8 | 1u << 16 | (uint32_t)t->mw << 24);
+        fm1_irq_on();
+        fmt_int(b, t->mw);
+        ui_say("MODW ", b);
+    } else {
+        kb_vel = (uint8_t)clamp((int32_t)kb_vel + accel(EN_SELECT, s, 126), 1, 127);
+        fmt_int(b, kb_vel);
+        ui_say("VEL ", b);
+    }
+}
+
 static uint32_t oct_leds(void)
 {
     if (name_on() && !ui.confirm && !ui.menu)           /* NAME: OCT- cancels, OCT+ (breathing) writes */
@@ -116,7 +150,7 @@ static uint32_t oct_leds(void)
     if (ui.menu && !ui.confirm)
         return ui.menu >= 2u ? 1u :                    /* (INFO, ABOUT: OCT- back, lit) */
                ui.menu_sel == MI_LCLEAR ? (ml_count() ? OCT_BREATH : 0u) :   /* LEARN CLEAR: while CCs are learned */
-               ui.menu_sel >= MI_VALUES ? OCT_BREATH :  /* CALIBRATION / INFO / ABOUT: OCT+ opens */
+               ui.menu_sel >= MI_VALUES ? OCT_BREATH :  /* CLEAR ALL / CALIBRATION / INFO / ABOUT: OCT+ opens */
                (menu_step(ui.menu_sel, -1) != menu_get(ui.menu_sel) ? OCT_BREATH_DN : 0u) |   /* a value: each */
                (menu_step(ui.menu_sel, 1) != menu_get(ui.menu_sel) ? OCT_BREATH : 0u);         /* way it can go */
     if (ui.confirm || act_cols())
@@ -149,7 +183,7 @@ static uint32_t grid_leds(void)
     return m;
 }
 
-/* the DRUM grid's beats, bit k = key k (ui_leds: a steady brighter glow than the other steps', hal/fm1_input.h
+/* the DRUM grid's beats, bit k = key k (ui_leds: a steady brighter glow than the other steps', bsp/boards/fm1/fm1_input.h
  * fm1_led_mid): the first step of each group of four on the page shown, steps 1 5 9 13 of 16 ("5111 5111 5111 5111"),
  * within LEN, where grid_leds shows no hit (the lane's, its accents while ACC is held) and not the playhead. Always
  * groups of four from the pattern's first step, whatever LEN or DIV (a 3/4 or a DIV 1/8 pattern too): the steps are
@@ -308,9 +342,9 @@ static uint32_t scale_leds(uint32_t *root)
 
 static uint32_t song_leds(void);
 /* MENU > ANIM IDLE (1.2, Discussion #135): after IDLE_LEDS_MS without panel input (ui.c scrn.idle: a button or key
- * pressed or held, a knob turned; what SCREEN OFF counts) the LEDs play the idle animation (hal/fm1_led_anim.h
+ * pressed or held, a knob turned; what SCREEN OFF counts) the LEDs play the idle animation (bsp/boards/fm1/fm1_led_anim.h
  * fm1_idle_level: a soft light drifting over the keys and back, the buttons breathing with it; the scan draws it,
- * hal/fm1_input.h fm1_led_idle_start). Only with nothing going on: stopped (no count-in, no song, nothing armed or
+ * bsp/boards/fm1/fm1_input.h fm1_led_idle_start). Only with nothing going on: stopped (no count-in, no song, nothing armed or
  * waiting to start), no layer (held or locked), menu, dialog, NAME or UPDATE countdown, no key held or lit by the
  * selected track (MIDI IN notes), not with ANIM OFF. Any input ends it at once and is not swallowed (as SCREEN OFF's
  * wake would be): a key or a button down ends it in the scan before its next frame (the press acts as ever), a knob
@@ -350,17 +384,17 @@ static uint32_t key_leds(uint32_t *br)                 /* (*br: a layer's keys t
 
 /* The LEDs: lit = active (the page's family, PLAY / REC running, the keys held or playing, a map's keys), the ARP
  * beat flashes, the ones that can be pressed breathe (#119: the open layer's button, OCT+ when it would act, a
- * layer's keys; dark .. ~60 % of lit and back, hal/fm1_input.h fm1_led_breath, in every mode: never a hard blink in
+ * layer's keys; dark .. ~60 % of lit and back, bsp/boards/fm1/fm1_input.h fm1_led_breath, in every mode: never a hard blink in
  * a dark room; DIM LO up to ~30 %, DIM HI OFF INV ~60 %; with LEDS OFF it is the only glow; INV leaves it as it is,
  * between the dark active ones and the lit idle ones), every other button and key glows dim (#35: the
- * buttons of the black FM-1 can be found in the dark; hal/fm1_input.h fm1_led_dim, a short pulse each frame).
+ * buttons of the black FM-1 can be found in the dark; bsp/boards/fm1/fm1_input.h fm1_led_dim, a short pulse each frame).
  * MENU > LEDS: DIM HI (default) that glow, DIM LO a darker one (fm1_led_dim_level), OFF no glow (as 1.0); INV
  * turns it around, as the stock firmware: the idle ones fully lit, the active ones dark, no glow (the ARP beat:
  * lit / dark). The keys' own maps (keys_own) stay lit or dark in every mode: their dark keys read as dark; only the
  * DRUM grid's keys that do something (grid_glow) glow under it, so STEP on a DRUM track is never a dark
  * keyboard (the steps of an empty pattern); on it the first step of each four (grid_beats: 1 5 9 13 of a page, where
  * no hit shows) glows steadier and brighter, so a bar's beats can be counted: DIM HI / DIM LO the mid level
- * (hal/fm1_input.h fm1_led_mid: lit 1 frame in 8, DIM LO in 12, over the glow), OFF and INV the glow alone (no
+ * (bsp/boards/fm1/fm1_input.h fm1_led_mid: lit 1 frame in 8, DIM LO in 12, over the glow), OFF and INV the glow alone (no
  * other key glows there). 1.2, MENU > SCALE LEDS ON (scale_leds; not over a map of the keys' own, nor on a DRUM or
  * SLICE track): the keys of the selected track's scale glow and the others are dark, the root's at the mid level, in
  * DIM HI, DIM LO and OFF alike (asked for: OFF only takes the other glow away); INV turns it around as it does the
@@ -370,9 +404,9 @@ static uint32_t key_leds(uint32_t *br)                 /* (*br: a layer's keys t
 static void ui_leds(void)
 {
     uint8_t nl[FM1_NCOL] = {0}, nd[FM1_NCOL] = {0}, own[FM1_NCOL] = {0}, og[FM1_NCOL] = {0}, nb[FM1_NCOL] = {0};
-    uint8_t nm[FM1_NCOL] = {0}, sg[FM1_NCOL] = {0}, sm[FM1_NCOL] = {0};
+    uint8_t nm[FM1_NCOL] = {0}, sg[FM1_NCOL] = {0}, sm[FM1_NCOL] = {0}, iv[FM1_NCOL] = {0};
     uint32_t k, c, g, br, beat, sc, sr = 0;
-    uint32_t fam = cur_fam(), mode = settings_leds;
+    uint32_t fam = cur_fam(), mode = settings_leds, inv = leds_inv();   /* (1.5.6: INV LO 1, INV HI 2) */
     int keys_map = keys_own();
     static uint8_t ready;
     if (idle_leds() || fm1_led_anim_on())              /* the idle animation, the power-on sweep have them (main.c */
@@ -415,11 +449,14 @@ static void ui_leds(void)
     if (song.playing || seq_counting())                 /* playing: PLAY's green, its own LED dark in every mode */
         led_clear(nd, panel.btn[B_PLAY]);
     for (c = 0; c < FM1_NCOL; c++) {
-        if (mode == LEDS_INV)                           /* INV: the active ones dark, the rest lit */
-            nl[c] = (uint8_t)(nd[c] & ~nl[c]);
+        if (mode == LEDS_INV) {                         /* INV: the active ones dark, the rest lit (1.5.6, #212: */
+            iv[c] = (uint8_t)(nd[c] & ~nl[c]);          /* INV LO / HI: at the steady mid level, below) */
+            nl[c] = inv ? 0u : iv[c];
+        }
         nd[c] = mode == LEDS_DIM || mode == LEDS_DIM_LO ? (uint8_t)(nd[c] | og[c]) : nm[c];   /* OFF, INV: no glow but */
         if (mode != LEDS_DIM && mode != LEDS_DIM_LO)    /* the grid's beats (the one level above dark there); DIM HI */
-            nm[c] = 0;                                  /* / LO: the beats at the mid level over the glow */
+            nm[c] = inv ? iv[c] : 0u;                   /* / LO: the beats at the mid level over the glow; INV LO / HI:
+                                                         * INV's lit ones there */
         nd[c] |= sg[c];                                 /* SCALE LEDS: in every mode (INV: inverted above) */
         nm[c] |= sm[c];
         nm[c] &= (uint8_t)~(nb[c] | own[c]);
@@ -429,7 +466,7 @@ static void ui_leds(void)
     }
     if (song.playing || (seq_counting() && cin_pos < click_beat_len() / 4u))   /* counting in: green on each beat */
         nl[LED_PLAY_GREEN >> 3] |= (uint8_t)(1u << (LED_PLAY_GREEN & 7u));
-    fm1_led_dim_level(mode == LEDS_DIM_LO);
+    fm1_led_dim_level(mode == LEDS_DIM_LO || inv == 1u);   /* (INV LO: the darker mid level, ~8 %; HI ~12.5 %) */
     for (c = 0; c < FM1_NCOL; c++) {
         fm1_led_dim[c] = nd[c];
         fm1_led_breath[c] = nb[c];
@@ -552,10 +589,11 @@ static uint32_t song_leds(void)
 /* REC tap on every page: arm / disarm recording on the selected track without navigating; arming while stopped
  * starts the transport too (live recording), except on STEP's piano roll (1.2, Discussion #133): there it arms step
  * recording and the transport stays stopped: the keys write the cursor step (seq_entry), PLAY then records live.
- * Armed and playing, STEP's keys record live (at the play head) instead of writing the cursor step */
+ * SEQ + REC explicitly selects cursor entry even while playing (step_rec_toggle). */
 static int rec_tap(void)                                /* 1: the arming changed */
 {
     uint8_t bit = (uint8_t)(1u << song.sel);
+    uint32_t f;
     if (chain_busy()) {
         ui_message("STOP TO RECORD");
         return 0;
@@ -564,7 +602,12 @@ static int rec_tap(void)                                /* 1: the arming changed
         ui_message("[SEQ] TO RECORD");
         return 0;
     }
+    f = motion_guard();
+    step_record_mask &= (uint8_t)~bit;
     song.rec ^= bit;
+    TSEL->rh_n = TSEL->rskip_n = 0;
+    ui.entry_open = 0;
+    motion_unguard(f);
     ui.force = 1;                                     /* also refresh the status on MENU / ABOUT */
     if ((song.rec & bit) && !song.playing && !seq_counting() && roll_on()) {
         ui_message(ui_prefs2 & (PREF_CHORD_ADD >> 16) ? "KEYS ADD TO STEP" : "KEYS WRITE STEPS");   /* step recording:
@@ -583,7 +626,26 @@ static int rec_tap(void)                                /* 1: the arming changed
 /* live recording into the selected track now: the STEP page's key entry pauses meanwhile */
 static int live_rec_sel(void)
 {
-    return ((song.rec >> song.sel) & 1u) && (song.playing || transport_req == 1u || seq_counting());
+    return (((song.rec & ~step_record_mask) >> song.sel) & 1u) && (song.playing || transport_req == 1u || seq_counting());
+}
+
+/* SEQ held + REC tapped on the piano roll: choose cursor entry independently
+ * of transport. Changing mode with held input notes would split their recording. */
+static void step_rec_toggle(void)
+{
+    uint32_t bit = 1u << song.sel, f;
+    track_t *t = TSEL;
+    if (!roll_on()) { ui_message("OPEN SEQ STEP"); return; }
+    if (chain_busy()) { ui_message("STOP SONG FIRST"); return; }
+    if (fm1_in.notes || t->nheld) { ui_message("RELEASE KEYS"); return; }
+    f = motion_guard();
+    step_record_mask ^= (uint8_t)bit;
+    song.rec |= (uint8_t)bit;
+    t->rh_n = t->rskip_n = 0;
+    ui.entry_open = 0;
+    motion_unguard(f);
+    ui.force = 1;
+    ui_message(step_record_mask & bit ? "STEP REC" : "LIVE REC");
 }
 
 /* the OCT- / OCT+ dialog (ui_draw.c draws it); trk: the track or the slot it is about */
@@ -603,6 +665,7 @@ static void confirm_open(uint32_t kind, uint32_t trk)
 static void cursor_move(int32_t c)
 {
     cursor_set(c);
+    follow_hold();                                      /* (1.6, #242: the roll stays where the cursor is) */
     if ((ui_prefs2 & (PREF_PREVIEW >> 16)) && !song.playing && !seq_counting() && transport_req != 1u && !chain_busy() &&
         !ui.home && song.seq_mode && cur_page()->graph == GR_ROLL)
         aud_req = (uint16_t)((uint32_t)ui.cursor << 8 | (song.sel + 1u));
@@ -625,10 +688,14 @@ static void grid_edit(uint32_t slot, int32_t steps)
         cursor_move(ui.cursor + steps);
     else if (slot == 1u)
         ui.lane = (uint8_t)clamp((int32_t)ui.lane + (steps > 0 ? 1 : -1), 0, NLANE - 1);
-    else if (slot == 2u)
-        grid_hit(TSEL, ui.cursor, ui.lane, steps > 0);
-    else
-        grid_acc(TSEL, ui.cursor, ui.lane, steps > 0);
+    else {
+        step_undo_take(TSEL, 0x1000u | ui.lane);          /* (1.8: hits on one lane in a row: one undo) */
+        if (slot == 2u)
+            grid_hit(TSEL, ui.cursor, ui.lane, steps > 0);
+        else
+            grid_acc(TSEL, ui.cursor, ui.lane, steps > 0);
+        motion_undo_done(TSEL);
+    }
 }
 
 /* the keys on the grid (presses): a white key toggles the selected lane at its step of the page (its accent
@@ -658,10 +725,13 @@ static void grid_keys(uint32_t pressed)
                     ui.plk_acc = acc ? ui.plk_acc | b : ui.plk_acc & ~b;
                     ui.plk_lane = ui.lane;
                     ui.plk_trk = song.sel;
-                } else if (acc) {
-                    grid_acc(TSEL, i, ui.lane, 1);
                 } else {
-                    grid_hit(TSEL, i, ui.lane, 1);
+                    step_undo_take(TSEL, 0x1000u | ui.lane);
+                    if (acc)
+                        grid_acc(TSEL, i, ui.lane, 1);
+                    else
+                        grid_hit(TSEL, i, ui.lane, 1);
+                    motion_undo_done(TSEL);
                 }
             }
             cursor_set((int32_t)i);
@@ -704,10 +774,13 @@ static void lock_keys(void)
     uint32_t i;
     for (i = 0; gone && i < NSTEP; i++)
         if ((gone >> i) & 1u) {
+            track_t *t = &trk[ui.plk_trk % NTRK];
+            step_undo_take(t, 0x1000u | ui.plk_lane);
             if ((ui.plk_acc >> i) & 1u)
-                grid_acc(&trk[ui.plk_trk % NTRK], i, ui.plk_lane, 0);
+                grid_acc(t, i, ui.plk_lane, 0);
             else
-                grid_hit(&trk[ui.plk_trk % NTRK], i, ui.plk_lane, 0);
+                grid_hit(t, i, ui.plk_lane, 0);
+            motion_undo_done(t);
         }
     ui.plk_rm &= ~gone;
 }
@@ -781,14 +854,15 @@ static void nudge_turn(uint64_t held, int32_t steps)
         }
     motion_undo_done(TSEL);
     if (TSEL->p[P_SQNT]) {
-        ui_message("QUANTIZE IS ON");
+        ui_message("QUANTIZE ON: SEQ>AUTO");
         return;
     }
     ev_nudge_fmt(b + 6, v);
     ui_message(b);
 }
 
-/* SEQ > DETAIL (1.5.1, Discussion #199; ui.c detail_on): KNOB 1 CHANCE (0..100 %), 2 RATCH (x1..x4), 3 NUDGE (-8..+7
+/* SEQ > DETAIL (1.5.1, Discussion #199; ui.c detail_on): KNOB 1 CHANCE (0..100 %, 1.5.5: then the conditions 1:2 ..
+ * 4:4, FILL, !FILL, ui_events.c ev_chance_turn), 2 RATCH (x1..x4), 3 NUDGE (-8..+7
  * sixteenths), 4 VEL (1..127) of the cursor step, the fields SEQ > AUTOMATION lists as rows (ui_events.c ev_sval,
  * ev_sput: one storage, nothing new stored; back at its default a field is no row there). On the DRUM grid the white
  * keys held pick several steps: each moves by the turn. A step that plays nothing takes none (sd_takes: NO NOTE).
@@ -826,14 +900,14 @@ static void sd_turn(uint32_t slot, int32_t steps)
         int32_t v;
         if (!((m >> i) & 1u) || !sd_takes(&t->step[i], k))
             continue;
-        v = ev_sval(&t->step[i], k) + d;
-        v = k == EVK_CHANCE ? clamp(v, 0, 100) : k == EVK_RATCH ? clamp(v, 1, 4) : k == EVK_VEL ? clamp(v, 1, 127) :
-            clamp(v, -8, 7);
+        v = ev_sval(&t->step[i], k);
+        v = k == EVK_CHANCE ? ev_chance_turn(v, steps, d) : k == EVK_RATCH ? clamp(v + d, 1, 4) :
+            k == EVK_VEL ? clamp(v + d, 1, 127) : clamp(v + d, -8, 7);
         ev_sput(&t->step[i], k, v);
     }
     motion_undo_done(t);
     if (k == EVK_NUDGE && t->p[P_SQNT])
-        ui_message("QUANTIZE IS ON");                   /* (kept: it plays once QUANTIZE is OFF) */
+        ui_message("QUANTIZE ON: SEQ>AUTO");                   /* (kept: it plays once QUANTIZE is OFF) */
     else if (k == EVK_VEL && (t->step[ui.cursor].flags & SF_ACCENT))
         ui_message("ACC PLAYS 127");                    /* (kept: it plays once the ACC goes) */
 }
@@ -863,6 +937,7 @@ static void step_edit(uint32_t slot, int32_t steps)
     step_t *st = &TSEL->step[ui.cursor];
     uint32_t i;
     if (detail_on()) {                                    /* DETAIL (1.5.1): CHANCE RATCH NUDGE VEL */
+        follow_hold();
         sd_turn(slot, steps);
         return;
     }
@@ -870,6 +945,10 @@ static void step_edit(uint32_t slot, int32_t steps)
         grid_edit(slot, steps);
         return;
     }
+    if (slot)
+        follow_hold();                                    /* (1.6, #242: editing the cursor's step: it stays on the screen) */
+    if (slot && !(slot == 2u && step_on(st)))             /* (1.8: a knob turned on one step: one undo; LEN: below) */
+        step_undo_take(TSEL, 0x2400u | slot << 6 | ui.cursor);
     switch (slot) {
     case 0:                                               /* STEP: the cursor */
         cursor_move(ui.cursor + steps);
@@ -905,6 +984,8 @@ static void step_edit(uint32_t slot, int32_t steps)
         break;
     }
     }
+    if (slot)
+        motion_undo_done(TSEL);
 }
 
 static void edit_param(uint32_t slot, int32_t steps)
@@ -980,6 +1061,17 @@ static void edit_param(uint32_t slot, int32_t steps)
         return;
     }
 #endif
+    if (pg->graph == GR_TOOLS && slot == 1u) {           /* TOOLS' KNOB 2 (1.5.5, #190): right INIT, on CLEAN INIT; */
+        if (steps > 0) {                                  /* left back, then none */
+            ui.tl_clean = ui.act == 2u;
+            ui.act = 2;
+        } else if (ui.act == 2u && ui.tl_clean) {
+            ui.tl_clean = 0;
+        } else if (ui.act == 2u) {
+            ui.act = 0;
+        }
+        return;
+    }
     if ((act_cols() >> slot) & 1u) {                      /* an action's knob picks it (right) or drops it (left); */
         if (pg->graph != GR_PATS && pg->graph != GR_AMBI)   /* OCT+ does it (act_do) */
             ui.act = steps > 0 ? (uint8_t)(slot + 1u) : ui.act == slot + 1u ? 0u : ui.act;
@@ -1007,6 +1099,8 @@ static void edit_param(uint32_t slot, int32_t steps)
     if (!d || !vp || d->max == d->min)
         return;
     v = param_turn(d, *vp, accel(EN_K1 + slot, steps, d->fmt == F_ENUM ? 0 : d->max - d->min));
+    if (vp == &TSEL->p[P_ATSNS] && !*vp && v)             /* AFTERTOUCH on (1.8): the engine's routing, if none */
+        at_turn_on(TSEL);
     *vp = (int16_t)v;
     if (pg->scope != SC_GLOBAL) {
         motion_capture(TSEL, (uint32_t)(vp - TSEL->p), *vp);
@@ -1031,7 +1125,7 @@ static void act_do(void)
             ui_message(c == 2u ? "NOTHING TO DELETE" : "NOTHING TO CLEAR");
             return;
         }
-        confirm_open(c == 0u ? CF_CLEAR_SEQ : c == 1u ? CF_INIT_SOUND :
+        confirm_open(c == 0u ? CF_CLEAR_SEQ : c == 1u ? (ui.tl_clean ? CF_CLEAN_SOUND : CF_INIT_SOUND) :
                      c == 2u ? CF_DEL_ROW : CF_CLEAR_SONG, c == 2u ? ui.song_row : song.sel);
         return;
     }
@@ -1074,12 +1168,25 @@ static void act_do(void)
             name_open(NK_USER_SAVE, ui.uslot);
         return;
     }
+    if (cur_page()->graph == GR_SLOTS && c == 1u) {     /* PROJECT ERASE (1.5.5, #199): the dialog first */
+        ui.act = 0;
+        if (transport_busy())
+            ui_message("STOP TO ERASE");
+        else if (!project_used(k))
+            ui_message("EMPTY SLOT");
+        else
+            confirm_open(CF_ERASE_PROJ, k);
+        return;
+    }
     id = cur_page()->id[c & 3u];
     if (id != G_LOAD)
         ui.act = 0;
     switch (id) {
-    case G_LOAD:
-        project_load(k);
+    case G_LOAD:                                          /* 1.8: over changes not saved, the dialog first */
+        if (project_used(k) && proj_changed())
+            confirm_open(CF_LOAD_PROJ, k);
+        else
+            project_load(k);
         break;
     case G_SAVE:                                          /* the NAME screen writes it */
         if (transport_busy())
@@ -1160,7 +1267,7 @@ static void step_toggle(const track_t *t, step_t *st, const uint8_t *ch, uint32_
     }
 }
 
-/* SEQ step entry = step recording (1.2, Discussion #133: only with the track armed and the transport stopped), acid
+/* SEQ step entry = step recording (armed and stopped, or explicitly STEP REC while playing), acid
  * style: the keys pressed together (POLY: up to 4 notes, MONO: the last one) become the cursor step; releasing all
  * keys moves on one step (wrapping inside LEN). With CHRD on a key writes what it sounds, as live recording does:
  * POLY its chord, MONO the chord's root. MENU > CONTROL > CHORD ENTRY ADD (1.2, #155): each key adds its notes to
@@ -1169,8 +1276,9 @@ static void step_toggle(const track_t *t, step_t *st, const uint8_t *ch, uint32_
 static void seq_entry(uint32_t pressed)
 {
     track_t *t = TSEL;
-    step_t *st = &t->step[ui.cursor];
-    uint32_t k, add = (ui_prefs2 & (PREF_CHORD_ADD >> 16)) != 0u;
+    uint32_t cursor = ui.cursor, f;
+    step_t next = t->step[cursor], *st = &next;     /* prepare off-line, publish one coherent step */
+    uint32_t k, add = (ui_prefs2 & (PREF_CHORD_ADD >> 16)) != 0u, done = 0;
     for (k = 0; k < 27u; k++) {
         uint8_t ch[CHORD_MAX];
         int32_t r;
@@ -1183,6 +1291,8 @@ static void seq_entry(uint32_t pressed)
             continue;
         if (!ui.entry_open) {
             ui.entry_open = 1;
+            follow_hold();                                /* (1.6, #242) */
+            step_undo_take(t, 0);                         /* (1.8: each step entered: one undo) */
             if (!add) {
                 st->n = 0;
                 st->time = ST_NOTE;
@@ -1203,7 +1313,19 @@ static void seq_entry(uint32_t pressed)
             }
         }
         last_note = (uint8_t)note;
+        done = 1;
     }
+    f = motion_guard();
+    if (!((song.rec >> trk_index(t)) & 1u) || chain_busy()) {
+        ui.entry_open = 0;
+        motion_unguard(f);
+        return;
+    }
+    if (pressed)
+        memcpy(&t->step[cursor], &next, sizeof next);
+    motion_unguard(f);
+    if (done)
+        motion_undo_done(t);                            /* (after the step is in: the undo's after-signature) */
     if (ui.entry_open && !(fm1_in.notes & ~kb_layer)) {
         if (add)
             ui.entry_open = 0;                          /* (ADD: the cursor stays) */
@@ -1307,10 +1429,13 @@ static int page_tap(uint32_t b)
             lock_clear(held);
             return 1;
         }
+        step_undo_take(TSEL, 0);                         /* (1.8: SAVE held puts it back) */
         step_clear(&TSEL->step[ui.cursor]);
         (void)motion_clear_locks(TSEL, ui.cursor);
+        motion_undo_done(TSEL);
         cursor_set(ui.cursor + 1);
         ui_message("STEP CLEARED");
+        str_cpy(ui.msg2, "[SAVE] HOLD TO UNDO", sizeof ui.msg2);
         return 1;
     }
     if (b == B_EDIT && !ui.home && cur_page()->graph == GR_EVENTS) {   /* AUTOMATION: EDIT deletes the row's record */
@@ -1353,6 +1478,56 @@ static void sample_notice(void)
     }
 }
 
+/* 1.5.5 (#208): MIDI IN notes since the last frame (seq.c midi_seen): their tracks light (midi_lit), and with MENU > MIDI >
+ * AUTO SELECT ON a track that is not selected becomes the selected one, but not while the selected track has had notes
+ * within MF_HOLD_MS (two tracks played together, a chord across tracks: the selection stays) nor within MF_HOLD_MS of the
+ * last such switch (no flicker), nor with MIDI IN SEL (every note is the selected track's), the menu or a layer up, nor
+ * while the selected track is being edited (mf_busy). The lowest such track if several. 1: it switched */
+#define MF_HOLD_MS 250u
+/* every pass's start (the menu, NAME, SCREEN OFF too): the notes since the last pass light their tracks and are this
+ * pass's (mf_seen: SCREEN WAKE +MIDI, AUTO SELECT); a pass that returns before midi_follow drops them (no AUTO SELECT
+ * later from a note played in the menu, NAME or the dark) */
+static void midi_take(void)
+{
+    uint32_t k, now = fm1_ms | 1u;
+    fm1_irq_off();
+    mf_seen = midi_seen;
+    midi_seen = 0;
+    fm1_irq_on();
+    for (k = 0; k < NTRK; k++)
+        if ((mf_seen >> k) & 1u)
+            midi_lit_ms[k] = now;
+}
+/* an edit of the selected track in progress: a step held for a lock (STEP, the DRUM grid), a step being entered on the
+ * roll, a grid hit waiting for its key's release, a dialog */
+static int mf_busy(void)
+{
+    return lock_held() || (ui.entry_open && (fm1_in.notes & ~kb_layer)) || ui.plk_rm || ui.confirm;
+}
+static int midi_follow(void)
+{
+    static uint32_t sw_ms;                              /* the last switch, fm1_ms | 1 (0 none) */
+    uint32_t seen = mf_seen, k, now = fm1_ms | 1u, cand, lit;
+    mf_seen = 0;
+    if (!seen)
+        return 0;
+    lit = midi_lit_ms[song.sel];                        /* (the selected track's last note: midi_take lit it now if */
+                                                        /* this pass has one, and then nothing switches) */
+    cand = seen & ~(1u << song.sel);
+    k = 0;
+    if (cand && !((seen >> song.sel) & 1u) && (ui_rec_prefs & (PREF_MIDI_FOLLOW >> 8)) && song.g[G_ROUTE] != ROUTE_SEL &&
+        !ui.menu && !ui.layer && !mf_busy() && (!lit || now - lit >= MF_HOLD_MS) &&
+        (!sw_ms || now - sw_ms >= MF_HOLD_MS)) {
+        while (!((cand >> k) & 1u))
+            k++;
+        track_select(k);
+        sw_ms = now;
+        k = 1;
+    } else
+        k = 0;
+    return (int)k;
+}
+
 /* messages of things that happened elsewhere (a load, the editor, MIDI in): after this frame's own */
 static void ui_notices(void)
 {
@@ -1360,6 +1535,12 @@ static void ui_notices(void)
     sample_notice();
     ml_poll();                                          /* (MIDI LEARN: a CC came for the picked parameter) */
     if (motion_full) { motion_full = 0; ui_message("AUTOMATION FULL"); }
+    if (clock_lost) {                                   /* (1.8: PLAY with CLK USB / TRS and no clock coming) */
+        ui_message(clock_lost == 1u ? "NO CLOCK (USB)" : "NO CLOCK (TRS)");
+        clock_lost = 0;
+    }
+    if (midi_follow())                                  /* (AUTO SELECT took the track: no "MIDI IN -> Tn") */
+        midi_hint = 0;
     if (midi_hint) {                                    /* MIDI notes into a track that is not selected */
         uint32_t h = midi_hint;
         midi_hint = 0;
@@ -1380,6 +1561,7 @@ static void ui_input(void)
     uint32_t lay, combo = 0, lytap, lkeys, glo, kq = 0;
     int32_t s, sel = 0, ks[4] = {0, 0, 0, 0};
     static uint32_t lock_ms;                            /* BPM LOCK: the last locked SELECT turn (fm1_ms | 1; 0 none) */
+    midi_take();                                        /* (MIDI IN notes: lights, SCREEN WAKE, AUTO SELECT's) */
     midi_pc_poll();                                     /* MIDI Program Change (before fm6_poll: a bank voice) */
     fm6_poll();                                         /* FM6: PTCH turned -> its patch */
 #if !FELUCCA_FM4
@@ -1395,6 +1577,7 @@ static void ui_input(void)
     if (!ui.menu)
         usb_serial_apply();                             /* (MENU > USB SERIAL: when the menu has closed) */
     settings_later_poll();                              /* (#197: LIST / FAV written once the view is left or idle) */
+    follow_poll();                                      /* (1.6, #242: SEQ's roll follows the play position) */
     if (scr_input(pressed, notes))                      /* MENU > SCREEN OFF: dark, or the wake gesture: swallowed */
         return;                                         /* (before the buttons' timers: no tap or hold after it) */
     if (mom.n && !mom_down()) {                         /* MOMENTARY: LFO let go (or the menu, a layer ..): back */
@@ -1484,8 +1667,17 @@ static void ui_input(void)
             song.seq_mode = 0;
         }
     }
-    if (rec == BT_TAP && !ui.menu && !ui.confirm && !name_on())   /* REC pressed in another layer (REC alone: */
-        rec_tap();                                      /* its layer's tap); nothing in the menu, a dialog or NAME */
+    if (rec == BT_TAP && !ui.menu && !ui.confirm && !name_on()) {   /* REC pressed in another layer (REC alone: */
+        if (fm1_in.buttons & (1u << panel.btn[B_SEQ]))  /* its layer's tap); nothing in the menu, a dialog or NAME; */
+            step_rec_toggle();                          /* SEQ held: STEP REC / LIVE REC (#256) */
+        else
+            rec_tap();
+    }
+    if ((ui.menu || ui.confirm || name_on()) && ((pressed >> panel.btn[B_PLAY]) & 1u) &&
+        (song.playing || chain_busy() || seq_counting()))
+        transport_req = 2;                              /* PLAY stops a transport from the menu, a dialog, NAME (1.8;
+                                                         * NAME: one started meanwhile, MIDI Start, the editor, so the
+                                                         * name can be saved); here it never starts one */
     if (ui.menu) {                                      /* SAVE / REC taps do nothing here (HOME: above) */
         if (ui.save_t0)
             ui.save_t0 |= 2u;
@@ -1497,9 +1689,6 @@ static void ui_input(void)
     if (name_on() && !ui.confirm) {                     /* NAME: the keys type, KNOB 1 / 2, OCT+ / OCT- (ui_name.c); */
         if (ui.save_t0)                                 /* SAVE does nothing */
             ui.save_t0 |= 2u;
-        if (((pressed >> panel.btn[B_PLAY]) & 1u) && (song.playing || chain_busy() || seq_counting()))
-            transport_req = 2;                          /* PLAY stops a transport started meanwhile (MIDI Start, the
-                                                         * editor) so the name can be saved; it never starts one */
         ui.pg_down = 0;
         name_input(notes, oct);
         return;
@@ -1521,6 +1710,8 @@ static void ui_input(void)
                 name_open(NK_USER_SAVE, ui.confirm_trk);
             } else if (kind == CF_ERASE_USER) {
                 up_ui(1u, ui.confirm_trk);
+            } else if (kind == CF_ERASE_PROJ) {
+                (void)project_erase(ui.confirm_trk & 3u);
             } else if (kind == CF_LOAD_PAT) {
                 pat_load_ui(&trk[ui.confirm_trk % NTRK], pat_pick());
                 str_cpy(ui.msg2, "[SAVE] HOLD TO UNDO", sizeof ui.msg2);
@@ -1539,6 +1730,14 @@ static void ui_input(void)
                 if (!chain_busy()) { chain_defaults(&chain_config); ui.song_row = 0; ui_message("SONG CLEARED"); }
             } else if (kind == CF_INIT_SOUND) {
                 if (!chain_busy()) { set_engine(TSEL->eng_req); ui_message("SOUND INIT"); }
+            } else if (kind == CF_LEARN_CLEAR) {
+                ui_message(ml_clear_all() ? "LEARN CLEARED" : "NOTHING LEARNED");
+            } else if (kind == CF_LOAD_PROJ) {
+                project_load(ui.confirm_trk & 3u);
+            } else if (kind == CF_CLEAR_ALL) {
+                (void)project_new();
+            } else if (kind == CF_CLEAN_SOUND) {
+                if (!chain_busy()) { clean_engine(); ui_message("CLEAN INIT"); }
             } else {
                 track_t *t = &trk[ui.confirm_trk % NTRK];
                 load_begin(t, UNDO_PAT);
@@ -1639,12 +1838,11 @@ static void ui_input(void)
     } else if (song.grid) {
         grid_keys(notes);
     } else if (song.seq_mode && cur_page()->graph == GR_ROLL) {   /* STEP */
-        if (live_rec_sel() || !((song.rec >> song.sel) & 1u))   /* armed and playing: the keys record live, not
-                                                         * into the cursor step too; not armed (1.2, #133): they
-                                                         * only play, being on STEP writes nothing */
+        if (seq_counting() || live_rec_sel() || !((song.rec >> song.sel) & 1u)) /* LIVE REC uses the playhead;
+                                                         * unarmed keys only play */
             ui.entry_open = 0;
         else if (!chain_busy())
-            seq_entry(notes);                           /* armed and stopped: step recording at the cursor */
+            seq_entry(notes);                           /* STEP REC uses the cursor even during playback */
         else if (notes)
             ui_message("STOP TO EDIT");
     }
@@ -1658,7 +1856,15 @@ static void ui_input(void)
     if (!lay && (s = panel_enc(EN_ALGO)) != 0)     /* ALGORITHM: the selected track, on every page */
         track_select((uint32_t)clamp((int32_t)song.sel + (s > 0 ? 1 : -1), 0, NTRK - 1));
     if ((s = glo ? sel : panel_enc(EN_SELECT)) != 0) {   /* SELECT knob = global tempo; */
-        if (glo || !(ui_prefs & PREF_BPM_LOCK)) {
+        if (!glo && sel_mode() >= SEL_MODW) {         /* MENU > SELECT MODW / VEL (1.5.6, #84): it plays */
+            sel_play(sel_mode(), s);
+        } else if (!glo && sel_mode() == SEL_PAGE) {   /* MENU > SELECT PAGE (1.5.5, #188): the pages, a detent
+                                                         * each (ui.c page_turn); the tempo is GLO + SELECT, CLOCK's
+                                                         * KNOB 1 and TAP. Not while a layer's button is down or
+                                                         * letting go, LFO is held (MOMENTARY) or steps are held */
+            for (k = (uint32_t)(s > 0 ? s : -s); k && !lay && !kq && !mom_down() && !lock_held(); k--)
+                page_turn(s);
+        } else if (glo || !(ui_prefs & PREF_BPM_LOCK)) {
             song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + accel(EN_SELECT, s, 200), GP[G_BPM].min, GP[G_BPM].max);
             ui.bpm_t = 40;                              /* the header's BPM lights up; no message over the header */
         } else {                                        /* MENU > BPM LOCK ON (#58): only with GLO held (and on HOME >

@@ -1,5 +1,7 @@
 # Contributing to Felucca
 
+Felucca is maintained for the M-VAVE FM-1 only. Other-device ports and plugin-loading feature requests are outside this project's scope. Contributions may be declined, and no ongoing maintenance is promised.
+
 Thanks for helping! To keep things easy to follow, please use the right place:
 
 | What | Where |
@@ -29,5 +31,9 @@ Pull requests are welcome, including AI-assisted ones, with the same bar for all
 - new files carry the GPL-3.0-only SPDX header.
 
 By contributing you agree that your contribution is licensed under GPL-3.0-only.
+
+The ANALOG, LOFI, TRIO, WHEEL, NOISE and PHASE engines and the code they share (`firmware/engines/`, a git submodule) live in
+[Felucca-Engines](https://github.com/hugelton/Felucca-Engines), under the MIT licence: changes to them go there, as
+pull requests to that repository.
 
 The web editor and installer live in [Felucca-WebApp](https://github.com/hugelton/Felucca-WebApp).

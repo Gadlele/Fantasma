@@ -37,7 +37,7 @@ static const param_desc_t ESYNC_DESC[3] = {   /* ATK DEC REL with ENV SYNC on: t
 static uint32_t esync_idx(int32_t v) { return (uint32_t)(v & 127) * ESYNC_N >> 7; }   /* (param_format's split) */
 /* seq.c kb_map; 1 = SNAP (stored projects: the former ON); 3 = SEQ: SNAP, and the sequencer's notes snap too as
  * they play (seq.c seq_step; the steps keep what was written). Append-only: older projects hold 0..2 */
-static const char *const N_QUANT[] = {"OFF", "SNAP", "WHITE", "SEQ"};
+static const char *const N_QUANT[] = {"OFF", "SNAP", "WHITE", "SEQ", "SEQ+T"};
 /* chord keys (chord.c): OFF, the diatonic triad / seventh of the track's ROOT and SCALE on the key, fixed shapes */
 static const char *const N_CHRD[] = {"OFF", "DIA3", "DIA7", "MAJ", "MIN", "DOM7", "MAJ7", "MIN7", "SUS4", "POW", "OMNI", "OMNI H"};
 static const char *const N_VOIC[] = {"CLOSE", "OPEN", "INV1", "INV2", "+OCT"};   /* VC_CLOSE .. VC_BASS */
@@ -48,8 +48,9 @@ static const char *const N_ALLOC[] = {"ROT", "REUSE"};
 static const char *const N_ORDER[] = {"NOTE", "PLAY"};
 static const char *const N_CLOCK[] = {"INT", "USB", "TRS"};
 static const char *const N_MIDI_INPUT[] = {"USB", "TRS"};
-/* MIDI IN (seq.c midi_base): 1..4 -> parts, 5..16 ignored / all -> selected / (1.2, append-only) 5..8, 9..12, 13..16 -> parts */
-static const char *const N_ROUTE[] = {"CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16"};
+/* MIDI IN (seq.c midi_base): 1..4 -> parts, 5..16 ignored / all -> selected / (1.2, append-only) 5..8, 9..12, 13..16 -> parts
+ * / (1.5.5, #202) TRACK: each track its own channel (song.mch, MENU > MIDI > T1..T4 CHANNEL) */
+static const char *const N_ROUTE[] = {"CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16", "TRACK"};
 static const char *const N_NOTE[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const N_DASH[] = {"--"};
 static const char *const N_RTYPE[] = {"ROOM", "SPRING", "HALL", "AMBI"};   /* G_RTYPE: the reverb bus's model (fx.c) */
@@ -64,10 +65,14 @@ static const char *const N_IBITS[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9
 static const char *const N_IRATE[] = {"689", "919", "1.1k", "1.4k", "1.8k", "2.2k", "2.8k", "3.7k", "4.4k", "5.5k",
                                       "7.4k", "8.8k", "11k", "15k", "22k", "44k", 0};
 /* modulation matrix (mod.c): sources, destinations (E1..E8 = P_E0..P_E7: shown with the engine's labels).
- * Append-only (stored values keep their meaning): S&H SLEW and DEPTH (#132) came after EXPR and E8 */
+ * Append-only (stored values keep their meaning): S&H SLEW and DEPTH (#132) came after EXPR and E8; VEL and TIME
+ * (1.5.6, #213: at the note) after DEPTH */
 static const char *const N_MSRC[] = {"OFF", "LFO", "ENV", "VEL", "KEY", "RAND", "MODW", "AT", "EXPR", "S&H", "SLEW"};
 static const char *const N_MDST[] = {"OFF", "PITCH", "CUT", "SHP", "AMP", "PAN", "DIST", "CHO", "DLY", "REV", "RATE",
-                                     "VIB", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "DEPTH"};
+                                     "VIB", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "DEPTH", "VEL", "TIME"};
+/* 1.8: AFTERTOUCH SENS, the keys' pressure (keytouch.c): OFF (the keys send none; the routing still takes MIDI's), 1 the
+ * firmest lean for full pressure .. 10 the lightest */
+static const char *const N_ATSNS[] = {"OFF", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
 static const char *const N_ENGNAME[] = {"ANALOG", FELUCCA_FM4 ? "DIGITAL" : "-", "PHASE", FELUCCA_LOFI ? "LOFI" : "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN", "PHYS",
                                              "DRUM", "NOISE", "FM6",
 #if FELUCCA_SLICE
@@ -75,9 +80,13 @@ static const char *const N_ENGNAME[] = {"ANALOG", FELUCCA_FM4 ? "DIGITAL" : "-",
 #else
                                              "BELL",
 #endif
+#if FELUCCA_ADPCM
+                                             "ADPCM",
+#endif
 };
 
 static const char *const N_BARS[] = {"RND", "1", "2", "3", "4", "5", "6", "7", "8"};   /* the Pad GEN page: bars a chord (RND: 1 to 6 at random) */
+static const char *const N_SLOT[] = {"A", "B", "C", "D", 0};   /* G_SLOT 1..4 (F_INT: the names split its range) */
 #define PD(l, f, mn, mx, df) {l, f, mn, mx, df, 0, 0}
 #define PE(l, n, df) {l, F_ENUM, 0, (int16_t)(sizeof(n) / sizeof(n[0]) - 1), df, n, 0}
 
@@ -170,6 +179,11 @@ static const param_desc_t TP[P_COUNT] = {
     [P_PLEN] = PE("BARS", N_BARS, 2),             /* .. each chord lasts BARS bars of 16 steps (0: RND, a number of bars at random) */
     [P_PEV] = PD("CHORDS", F_INT, 1, 8, 4),      /* .. EVOLVE: how many chords it chooses between, I IV V vi ii iii vii bVII (the rarer the later) */
     [P_PSEED] = PD("SEED", F_INT, 0, 127, 0),     /* .. SEED: the same one is the same progression */
+    /* 1.8 AFTERTOUCH: the track's aftertouch (the keys', MIDI's) to DEST by AMT, a modulation slot of its own (mod.c);
+     * DEST OFF = as before */
+    [P_ATSNS] = PE("AT", N_ATSNS, 0),
+    [P_ATDST] = PE("ATDST", N_MDST, 0),
+    [P_ATAMT] = PD("ATAMT", F_BIPCT, -64, 63, 0),
 };
 
 /* the INSERT's A B C as its TYPE means them (TP's ranges and defaults): the drives DRIVE TONE LEVEL, CRUSH BITS RATE
@@ -210,7 +224,7 @@ static const param_desc_t GP[G_COUNT] = {
      * stored with the project as before. (was "--": stored 0 = CH1-4, as MIDI IN always was) */
     [G_ROUTE] = PE("ROUT", N_ROUTE, 0),
     [G_INFO] = PD("CPU", F_INT, 0, 0, 0),
-    [G_SLOT] = PD("SLOT", F_INT, 1, 4, 1),
+    [G_SLOT] = {"SLOT", F_INT, 1, 4, 1, N_SLOT, 0},   /* 1.8: A..D as the list, the header and SONG (values 1..4) */
     [G_NAME] = PE("NAME", N_DASH, 0),
     [G_LOAD] = PE("LOAD", N_GO, 0),
     [G_SAVE] = PE("SAVE", N_GO, 0),
@@ -334,11 +348,12 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
         fmt_int(val, d->max == 100 ? v : (v * 100 + 63) / 127);
         *unit = "%";
         break;
-    case F_BIPCT:
+    case F_BIPCT:                                   /* -64..63 as -100..+100 % (1.5.5, #199: each side over its own
+                                                     * range; up to 1.5.1 / 64 both ways, the top read +98) */
         fmt_int(val, v * 100 / 64);
         if (v > 0) {
             char t[8];
-            fmt_int(t, v * 100 / 64);
+            fmt_int(t, v * 100 / 63);
             val[0] = '+';
             str_cpy(val + 1, t, 6);
         }
@@ -399,7 +414,7 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
         *unit = "st";
         break;
     case F_ENUM:
-        str_cpy(val, d->names[v < d->min ? d->min : v > d->max ? d->max : v], 6);
+        str_cpy(val, d->names[v < d->min ? d->min : v > d->max ? d->max : v], 7);
         if (d->unit)
             *unit = d->unit;
         break;
@@ -408,10 +423,10 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
         *unit = "BPM";
         break;
     case F_NOTE:
-        str_cpy(val, N_NOTE[v % 12], 6);
+        str_cpy(val, N_NOTE[v % 12], 7);
         break;
     case F_ONOFF:
-        str_cpy(val, N_ONOFF[v ? 1 : 0], 6);
+        str_cpy(val, N_ONOFF[v ? 1 : 0], 7);
         break;
     case F_STEPS:
         fmt_int(val, v);
@@ -422,7 +437,7 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
             uint32_t k = 0;                           /* split evenly over the names (engine desc hooks) */
             while (d->names[k])
                 k++;
-            str_cpy(val, d->names[(uint32_t)(clamp(v, d->min, d->max) - d->min) * k / (uint32_t)(d->max - d->min + 1)], 6);
+            str_cpy(val, d->names[(uint32_t)(clamp(v, d->min, d->max) - d->min) * k / (uint32_t)(d->max - d->min + 1)], 7);
         } else {
             fmt_int(val, v);
         }
@@ -480,7 +495,7 @@ static const page_t PAGES[] = {
     {"GEN", FAM_EDIT, SC_TRACK, GR_NONE, {P_PDEN, P_PLEN, P_PEV, P_PSEED}},   /* Fantasma: the Pad's chord generator (not a kit) */
     {"VOICE", FAM_EDIT, SC_TRACK, GR_NONE, {P_VOICE, P_GLIDE, P_GLMODE, P_PRIO}},
     {"VOICE 2", FAM_EDIT, SC_TRACK, GR_NONE, {P_ALLOC, P_DETUNE, P_PAN, P_MUTE}},
-    {"VOICE 3", FAM_EDIT, SC_TRACK, GR_NONE, {P_SPRD, 0xFF, 0xFF, 0xFF}},   /* #148: SPREAD */
+    {"VOICE 3", FAM_EDIT, SC_TRACK, GR_NONE, {P_SPRD, P_ATSNS, P_ATDST, P_ATAMT}},   /* #148: SPREAD; 1.8: AFTERTOUCH */
     /* 1.2 (Discussion #153): a family's pages go round in this order, a tap of its button each (ui.c open_family) */
     {"SONG", FAM_GLO, SC_GLOBAL, GR_SONG, {0xFF, 0xFF, 0xFF, 0xFF}},        /* GLO's only page (1.2; up to 1.1.5 SEQ's) */
     /* SAVE's taps (1.5, #173): USER (SAVE from another page: the quick save, SAVE OCT+ OCT+), PRESETS (the engines and

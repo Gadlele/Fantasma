@@ -67,6 +67,13 @@ insert effect with a dry / wet mix, Discussions #78 #177), then `TYPE` (101, ANA
 P_COUNT and P_E0 from `INFO` keeps working. Projects stay FUN10 (3840 bytes, 111 at byte 66; 16 bytes to spare). See
 "1.5: the INSERT" and "1.5: filter TYPE, ENV SYNC" below.
 
+**1.8 (114 parameters, FUN10 as it was):** three track parameters went in before the engine parameters, which moved
+from 103..110 to 106..113: P_COUNT 114, P_E0 106. AFTERTOUCH, on EDIT > VOICE 3: `AT` (103, the keys' pressure: OFF,
+1 .. 10; only F3 .. C5 sense it), `ATDST` (104, a destination as the matrix's `DST`) and `ATAMT` (105, -64..63): the
+track's aftertouch, the keys' or MIDI's, routed as a modulation slot of its own. All three 0 = as before. No command
+changed; an editor that takes P_COUNT and P_E0 from `INFO` keeps working. Projects stay FUN10 (114 at byte 66; 4 bytes
+to spare before MIDI IN TRACK's three).
+
 ## Framing
 
 A request is `F0 7D 46 4C <cmd> <args...> F7`:
@@ -92,7 +99,7 @@ watches (v2, `WATCH`), the device also sends push frames (cmds 23, 24, 26) at an
 | track | 0..3: tracks 1..4 (synth parts) |
 | engine byte | 0..NENGINES−1 (firmware before 1.0: NENGINES = its drum track, no engine). The numbers are fixed, new engines are appended: 0 ANALOG, 1 reserved (DIGITAL before 1.0: see below), 2 PHASE, 3 LOFI, 4 SAMPLE, 5 VOICE, 6 TRIO, 7 WHEEL, 8 GRAIN, 9 PHYS, 10 DRUM, 11 NOISE, 12 FM6, 13 SLICE (NENGINES 14; a build with `FELUCCA_SLICE=0` has 13). The device and the editor list them in another order (ANALOG FM6 PHASE LOFI SAMPLE VOICE TRIO WHEEL GRAIN PHYS NOISE SLICE DRUM: `ENGINE_ORDER`); the numbers stay |
 
-The engine parameters are `P_E0..P_E7`: P_COUNT−8 .. P_COUNT−1 (103..110 since 1.5; 96..103 in 1.2 .. 1.4; 91..98 in
+The engine parameters are `P_E0..P_E7`: P_COUNT−8 .. P_COUNT−1 (106..113 since 1.8; 103..110 in 1.5 .. 1.7; 96..103 in 1.2 .. 1.4; 91..98 in
 1.1), and `INFO` gives `P_E0`.
 Their meaning, range and names depend on the current engine, so re-read `DESC` for them
 after an engine change.
@@ -103,7 +110,7 @@ P_COUNT 69): slot k (1..4) is `SRCk`, `DSTk`, `AMTk` at ids 49 + 3 (k − 1) .. 
 | id | label | values |
 | --- | --- | --- |
 | 49, 52, 55, 58 | SRC1..SRC4 | enum: 0 OFF, 1 LFO, 2 ENV, 3 VEL, 4 KEY, 5 RAND, 6 MODW (CC1), 7 AT (channel aftertouch), 8 EXPR (CC11), 9 S&H (a random value held for one cycle of the track LFO), 10 SLEW (S&H gliding from the cycle before's value) |
-| 50, 53, 56, 59 | DST1..DST4 | enum (21 names): 0 OFF, 1 PITCH, 2 CUT, 3 SHP, 4 AMP (per voice); 5 PAN, 6 DIST, 7 CHO, 8 DLY, 9 REV, 10 RATE (LFO rate), 11 VIB (LFO pitch depth), 12..19 E1..E8 = `P_E0..P_E7`, 20 DEPTH (the track LFO's depth: a gain on LFO DEST and the matrix's LFO source) (per block) |
+| 50, 53, 56, 59 | DST1..DST4 | enum (23 names; 21 before 1.5.6): 0 OFF, 1 PITCH, 2 CUT, 3 SHP, 4 AMP (per voice); 5 PAN, 6 DIST, 7 CHO, 8 DLY, 9 REV, 10 RATE (LFO rate), 11 VIB (LFO pitch depth), 12..19 E1..E8 = `P_E0..P_E7`, 20 DEPTH (the track LFO's depth: a gain on LFO DEST and the matrix's LFO source) (per block); 1.5.6 (#213), at the note: 21 VEL (the note-on velocity, AMT 64 = +-127, 1..127), 22 TIME (a sequencer step late, 0..30 ms at AMT 64, at most 7/16 of the step). Firmware before 1.5.6 clamps 21 / 22 to 20 (DEPTH) when it loads them |
 | 51, 54, 57, 60 | AMT1..AMT4 | −64..63 (fmt BIPCT) |
 
 `DESC` names E1..E8 as such; the device shows the engine's label of that parameter instead (`DESC` of
@@ -166,6 +173,9 @@ Since 1.5.1 the delay's `G_DTIME` (global id 4, label "TIME") has 13 names: P_SD
 and the LFO's SYNC keep their lists. The device's knob steps TIME by length, longest first (4BAR 2BAR 1/1 1/2 1/4D
 1/4 1/8D 1/8 1/16D 8T 1/16 16T 1/32); an editor sorting by the names' lengths reads "n/mD" as 1.5 x n/m. An editor
 that knows only ten names shows 10..12 by `DESC`'s names; a `SET` of 10..12 to a 1.5 device is clamped to 9 (4BAR).
+Since 1.5.6 (#218) `P_QUANT` (id 27, label "QNT") has 5 names: OFF SNAP WHITE SEQ, then SEQ+T (value 4, appended:
+SEQ, and the sequence's notes moved by TRN before they snap, as the keys are). An editor that knows four names shows 4
+by `DESC`'s name; older firmware clamps a stored or `SET` 4 to 3 (SEQ: the sequence snaps, not transposed).
 The FX layer's REV THROW and ECHO THROW (1.5.1) are performance only: no parameter, nothing in the protocol.
 
 **Retired enum values (aliases).** A value that no longer exists keeps its number, so stored sounds stay valid:
@@ -173,21 +183,22 @@ The FX layer's REV THROW and ECHO THROW (1.5.1) are performance only: no paramet
 and the reply says so) and its knob steps over it. Of a repeated name, the original is the first value when that has
 the name, else the last one with it; an editor should list only the originals and show an alias by its name when
 it ever sees one. Today: SAMPLE SET and GRAIN SRC 1 and 4 (once TRANH, PERC) = 0 PIANO; DRUM KIT (engine 10, E1)
-1, 2, 3 (once HAND, CYM, H+CYM; 1.0.5) = 6 (66), 5 (10), 8 (77): its names are STD 66 10 77 80 10 66 55 77, the
-device's knob steps STD 80 10 66 55 77. An editor of before 1.0.5 (first of a name = original) offers 66 10 77
+1, 2, 3 (once HAND, CYM, H+CYM; 1.0.5) = 6 (66), 5 (10), 8 (77): its names are STD 66 10 77 80 10 66 55 77 (1.5.6,
+#216: then 9 DEEP, 10 TIGHT, 11 PERC, appended; firmware before clamps them to 8, 77), the device's knob steps STD 80 10
+66 55 77 DEEP TIGHT PERC. An editor of before 1.0.5 (first of a name = original) offers 66 10 77
 at 1..3 and hides 6 5 8: what it sets still plays the right kit, and the device answers with 6 5 8.
 
 ## Commands
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
-| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v6) CHAIN_ROWS (16), then the tagged blocks `55 01 uiCaps`, `4D 01 64 01`, `42 01 3`, `46 01 nfactory nbank`, `53 01 3`, (1.0.3) `50 01 3` and (1.0.4) `4E 01 count` (MENU settings; 12, 1.1: 15, 1.2: 17, 1.1.5: 18, 1.2: 23, 1.3: 24, 1.5: 25) and (1.0.5) `52 01 4` (ratchet) and (1.1) `4C 01 1` (parameter locks) and (1.2) `41 01 00 01` (128 motion records: two 7-bit bytes, LSB first; `4D 01 64 01` keeps saying 64) and `54 01 16` (a step's nudge, 1/16 of a step) and `57 01 4` (song sections: a slot per track, SONG ops 4..7) and (1.4.1) `56 01 32` (FM6's voice bank: cmds 74..77, SLOT 9..40) and (1.5) `43 01 16` (MIDI LEARN's map: cmds 78, 79) (below); older firmware ends earlier |
+| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v6) CHAIN_ROWS (16), then the tagged blocks `55 01 uiCaps`, `4D 01 64 01`, `42 01 3`, `46 01 nfactory nbank`, `53 01 3`, (1.0.3) `50 01 3` and (1.0.4) `4E 01 count` (MENU settings; 12, 1.1: 15, 1.2: 17, 1.1.5: 18, 1.2: 23, 1.3: 24, 1.5: 25, 1.5.5: 32) and (1.0.5) `52 01 4` (ratchet) and (1.1) `4C 01 1` (parameter locks) and (1.2) `41 01 00 01` (128 motion records: two 7-bit bytes, LSB first; `4D 01 64 01` keeps saying 64) and `54 01 16` (a step's nudge, 1/16 of a step) and `57 01 4` (song sections: a slot per track, SONG ops 4..7) and (1.4.1) `56 01 32` (FM6's voice bank: cmds 74..77, SLOT 9..40) and (1.5) `43 01 16` (MIDI LEARN's map: cmds 78, 79) and (1.5.5) `4B 01 NCOND` (a step's condition) and (1.6) `45 01 5` (CUSTOM palette: cmds 80, 81) (below); older firmware ends earlier |
 | 2 GET | scope, id | scope, id, v14 |
 | 3 SET | scope, id, v14 | scope, id, v14 (the value after clamping). Setting global `G_ENGSEL` (id from DESC label "ENG") changes the engine: its defaults, then its first preset (as on the device) |
 | 4 DUMP | — | engine, preset, then P_COUNT × v14 (the selected track), then G_COUNT × v14 (globals) |
 | 5 DESC | scope, id | scope, id, fmt, min v14, max v14, def v14, label string, unit string, then for an enum (fmt 8) one name string per value (at most 24; firmware before the matrix: at most 16) |
-| 6 STEP_GET | index 0..NSTEP−1 | index, n (0..4 notes), note0..note3, time (0 NOTE, 1 TIE, 2 REST), flags (1 accent, 2 slide), vel, then (v5) hits (3 bytes, below), then (v7) chance 0..100, then (`52 01`) ratchet 1..4, then (`54 01`, 1.2) nudge + 8 (0..15: −8..+7 sixteenths of the step) |
-| 7 STEP_SET | index, n, note0..3, time, flags, vel [, hits (3 bytes, v5) [, chance 0..100 (v7) [, ratchet 1..4 [, nudge + 8, 0..15 (1.2)]]]] | same as STEP_GET (after the write). Without the hits the step keeps its own; without the chance, the ratchet or the nudge it keeps its own. The chance can only follow the hits, the ratchet the chance, the nudge the ratchet; a nudge byte above 15: no reply, nothing written |
+| 6 STEP_GET | index 0..NSTEP−1 | index, n (0..4 notes), note0..note3, time (0 NOTE, 1 TIE, 2 REST), flags (1 accent, 2 slide), vel, then (v5) hits (3 bytes, below), then (v7) chance 0..100, then (`52 01`) ratchet 1..4, then (`54 01`, 1.2) nudge + 8 (0..15: −8..+7 sixteenths of the step), then (`4B 01`, 1.5.5) condition 0..11 (0 none; with one the chance byte says 100) |
+| 7 STEP_SET | index, n, note0..3, time, flags, vel [, hits (3 bytes, v5) [, chance 0..100 (v7) [, ratchet 1..4 [, nudge + 8, 0..15 (1.2) [, condition 0..11 (1.5.5)]]]]] | same as STEP_GET (after the write). Without the hits the step keeps its own; without the chance, the ratchet or the nudge it keeps its own. The chance can only follow the hits, the ratchet the chance, the nudge the ratchet, the condition the nudge; a nudge byte above 15 or a condition above 11: no reply, nothing written. Without the condition byte a chance of 100 keeps the step's condition (below) |
 | 8 PRESET | engine, preset | engine, preset (applies the preset's sound to the selected track and sends; the steps and the track's own parameters stay, see "Sound loads and undo"). For another track, select it with `TRACK` first |
 | 9 PROJECT | op (0 load, 1 save, 2 query), slot 0..3 | op, slot, used (1/0). Save writes flash: allow ~2 s; it stops the transport first (see "Saves while playing") |
 | 10 NAMES | engine | engine, count, count preset-name strings, then the two edit-page titles |
@@ -213,7 +224,7 @@ at 1..3 and hides 6 5 8: what it sets still plays the right kit, and the device 
 | 27 TRACK | — (query), or track (select it) | selected track, NTRK, then per track: engine byte, preset, level v14, mute (0/1), armed (0/1, live recording) |
 | 28 TRACK_MIX | track (get), or track, level v14 (0..127), mute (set) | track, level v14, mute: the track's `P_LEVEL` and `P_MUTE` |
 | 29 TRACK_DUMP | track | track, engine byte, preset, P_COUNT × v14 (that track's parameters; no globals) |
-| 30 TRACK_STEP | track, index (get), or track, index, n, note0..3, time, flags, vel [, hits (v5) [, chance (v7) [, ratchet [, nudge + 8 (1.2)]]]] (set) | track, index, n, note0..3, time, flags, vel, then (v5) hits, then (v7) chance, then (`52 01`) ratchet, then (`54 01`) nudge + 8 |
+| 30 TRACK_STEP | track, index (get), or track, index, n, note0..3, time, flags, vel [, hits (v5) [, chance (v7) [, ratchet [, nudge + 8 (1.2) [, condition (1.5.5)]]]]] (set) | track, index, n, note0..3, time, flags, vel, then (v5) hits, then (v7) chance, then (`52 01`) ratchet, then (`54 01`) nudge + 8, then (`4B 01`) condition |
 
 | cmd (v4) | Request args | Reply args |
 | --- | --- | --- |
@@ -463,6 +474,14 @@ grid lives in the steps themselves, so every engine has it:
   (append-only) 2 "CH5-8", 3 "CH9-12", 4 "CH13-16": channels 5..8, 9..12 or 13..16 → tracks 1..4, the others
   ignored as with CH1-4, and the keys' MIDI out on the track's channel of that block. `DESC` of id 14 gives range
   0..4 and the five names; firmware before 1.2 clamps 2..4 to 1 (SEL) when it loads such a project.
+  1.5.5 (#202, append-only): 5 "TRACK", each track on its own channel, set by MENU settings 26..29 (T1..T4 CHANNEL:
+  1..16, OMNI = any channel no track has, OFF = none; 1..4 by default, so TRACK with the defaults is CH1-4). A channel
+  two tracks have plays the first; a channel no track has is ignored as outside a block. Notes, bend, CCs (the CC
+  map, CC1, the panic CCs), aftertouch and Program Change follow it; MIDI LEARN's CCs still set their own track (from
+  any channel a track hears); the keys' MIDI out goes on the track's channel (OMNI / OFF: its CH1-4 one). `DESC` gives
+  range 0..5. The channels are the project's, in FUN10's spare bytes (below: "MIDI IN TRACK in a project"); a project
+  with TRACK stores id 14 as the block its channels make (channels 5..8 in order: CH5-8 ..), else CH1-4, so 1.5.1 and
+  earlier (which never read those bytes) open it with that block.
   Neither setting affects this SysEx protocol or MIDI clock. The
   id, `G_COUNT` (27) and the project format are unchanged; it is saved and loaded with the project like
   the other globals. The editor shows it under GLOBAL > MIDI. 1.2: the GLO > GLOBAL and GLO > SYSTEM pages are
@@ -684,6 +703,28 @@ in 1/16 of a step) after the locks tag (`4C 01 1`). Firmware without them: 64 re
   (track, 8) answers every record with count and max as two 7-bit bytes and the kinds. A set when the 128 are used: rc 2.
 - **Projects** are FUN10 (above); user presets store 104 parameters (1.5: 111; UP_GET / UP_PUT: P_COUNT values, as INFO says).
 
+## 1.5.5: conditions
+
+INFO advertises `4B 01 0B` (a step's condition, 11 of them) after MIDI LEARN's tag (`43 01 ..`). Firmware without it: no
+condition byte (a reply ends with the nudge).
+
+- **The byte:** after the nudge in `STEP_GET` / `STEP_SET` / `TRACK_STEP` (a change on the device pushes
+  `STEP_CHANGED`): 0 none, then 1 `1:2`, 2 `2:2`, 3 `1:3`, 4 `2:3`, 5 `3:3`, 6 `1:4`, 7 `2:4`, 8 `3:4`, 9 `4:4`, 10 `FILL`,
+  11 `!FILL` (NOT FILL). A step has a chance or a condition, never both (one byte stores them): with a condition the
+  reply's chance byte is 100 (a condition plays at 100 %). `a:b` plays the step on loop a of every b loops of its track
+  (the passes through its LEN, counted from PLAY and from each SONG section), `FILL` while the device's FILL is held
+  (GLO + E4), `!FILL` while it is not.
+- **Writes:** with the condition byte (1..11) the step gets that condition (the chance byte is ignored); 0 clears it and
+  the chance byte applies. Without it (an editor of before) a chance of 100 keeps the step's condition, as that editor
+  read 100 there and writes it back; any other chance replaces it. So an older editor never drops a condition it did
+  not show, unless its user sets a chance on that step.
+- **Projects:** FUN10 unchanged in size. The chance byte (`0` = 100 %, 1..100, 101 = never) takes 102..112 for the
+  conditions (`102 + c - 1`); 113..127 refuse the project. **Firmware 1.5 / 1.5.1 refuse a project holding a condition**
+  (their check wants 0..101): the slot reads as empty there, its data untouched until something is saved over it. A full
+  backup carries it the same way.
+- **Editors:** show the condition in place of the chance (the device's DETAIL and AUTOMATION show `COND 1:4` where
+  `CHANCE 50%` would be), and send the condition byte once INFO has `4B 01`.
+
 ## 1.5: the INSERT
 
 Five track parameters before the engine parameters, ahead of 1.5's TYPE and ESYNC (below; with them P_COUNT 111, P_E0
@@ -863,6 +904,9 @@ The device stores every value clamped into its range.
 target:
 - 0 a track's own patch (index 0..3: what it plays and what its project saves). A PUT is heard at once; SLOT becomes
   OWN (F n if it is that factory patch unchanged), and the device does not reload a factory patch over it.
+  A PUT to a track that runs another engine is accepted and kept as its latent FM6 patch. When the track plays
+  FM6 again, the audio side rebuilds its copy from the patch published at that time, however many PUTs came
+  meanwhile. Normal engine selection can load a preset over the latent patch; no format or reply changes.
 - 1 the patch bank. 1.0..1.0.2: index 0..26 = B1..B27 in flash (A 0x9F000, B 0xFE000; backup id 8). Since 1.0.3:
   GET, PUT and ERASE answer rc 3 ("no bank") and change nothing; LIST reports nbank 0.
 - 2 a factory patch (0..7, GET only).
@@ -939,6 +983,42 @@ again (LEARN_GET) when it matters (e.g. with the settings, or after the user say
 03 62 F7` (op 0: CC74, T4, id 98: P_E0 + 2, DRUM's TONE, where P_E0 is 96 as in 1.2 .. 1.4.1) answers `F0 7D 46 4C 4F 00 10 01 4A 03 62 ...
 F7` (rc 0, 16 entries, the first CC74 on T4 id 98).
 
+## CUSTOM palette (80-81; 1.6)
+
+COLOR (MENU > DISPLAY, Discussion #239, #244) has a palette of the user's as its 11th value, CUSTOM. A palette is five
+stored colours, color1 color2 color3 primary secondary (1.7; 1.6 and before: BG SURF TEXT THEME ACCENT): color1 the
+background, color2 the identity colour (values, curves, selections; the card colour SURF is color1 + 12 % of it), color3
+the text, primary REC and the warnings, secondary the one active thing. The device derives the other tokens (SURF, MID,
+DIM, LINE, SEL, TINT, INK, RAISE, KEY, LANE, GRID) from them with fixed blends, as for the built-in palettes (`firmware/src/gfx.c palette_set`,
+`tools/gen_ui_palettes.py`), CUSTOM is not GREY and not MONO (the channels blend as they are). The colours are RGB565,
+sent as three 7-bit bytes each: red 0..31, green 0..63, blue 0..31. CUSTOM is part of the settings (kept across
+power-off, not in projects or user presets; a full backup carries it with the settings object, id 1: bytes 0..9 and 12 of
+the favorites' 16th row; byte 12 bit 2: the 1.7 layout. A CUSTOM stored by 1.6 is read as color1 = BG, color2 = THEME, color3 = TEXT, a red
+primary and secondary = ACCENT, once, at the first start of 1.7; 1.6 reading a 1.7 CUSTOM shows its five as it knew them). Firmware before 1.6 keeps the bytes (a round trip through it does not lose the palette) and shows
+the built-in palette that was in use before CUSTOM was chosen (the settings' palette field is never CUSTOM). INFO
+advertises `45 01 5` (five colours) after `4B 01 NCOND`; firmware without the tag answers neither command.
+
+While one is stored, CUSTOM is the 11th name of `UI_PALETTES` (cmd 36: count 11, the last "CUSTOM"), `UI_SET` id 0 takes
+10, `UI_STATE`'s palette byte is 10 while it is in use, and MENU's COLOR (id 0 in `MENU_DESC` / `MENU_SET`) has 11 values
+(max 10, the last "CUSTOM"). With none stored: 10 values as before, and `UI_SET` 0 with 10 answers rc 1.
+
+| cmd | Request args | Reply args |
+| --- | --- | --- |
+| 80 PALETTE_GET | — | flags (bit 0 stored, bit 1 in use), 5, then 5 × (r, g, b): the stored colours, or with none stored the palette in use (a place to start from) |
+| 81 PALETTE_SET | op 0 preview: 0, 5 × (r, g, b); op 1 store: 1, 5 × (r, g, b); op 2 remove: 2; op 3 drop the preview: 3 | rc, then PALETTE_GET's reply |
+
+Op 0 shows the colours at once and stores nothing (RAM only; the device's own COLOR or op 3 brings back the palette in
+use; a power cycle too). Op 1 stores them, makes CUSTOM the palette in use and saves like `UI_SET` (rc 0 saved, 3 applied in
+RAM only, 4 saved when the transport stops). Op 2 removes the stored palette (the built-in palette from before is in use
+again). rc 1: arguments (a value past its range, an unknown op, a wrong length). **The device accepts any colours**, readable
+or not; it is the editor that warns. The rule the editor warns by (the lightness 0..255 as in `firmware/src/gfx.c ux_luma`: (54 R + 183 G +
+19 B) / 256 of the colour at full scale): color3 against color1 at least 128 apart, color2 against color1 80,
+secondary against color1 64, primary against color1 64; every built-in palette keeps 195, 171, 135 and 147 at the least. With colours nobody can read the way
+back is the editor's op 2, or the device's MENU: hold HOME for the menu, COLOR is the first row of the first tab (DISPLAY), a
+knob turn picks a built-in palette. A preview by the slider is op 0 sent at most every few tens of ms; the value in the
+settings changes only with op 1. Example: `F0 7D 46 4C 51 01 01 02 05 03 04 0A 06 ...` is op 1 with color1 = (r 1, g 2, b 5),
+color2 = (3, 4, 10), ...
+
 ## Tagged device preferences v1
 
 INFO appends `0x55, 1, uiCaps` after the existing `NTRK, CHAIN_ROWS` bytes.
@@ -959,7 +1039,7 @@ advertises 9 (palette and favorites).
 | 38 FAV_SET | engine, preset v14, on/off | rc; when applied: engine, preset v14, on/off |
 
 UI_SET ids: 0 palette (0..count-1, the order of UI_PALETTES: GREY GREEN AMBER ICE VIOLET ROSE PAPER
-HI-CON NIGHT MONO; 1.0.2: GREY is the MONO of 1.0.1, MONO a new black and white palette), 1 font (retired: rc 2), 2 reserved, 3 preset filter (0 all, 1 favorites). Unsupported state
+HI-CON NIGHT MONO; 1.0.2: GREY is the MONO of 1.0.1, MONO a new black and white palette; 1.6: CUSTOM last while one is stored), 1 font (retired: rc 2), 2 reserved, 3 preset filter (0 all, 1 favorites). Unsupported state
 fields are 127.
 Both u28 signatures are four least-significant-first 7-bit bytes; compare them
 to refresh changed favorites and user slots. Factory references use stable
@@ -1018,17 +1098,18 @@ is told: no list of settings is fixed in the editor. INFO advertises `4E 01 coun
   ABOUT).
   For a kind it does not know, an editor cannot find the tab (it does not know that kind's bytes).
 
-This firmware (count 25; tabs 0 DISPLAY, 1 CONTROL, 2 AUDIO, 3 MIDI, 4 SYSTEM (1.2; before: 3 SYSTEM); 1.0.5 had the
+This firmware (count 33; tabs 0 DISPLAY, 1 CONTROL, 2 AUDIO, 3 MIDI, 4 SYSTEM (1.2; before: 3 SYSTEM); 1.0.5 had the
 first 12, 1.1 the first 15, 1.2 before SCALE LEDS the first 16, before SCREEN OFF the first 17, 1.1.5 the first 18, 1.2
-before MIDI IN the first 21, 1.2 the first 23, 1.3 / 1.4 the first 24):
+before MIDI IN the first 21, 1.2 the first 23, 1.3 / 1.4 the first 24, 1.5 / 1.5.1 the first 25, 1.5.5 .. 1.6 the first
+32; a FELUCCA_CPU2=0 build of 1.6.1 too):
 
 | index | id | name | kind | values (min 0) | default | tab |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 0 | COLOR | 0 | 0..9: GREY GREEN AMBER ICE VIOLET ROSE PAPER HI-CON NIGHT MONO (the order of `UI_PALETTES`) | GREY | 0 DISPLAY |
+| 0 | 0 | COLOR | 0 | 0..9: GREY GREEN AMBER ICE VIOLET ROSE PAPER HI-CON NIGHT MONO (the order of `UI_PALETTES`); 1.6: 10 CUSTOM while one is stored (CUSTOM palette, cmds 80, 81) | GREY | 0 DISPLAY |
 | 1 | 1 | STYLE | 0 | 0 FLAT, 1 LINE | FLAT | 0 DISPLAY |
 | 2 | 2 | LARGE | 0 | 0 OFF, 1 ON | OFF | 0 DISPLAY |
 | 3 | 3 | ANIM | 0 | 0 ON, 1 OFF, 2 IDLE (1.2: ON plus the LEDs' idle animation; firmware before: max 1) | ON | 0 DISPLAY |
-| 4 | 4 | LEDS | 0 | 0 OFF, 1 DIM LO, 2 DIM HI, 3 INV (darkest first, as the menu steps them) | DIM HI | 0 DISPLAY |
+| 4 | 4 | LEDS | 0 | 0 OFF, 1 DIM LO, 2 DIM HI, 3 INV (darkest first, as the menu steps them); 1.5.6 (#212): 4 INV LO, 5 INV HI (INV with the idle LEDs at a steady low level: appended) | DIM HI | 0 DISPLAY |
 | 5 | 5 | HOLD | 0 | 0 "0.3 s", 1 "0.4 s", 2 "0.5 s", 3 "0.6 s" | 0.4 s | 1 CONTROL |
 | 6 | 6 | KNOB ACCEL | 0 | 0 OFF, 1 ON | OFF | 1 CONTROL |
 | 7 | 7 | FX LATCH | 0 | 0 OFF, 1 ON | OFF | 1 CONTROL |
@@ -1045,10 +1126,18 @@ before MIDI IN the first 21, 1.2 the first 23, 1.3 / 1.4 the first 24):
 | 18 | 18 | SCOPE | 0 | 0 OUT, 1 MIX (1.2) | OUT | 0 DISPLAY |
 | 19 | 19 | STEP PREVIEW | 0 | 0 OFF, 1 ON (1.2) | OFF | 1 CONTROL |
 | 20 | 20 | CHORD ENTRY | 0 | 0 HOLD, 1 ADD (1.2) | HOLD | 1 CONTROL |
-| 21 | 21 | MIDI IN | 0 | 0 CH1-4, 1 SEL, 2 CH5-8, 3 CH9-12, 4 CH13-16 (1.2: the project's `G_ROUTE`, global 14) | CH1-4 | 3 MIDI |
+| 21 | 21 | MIDI IN | 0 | 0 CH1-4, 1 SEL, 2 CH5-8, 3 CH9-12, 4 CH13-16 (1.2: the project's `G_ROUTE`, global 14), 5 TRACK (1.5.5) | CH1-4 | 3 MIDI |
 | 22 | 22 | TUNE | 1 | -50..50, unit "ct" (1.2: the project's `G_TUNE`, global 3, cents) | 0 | 2 AUDIO |
 | 23 | 23 | HOME | 0 | 0 SCOPE, 1 TRACKS (1.3), 2 LEVELS (1.5; before: max 1) | SCOPE | 0 DISPLAY |
 | 24 | 24 | HELP | 0 | 0 OFF, 1 ON (1.5) | OFF | 4 SYSTEM |
+| 25 | 25 | SELECT | 0 | 0 BPM, 1 PAGE (1.5.5); 1.5.6 (#84): 2 MODW (the selected track's mod wheel, CC1 out), 3 VEL (the keys' velocity) | BPM | 1 CONTROL |
+| 26 | 26 | T1 CHANNEL | 0 | 0..15 "1".."16", 16 OMNI, 17 OFF (1.5.5: the project's, MIDI IN TRACK's) | 1 | 3 MIDI |
+| 27 | 27 | T2 CHANNEL | 0 | as T1 CHANNEL | 2 | 3 MIDI |
+| 28 | 28 | T3 CHANNEL | 0 | as T1 CHANNEL | 3 | 3 MIDI |
+| 29 | 29 | T4 CHANNEL | 0 | as T1 CHANNEL | 4 | 3 MIDI |
+| 30 | 30 | AUTO SELECT | 0 | 0 OFF, 1 ON (1.5.5) | OFF | 3 MIDI |
+| 31 | 31 | SCREEN WAKE | 0 | 0 +MIDI, 1 PANEL (1.5.5) | +MIDI | 3 MIDI |
+| 32 | 32 | 2ND CORE | 0 | 0 OFF, 1 ON (BETA) (1.6.1, Discussion #141: the second core renders some of the parts; from the next power-on) | OFF | 4 SYSTEM |
 
 The device's AUDIO tab shows SPEAKER EQ, USB LEVEL, CLICK, CLICK LEVEL, COUNT-IN and (1.2) TUNE (index 9, 10, 12, 13,
 14, 22).
@@ -1067,7 +1156,8 @@ index 5..8 and 16): ON shows the selected track's scale on the key LEDs outside 
 Applied at once.
 
 SCREEN OFF (id 17, 1.1.5; the DISPLAY tab shows COLOR, STYLE, LARGE, ANIM, LEDS and SCREEN OFF, index 0..4 and 17):
-after that long without input on the panel (a button, a key, a knob; not MIDI, not the editor) the screen and its
+after that long without input on the panel (a button, a key, a knob; not the editor; 1.5.5: with SCREEN WAKE +MIDI,
+id 31, the default, a MIDI IN note-on counts too and plays) the screen and its
 backlight go off while the sound, the sequencer, MIDI and USB go on; the next touch wakes it and does nothing else.
 NEVER keeps it on. A change counts from then (a MENU_SET to 5 MIN does not turn it off at once). Applied at once.
 
@@ -1091,6 +1181,32 @@ and 3 (see Global ids and rc above). TUNE is the first kind 1 item: value, min -
 name, then the unit "ct" (no value names), then the tab. Applied at once (MIDI IN: a block that changes lets go of the
 notes it held, as the knob did; TUNE: the next block of sound).
 
+T1..T4 CHANNEL (ids 26..29, 1.5.5, #202; the MIDI tab after MIDI IN): MIDI IN TRACK's channel of each track, the
+project's like MIDI IN (rc 0: kept with the project, not in the settings record). Values 0..15 are channels 1..16, 16
+OMNI (any channel no track has), 17 OFF (the track hears none); the default of track k is channel k (value k - 1).
+They only route with MIDI IN TRACK (value 5); the device shows them dim otherwise. Applied at once: what the old
+channel held is let go.
+
+AUTO SELECT (id 30, 1.5.5, #208; the MIDI tab after T4 CHANNEL; a setting, saved as the others): ON, MIDI IN notes into a
+track that is not selected select it, unless the selected track had notes in the last 250 ms (two tracks played
+together, a chord across tracks: the selection stays) or the last such switch was less than 250 ms ago; never with MIDI
+IN SEL, nor while the device's menu or a layer is up. The editor is told as for any track change. Whatever the setting,
+a MIDI IN note lights its track's number cushion for about 90 ms (the header, HOME TRACKS / LEVELS, the MIXER).
+
+SCREEN WAKE (id 31, 1.5.5; the MIDI tab after AUTO SELECT, before LEARN CLEAR: DISPLAY, where SCREEN OFF is, has its
+eight rows; a setting, saved as the others): what wakes SCREEN OFF (id 17) and keeps the screen on. +MIDI (0, the
+default) a MIDI IN note-on too, USB or TRS, on a channel that plays a track (MIDI IN), as well as the panel: it resets
+the idle time, wakes a dark screen, and plays (unlike a key, whose wake press is swallowed). Clock, CCs, pitch bend,
+aftertouch, note-offs, Program Change, SysEx (the editor's too) and channels no track hears count for nothing. PANEL
+(1) only the panel, as up to 1.5.1. Nothing changes with SCREEN OFF at NEVER. A bit of the settings record (MENU's 1.2
+flags byte, bit 5, set for PANEL: every older record reads +MIDI; older firmware keeps it and ignores it). Applied at
+once.
+
+MIDI IN TRACK in a project (FUN10, no format change): the last 3 of the 16 spare bytes before the FM6 patches
+(`PROJ_MIDI_OFF` = 3309), 24 bits little-endian. Bits 5k..5k+4: track k's channel as stored, 0..15 = the channel
+(k + v) mod 16 (so 0, what every older project holds, is channel k + 1), 16 OMNI, 17 OFF (18..31: read as 0); bit 23:
+MIDI IN is TRACK (then global 14 holds the fallback block, see Global ids). Covered by the project's hash as the rest.
+
 Example (bytes in hex): `F0 7D 46 4C 48 04 F7` asks for index 4; the reply
 `F0 7D 46 4C 48 04 04 00 02 40 00 40 03 40 4C 45 44 53 00 4F 46 46 00 44 49 4D 20 4C 4F 00 44 49 4D 20 48 49 00 49 4E 56 00 00 44 49 53 50 4C 41 59 00 F7`
 is index 4, id 4, kind 0, value 2 (`02 40`), min 0 (`00 40`), max 3 (`03 40`), "LEDS", then "OFF" "DIM LO"
@@ -1098,7 +1214,7 @@ is index 4, id 4, kind 0, value 2 (`02 40`), min 0 (`00 40`), max 3 (`03 40`), "
 `F0 7D 46 4C 49 00 32 40 F7` (COLOR 50) answers `F0 7D 46 4C 49 00 00 09 40 F7` (clamped to 9, MONO).
 `F0 7D 46 4C 49 0E 01 40 F7` sets COUNT-IN to 1 BAR and answers `F0 7D 46 4C 49 00 0E 01 40 F7` (1.1).
 `F0 7D 46 4C 49 16 74 3F F7` (TUNE -12) answers `F0 7D 46 4C 49 00 16 74 3F F7` (rc 0, 1.2).
-`F0 7D 46 4C 48 19 F7` answers `F0 7D 46 4C 48 19 7F F7` (no index 25; 1.3 / 1.4: none past 23, `18`; 1.2: none past 22, `17`; before MIDI IN: none past 20, `15`; before SCOPE: none past 17, `12`; before SCREEN OFF: none past 16, `11`; 1.2 before SCALE LEDS: none past 15, `10`; 1.1 firmware: none past 14, `0F`; 1.0.5: none past 11, `0C`).
+`F0 7D 46 4C 48 20 F7` answers `F0 7D 46 4C 48 20 7F F7` (no index 32; 1.5.5 before SCREEN WAKE: none past 30, `1F`; 1.5 / 1.5.1: none past 24, `19`; 1.3 / 1.4: none past 23, `18`; 1.2: none past 22, `17`; before MIDI IN: none past 20, `15`; before SCOPE: none past 17, `12`; before SCREEN OFF: none past 16, `11`; 1.2 before SCALE LEDS: none past 15, `10`; 1.1 firmware: none past 14, `0F`; 1.0.5: none past 11, `0C`).
 
 HOME (id 23, 1.3, Discussions #112 / #134; DISPLAY now shows COLOR, STYLE, LARGE, ANIM, LEDS, SCREEN OFF, SCOPE and
 HOME, index 0..4, 17, 18, 23): what the device's HOME page shows under its four cards. SCOPE (the default, as before)
@@ -1113,6 +1229,13 @@ HELP (id 24, 1.5, Discussion #156; SYSTEM now shows USB SERIAL, RESTORE LAST and
 CALIBRATION, INFO and ABOUT): ON shows a short hint (key caps and a few words) in the footer for about 2 s when a page
 opens, and a second footer row under a quick layer's map. OFF (the default) shows none. A bit of the settings record
 (MENU's 1.2 flags byte, bit 3; older firmware keeps it and ignores it). Applied at once.
+
+SELECT (id 25, 1.5.5, Discussion #188; CONTROL now shows HOLD, KNOB ACCEL, FX LATCH, BPM LOCK, SCALE LEDS, STEP
+PREVIEW, CHORD ENTRY and SELECT, index 5..8, 16, 19, 20, 25): what the SELECT knob does. BPM (the default, as before)
+sets the tempo (BPM LOCK as it says); PAGE steps the pages of the family shown, as a tap of its button does (right) or
+back (left), round; HOME, MIXER and CLOCK are one round. With PAGE the tempo is GLO + SELECT, HOME > CLOCK's KNOB 1 and
+GLO's TAP; BPM LOCK does nothing then. A bit of the settings record (MENU's 1.2 flags byte, bit 4; older firmware keeps
+it and ignores it). Applied at once.
 
 **USB SERIAL (id 11).** The menu applies it when it closes; a MENU_SET applies it about 200 ms after its reply
 (`usb_serial_apply`), so the reply leaves first (if the device shows the MENU at that moment: when it closes).

@@ -20,8 +20,8 @@
  * [0x97000, 0xE0000) (user data, never a record: ldr_core.c) */
 #define FL_RANGE_OK(off, n) (FL_IN(off, n, 0x4000u, 0x97000u) || FL_IN(off, n, 0xE0000u, 0xFC000u))
 #include "fm1_flash.h"
-#include "../src/libc.c"
-#include "../src/usb.c"
+#include "../bsp/chip/libc.c"
+#include "../bsp/chip/usb.c"
 
 static uint32_t ldr_ms(void)   /* monotonic ms; survives the TIMER4 wrap (178.9 s) */
 {
@@ -54,7 +54,7 @@ static int ota_prog(uint32_t off, const void *p, uint32_t n) { (void)off; (void)
 static int ota_fread(uint32_t off, void *p, uint32_t n) { return fl_read_ram(off, p, n); }
 static void ota_show(uint32_t step, int32_t code) { (void)step; (void)code; }
 static void ota_commit(const uint8_t *parm) { (void)parm; }
-#include "../src/ota.c"
+#include "../bsp/chip/ota.c"
 
 /* ---- ldr_core.c hooks: interrupts are off for the whole loader ---- */
 static int ldr_fread(uint32_t off, void *p, uint32_t n) { return fl_read_ram(off, p, n); }

@@ -41,17 +41,17 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"GEN", "[K1]DENS[K3]EVOLVE[K4]SEED"},
     {"VOICE", "[K1]POLY, MONO[K2]GLIDE"},
     {"VOICE 2", "[K2]DETUNE[K3]PAN[K4]MUTE"},
-    {"VOICE 3", "[K1]STEREO SPREAD[EDIT]EDIT 1"},
+    {"VOICE 3", "[K1]SPREAD[K2]AFTERTOUCH F3-C5"},
     {"SONG", "[K1]SECTION[KEYS]A-D[PLAY]SONG"},
     {"USER", "[K1]SLOT[OCT+]SAVE[SAVE]PRESETS"},
     {"PRESETS", "[K2]ENGINE[K3]FAV[K4]LIST"},
     {"PHRASES", "[K1]PHRASE[OCT+]LOAD[SAVE]PROJECT"},
-    {"PROJECT", "[K1]SLOT[K4]SAVE[EDIT]NAME"},
-    {"TOOLS", "[K1]CLEAR[K2]INIT SOUND[OCT+]DO"},
+    {"PROJECT", "[K2]ERASE[K3]LOAD[K4]SAVE"},   /* (1.5.5, #199: ERASE; 1.8: LOAD) */
+    {"TOOLS", "[K1]CLEAR[K2]INIT, CLEAN[OCT+]DO"},   /* (1.5.5, #190: KNOB 2 on, CLEAN INIT) */
     {"ARP", "[K1]MODE[KEYS]CHORD[ARP]ARP 2"},
-    {"ARP 2", "[K3]LATCH[K4]ORDER[ARP]ARP"},
-    {"STEP", "[KEYS]WRITE[K1]STEP[SEQ]RATCH"},   /* (1.5.1: SEQ to DETAIL) */
-    {"DETAIL", "[PRESETS]STEP[K1]CHANCE[K2]RATCH"},
+    {"ARP 2", "[K3]HOLD[K4]ORDER[ARP]ARP"},   /* (1.8: as its card) */
+    {"STEP", "[REC]WRITE[K1]STEP[SEQ]DETAIL"},   /* (1.5.1: SEQ to DETAIL; 1.8: the keys write once armed) */
+    {"DETAIL", "[PRESETS]STEP[K1]CHANCE+FILL"},   /* (1.5.5: the conditions past 100 %; Fantasma: no comma or slash, whose tails touch the battery) */
     {"AUTOMATION", "[K1]ROW[OCT+]DO[EDIT]DELETE"},
     {"AMBIENT", "[OCT+]RANDOMIZE[OCT-]STOP"},
     {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]CLOCK"},
@@ -59,13 +59,14 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
 };
 #define H_HOME "[PRESETS]SOUND[HOME]HOLD: MENU"
 #define H_LEVELS "[K1-4]T1-T4 LEVEL[HOME]MIXER"
-#define H_GRID "[KEYS]STEPS[K2]LANE[SEQ]RATCH"
+#define H_GRID "[KEYS]STEPS[K2]LANE[SEQ]DETAIL"
 /* a layer's (LAYER_*): what its footer row (LAYERS[].foot) does not say */
 static const char *const HELP_LAYER[LAYER_N] = {
-    "", "[KEYS]BLACK: MUTES[FX]2 TAPS: LOCK", "[KEYS]SOLO MUTE TAP[K1-4]LEVELS", "[KEYS]ROOT[K1-4]ROOT SCL CHORD",
+    "", "[KEYS]BLACK: MUTES[FX]2 TAPS: LOCK", "[KEYS]SOLO MUTE FILL TAP[K1-4]LEVELS", "[KEYS]ROOT[K1-4]ROOT SCL CHORD",
     "[K1]ENGINE[K2]SOUND[K3]FAV", "[K1]LENGTH[K3]SWING[K4]GATE", "[K1]CLICK[K2]COUNT-IN[K3]LEVEL",
 };
 
+static const char H_EUCLID[] = "[K1]HITS[K2]STEPS[K3]ROTATE";   /* SEQ TOOLS' EUCLID open (1.5.5) */
 /* the hint of the page shown, 0 = none */
 static const char *help_page(void)
 {
@@ -76,6 +77,8 @@ static const char *help_page(void)
     if (grid_on() && !detail_on())
         return H_GRID;
     t = cur_page()->title;
+    if (sel_mode() != SEL_BPM && str_eq(t, "CLOCK"))   /* (1.5.5: SELECT steps the pages; 1.5.6: or plays) */
+        return "[K1]TEMPO[GLO]HOLD: TAP";
     for (i = 0; i < NELEM(HELP_PAGE); i++)
         if (str_eq(HELP_PAGE[i].title, t))
             return HELP_PAGE[i].hint;

@@ -41,7 +41,7 @@ static uint32_t pow2_q16(int32_t d16)
  * 3 slots of 80 KiB at flash 0xA0000.. (Felucca data region), read through the plain XIP
  * window. Slot = header (magic, count, name, data length, CRC32) + up to 16 zones in the
  * smp_zone_t layout (off relative to the slot's data at +512) + IMA ADPCM data. */
-#include "../hal/fm1_xip.h"   /* relative: hostsim includes this file too */
+#include "../bsp/chip/fm1_xip.h"   /* relative: hostsim includes this file too */
 #define SMP_USER_SLOTS 3
 #define SMP_USER_BASE 0xA0000u
 #define SMP_USER_SIZE 0x14000u

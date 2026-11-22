@@ -14,7 +14,7 @@ import os
 import re
 import sys
 
-FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_render_custom", "phase_render", "lofi_render", "sample_render", "formant_render",
+FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_render_custom", "phase_render", "phase_render_f", "lofi_render", "sample_render", "formant_render",
          "trio_render", "trio_pass", "wheel_render", "wheel_block",
          "grain_render", "grain_block", "phys_render", "drum_render", "noise_render", "fm6_render", "fm6_op_run", "fm6_op_fb", "px_modal_block", "px_modal_run", "px_memb_block",
          "px_string_excite", "px_string_run", "px_symp_run",
@@ -24,7 +24,8 @@ FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_re
          "slice_render", "slc_rev",                          # SLICE (eng_slice.c): the render, the reverse windows
          "ambi_render", "bell_render",                       # Fantasma: AMBI (engine 3, LOFI's place), BELL (13, SLICE's)
          "gen_step", "prog_step", "gen_free",                # .. BELL's generator, the Pad's progression, their clock (seq.c)
-         "fm1_alnk0_irq", "fm1_timer5_irq",               # the audio ISR; TIMER5: the key / LED scan (hal/fm1_input.h)
+         "fm1_alnk0_irq", "fm1_timer5_irq",               # the audio ISR; TIMER5: the key / LED scan (bsp/boards/fm1/fm1_input.h)
+         "mix_part",                                        # a part's block (fx.c), on either core since the second
          "uac_tap48",                                       # the USB audio input at 48 kHz: the 44.1 -> 48 resampler (usb.c)
          "click_render",                                    # the metronome's click (click.c), while it sounds
          "mod_begin", "mod_voice", "mod_end",                 # the modulation matrix (mod.c), called when active
@@ -32,12 +33,18 @@ FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_re
          "perf_flanger", "perf_phaser",                     # .. FLANGER, PHASER (1.2), while held or fading
          "perf_throw",                                      # .. REV / ECHO THROW (1.5.1): per part, while held or gliding
          "rev_room", "rev_spring", "rev_hall", "rev_side_mix",   # the reverb bus (fx.c): REVERB TYPE ROOM / SPRING / HALL (and its stereo)
-         "track_insert", "ins_drive", "ins_swept"]          # the per-track INSERT (fx.c, 1.5), while a TYPE plays
+         "track_insert", "ins_drive", "ins_swept",          # the per-track INSERT (fx.c, 1.5), while a TYPE plays
+         "adp_render", "adp_block", "adp_post"]           # ADPCM (eng_adpcm.c, FELUCCA_ADPCM=1): voices, clock, echo
 # built only with FELUCCA_FM4=1 (DIGITAL, src/eng_digital.c; not in the default build, so not in BUDGET): absent,
 # they are skipped; present, checked against these (their budget lines until the engine was retired in 1.0)
 OPTIONAL = {"digital_render": 12, "digital_render_legacy": 333, "digital_render_custom": 558,
             "lofi_render": 123, "slice_render": 453, "slc_rev": 120,   # (Fantasma builds AMBI and BELL in their places)
-            "uac_tap48": 504}           # (absent from a FELUCCA_UAC_48K=0 or FELUCCA_UAC=0 build)
+            "uac_tap48": 642,           # (absent from a FELUCCA_UAC_48K=0 or FELUCCA_UAC=0 build; 507 until felucca-bsp
+                                        # 14610bd (#16) put each multiply-accumulate out of line, a call a tap)
+            "mix_part": 1754,
+            "adp_render": 2577, "adp_block": 102, "adp_post": 309}   # (ADPCM: built only with FELUCCA_ADPCM=1)           # (bsp/chip/libc.c: the word-wise memset / memcpy, longer loops, faster; FELUCCA_CPU2=1, the default since 1.6.1: out of line, either core may run it)
+# a FELUCCA_CPU2=0 build (no mix_part: inlined into the audio ISR, as 1.6) has the one-core ISR, checked against this
+ONE_CORE = {"fm1_alnk0_irq": 13782}
 TOL = 0.10                      # exact (no noise): small edits pass, a grown render loop does not
 DIV_W = 8                       # a divide weighs 1 + 8 instructions
 NEST = 4                        # an instruction in a loop inside a loop weighs 4, two deep 16, ...
@@ -48,14 +55,16 @@ budget = sys.argv[2] if len(sys.argv) > 2 else "tests/target_budget.txt"
 LABEL = re.compile(r"^([A-Za-z_][A-Za-z_0-9.]*):$")
 INSN = re.compile(r"^\s*([0-9a-f]+):\s+((?:[0-9a-f]{2} )+)\s*(.*)$")
 TARGET = re.compile(r"goto -?\d+ <[^>]*: ([0-9a-f]+) >")
+ADDRESS = re.compile(r"^\s*[0-9a-f]+:")
+UNDECODED = re.compile(r"^(?:\.\w+|\(bad\)|unknown\b|unknown_instruction\b)", re.I)
 
 
 def functions(path):
     """{name: [(addr, text)]}: a function runs to the next label not starting with '.' (the compiler's
     jump-table labels are inside functions); jump-table data ('< n : 0x.. >') is left out"""
-    out, cur = {}, None
+    out, cur, name = {}, None, None
     with open(path) as f:
-        for line in f:
+        for no, line in enumerate(f, 1):
             m = LABEL.match(line.strip())
             if m:
                 name = m.group(1)
@@ -63,14 +72,44 @@ def functions(path):
                     cur = out.setdefault(name, []) if name in FUNCS else None
                 continue
             m = INSN.match(line)
-            if cur is not None and m and not m.group(3).lstrip().startswith("<"):
-                cur.append((int(m.group(1), 16), m.group(3).strip()))
+            if cur is None:
+                continue
+            if not m:
+                if ADDRESS.match(line):
+                    raise ValueError(f"{path}:{no}: {name}: unparsed instruction: {line.strip()}")
+                continue
+            text = m.group(3).strip()
+            if text.startswith("<"):               # objdump jump-table data
+                continue
+            if not text or UNDECODED.match(text):
+                raise ValueError(f"{path}:{no}: {name}: undecoded instruction: {text or '(empty)'}")
+            cur.append((int(m.group(1), 16), text))
+    return out
+
+
+def spans(heads):
+    """the loops of {head: end}: spans that overlap without one holding the other are one loop entered at two
+    heads (the compiler's layout: a rarely taken path branching back to a little before the loop's head), joined
+    into one; only a span inside another is a loop nested in it"""
+    out = []
+    for h, e in sorted(heads.items()):
+        i = 0
+        while i < len(out):
+            h0, e0 = out[i]
+            if h0 < h <= e0 < e or h < h0 <= e < e0:
+                del out[i]
+                h, e = min(h, h0), max(e, e0)
+                i = 0
+            else:
+                i += 1
+        out.append((h, e))
     return out
 
 
 def cost(insns):
-    """loops: one span per loop head (the farthest backward branch to it); an instruction inside d
-    spans weighs NEST ** (d - 1) (an inner loop runs several times per pass of the outer one)"""
+    """loops: one span per loop head (the farthest backward branch to it), spans that only overlap joined
+    (spans()); an instruction inside d spans weighs NEST ** (d - 1) (an inner loop runs several times per pass
+    of the outer one)"""
     lo = insns[0][0]
     heads = {}
     for a, t in insns:
@@ -78,10 +117,11 @@ def cost(insns):
         if m and lo <= int(m.group(1), 16) < a:
             h = int(m.group(1), 16)
             heads[h] = max(heads.get(h, a), a)
+    loops = spans(heads)
     n = divs = calls = 0
     w = 0
     for a, t in insns:
-        d = min(sum(1 for h, e in heads.items() if h <= a <= e), MAXD)
+        d = min(sum(1 for h, e in loops if h <= a <= e), MAXD)
         if not d:
             continue
         k = NEST ** (d - 1)
@@ -98,15 +138,27 @@ def main():
     if not os.path.exists(dis):
         print(f"target: skip ({dis} missing: run ./build.sh)")
         return 0
-    fns = functions(dis)
+    try:
+        fns = functions(dis)
+    except (OSError, ValueError) as e:
+        print(f"target: FAIL {e}")
+        return 1
     res = {n: cost(fns[n]) for n in FUNCS if fns.get(n)}
     missing = [n for n in FUNCS if n not in res and n not in OPTIONAL]
     base = {}
     if os.path.exists(budget):
-        for line in open(budget):
-            p = line.split()
-            if len(p) >= 2 and not line.startswith("#"):
-                base[p[0]] = int(p[1])
+        with open(budget) as f:
+            for no, line in enumerate(f, 1):
+                p = line.split()
+                if len(p) >= 2 and not line.startswith("#"):
+                    try:
+                        value = int(p[1])
+                        if value < 0:
+                            raise ValueError
+                    except ValueError:
+                        print(f"target: FAIL {budget}:{no}: invalid budget for {p[0]}: expected a nonnegative integer")
+                        return 1
+                    base[p[0]] = value
     if os.environ.get("BUDGET_UPDATE"):
         with open(budget, "w") as f:
             f.write("# FELUCCA target cost budget (tests/target_budget.py): instructions in the loops of each\n"
@@ -122,9 +174,15 @@ def main():
         fail += 1
     for n, r in res.items():
         b = base.get(n, OPTIONAL.get(n))
+        if "mix_part" not in res and n in ONE_CORE:
+            b = ONE_CORE[n]
         state = "no budget (BUDGET_UPDATE=1 adds it)" if b is None else "ok"
         if b is not None and not os.environ.get("BUDGET_UPDATE"):
-            if r["cost"] > b * (1 + TOL):
+            if b == 0:
+                if r["cost"] > 0:
+                    state = f"OVER BUDGET (cost {r['cost']} exceeds zero baseline)"
+                    fail += 1
+            elif r["cost"] > b * (1 + TOL):
                 state = f"OVER BUDGET (+{(r['cost'] / b - 1) * 100:.0f} %, limit +{TOL * 100:.0f} %)"
                 fail += 1
             elif r["cost"] < b * (1 - TOL):

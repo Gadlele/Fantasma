@@ -6,7 +6,7 @@
  * A pixel transfer is left running (lcd_busy): the next LCD access, or a write
  * to its source buffer (lcd_sync), waits for it, so the main loop works
  * while the last strip of a frame goes out. */
-/* pins and SPI1: hal/fm1_lcd_hw.h */
+/* pins and SPI1: bsp/boards/fm1/fm1_lcd_hw.h */
 #ifndef LCD_BAUD
 #define LCD_BAUD 4u                /* lsb/(BAUD+1): 4 = 12 MHz */
 #endif

@@ -6,7 +6,7 @@
  * and a project or a user preset keeps it whatever the bank holds later. RAM: the used mask (eng_fm6.c
  * fm6_bank_used) and the transfer's state, in the pool; no copy of the bank.
  *
- * Where: flash 0xE7000 (fm1_flash.h FL_VBANK_*), the sector above the autosave's pair, which nothing else of Felucca
+ * Where: flash 0xE7000 (storage_hw.c ST_VBANK_*), the sector above the autosave's pair, which nothing else of Felucca
  * uses (the map: storage.c). Like the autosave's sectors it lies in the margin the stock firmware's own update stages
  * into, only while the stock firmware runs: a later Felucca finds no valid bank there (commit record, CRC) and starts
  * with none. Sector: the commit record (storage.c st_hdr_t, type OBJ_FM6VB) at 0, the bank's header (fvb_info_t) at

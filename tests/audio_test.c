@@ -22,7 +22,14 @@ void isr_alnk0(void) {}
 #define FELUCCA_UAC 1                                  /* audio.c taps USB audio: here into host_tap */
 static int32_t host_tap[2 * 64];
 static uint32_t host_tap_n;
-static void uac_tap(const int32_t *out, uint32_t n) { memcpy(host_tap, out, 8u * n); host_tap_n = n; }
+static struct { uint32_t feed; } uac = {1};             /* a computer records (audio.c: uac_tap_q15) */
+static void uac_tap(const int32_t *out, uint32_t n)     /* (24-bit, as bsp/chip/usb.c takes it): kept as Q15 */
+{
+    uint32_t i;
+    for (i = 0; i < 2u * n; i++)
+        host_tap[i] = out[i] / 256;
+    host_tap_n = n;
+}
 static void uac_render_start(void) {}
 #include "../firmware/src/audio.c"
 enum { FM1_ADC_BATT = 3, FM1_ADC_MASTER = 4 };
