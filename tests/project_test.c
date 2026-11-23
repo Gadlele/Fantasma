@@ -373,6 +373,8 @@ int main(void)
         q.t[1].engine = ENGI_PHYS;                      /* MEMB (2: DUST only before phys 1) */
         q.t[2].engine = ENGI_PHYS;
         q.t[3].engine = ENGI_PHYS;
+        for (i = P_FM1_ATK; i <= P_FM4_LEVEL; i++)      /* (Fantasma 2.0: track 2's power-on GOLANA keeps its FILTER / TONE */
+            q.t[1].p[i] = TP[i].def;                    /* there; a FUN4 PHYS track had DIGITAL's defaults) */
         for (i = 0; i < 8u; i++) {
             q.t[0].p[P_E0 + i] = E0[i];
             q.t[1].p[P_E0 + i] = E1[i];

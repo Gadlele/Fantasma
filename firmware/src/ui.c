@@ -434,11 +434,15 @@ static int page_visible(uint32_t i)
     if (PAGES[i].scope == SC_TRACK && PAGES[i].id[0] >= P_LN0 && PAGES[i].id[0] <= P_LN7)
         return TSEL->eng_req % NENGINES == ENGI_DRUM;
     if (PAGES[i].fam == FAM_EDIT && PAGES[i].id[0] == P_PDEN)   /* GEN (Fantasma): the Pad's chord generator */
-        return trk_index(TSEL) == 0u && !chord_kit(TSEL) && eng_idx(TSEL->eng_req) != ENGI_DRUM;
+        return trk_index(TSEL) == PROG_TRACK && !chord_kit(TSEL) && eng_idx(TSEL->eng_req) != ENGI_DRUM;   /* (2.0: PAD's) */
     if (PAGES[i].id[0] == P_FTYPE)                    /* FILTER (1.5, #104): ANALOG's */
         return ENGINES[TSEL->eng_req % NENGINES] == &ENG_ANALOG;
     if (PAGES[i].id[0] == P_DCUT && PAGES[i].id[3] == P_FTYPE)   /* FILTER (Fantasma 2.0): DRONE's */
         return TSEL->eng_req % NENGINES == ENGI_DRONE;
+    if (PAGES[i].graph == GR_NONE && ((PAGES[i].id[0] == GO_FTYPE && PAGES[i].id[3] == GO_KTR) ||
+                                       (PAGES[i].id[0] == GO_OSC1 && PAGES[i].id[1] == GO_SUBTYP)))   /* FILTER, TONE
+                                                                       * (Fantasma 2.0): GOLANA's */
+        return TSEL->eng_req % NENGINES == ENGI_GOLANA;
     if (PAGES[i].graph >= GR_FMOP && PAGES[i].graph <= GR_FMENV)
         return TSEL->eng_req % NENGINES == ENGI_FM6;
 #if FELUCCA_SLICE
@@ -1421,6 +1425,8 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         t->p[P_GLIDE] = (int16_t)(e->presets[pi].glide - 1);
     if (t->eng_req % NENGINES == ENGI_DRONE)          /* (Fantasma 2.0) DRONE: its FILTER page's values */
         dr_filter_load(t, pi);
+    if (t->eng_req % NENGINES == ENGI_GOLANA)         /* .. GOLANA: its FILTER and TONE pages, its LFO and voice */
+        go_extra_load(t, pi);
     if (FELUCCA_BELL && t->eng_req % NENGINES == ENGI_BELL) {   /* Echoes' sounds: reverb 100 %, delay 50 % */
         t->p[P_REV] = 127;
         t->p[P_DLY] = 64;
@@ -1491,6 +1497,8 @@ static void clean_engine_of(track_t *t)
     }
     if (ei == ENGI_DRONE)                             /* (Fantasma 2.0) its FILTER at the defaults */
         dr_filter_load(t, 0xFFu);
+    if (ei == ENGI_GOLANA)                            /* .. its FILTER and TONE */
+        go_extra_load(t, 0xFFu);
     fm1_irq_on();
     if (ei == ENGI_FM6) {                             /* the init voice as the track's own patch (SLOT: OWN) */
         uint8_t v[FP_SIZE + 1u];

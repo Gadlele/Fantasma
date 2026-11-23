@@ -3696,9 +3696,9 @@ static int engine_cycle(const char *const *want, uint32_t n)   /* EDIT tapped fr
 }
 static int test_edit_cycle(void)
 {
-    static const char *const CYC_A[] = {"EDIT 1", "EDIT 2", "FILTER", "GEN", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};   /* (1.5: FILTER; Fantasma: the Pad's GEN) */
+    static const char *const CYC_A[] = {"EDIT 1", "EDIT 2", "FILTER", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};   /* (1.5: FILTER; track 1: no GEN, Fantasma 2.0: PAD's) */
     static const char *const CYC_D[] = {"EDIT 1", "EDIT 2", "OP1 ENV", "OP2 ENV", "OP3 ENV", "OP4 ENV",
-                                        "OP LEVEL", "GEN", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
+                                        "OP LEVEL", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
     int bad = 0, ok;
     uint32_t i;
     ui_power_on();
@@ -3710,7 +3710,7 @@ static int test_edit_cycle(void)
         ok &= !str_eq(PAGES[i].title, "ENGINE");
     bad += check("no ENGINE page (engines are the EDIT layer's)", ok);
     set_engine_of(TSEL, 0);
-    bad += check("EDIT cycle (ANALOG): EDIT 1 EDIT 2 FILTER GEN VOICE VOICE 2 VOICE 3 EDIT 1", engine_cycle(CYC_A, NELEM(CYC_A)));
+    bad += check("EDIT cycle (ANALOG, track 1): EDIT 1 EDIT 2 FILTER VOICE VOICE 2 VOICE 3 EDIT 1", engine_cycle(CYC_A, NELEM(CYC_A)));
 #if FELUCCA_FM4
     set_engine_of(TSEL, 1);
     bad += check("EDIT cycle (DIGITAL): EDIT 1 EDIT 2 OP1..OP4 ENV OP LEVEL VOICE VOICE 2 VOICE 3 EDIT 1",
@@ -3718,7 +3718,7 @@ static int test_edit_cycle(void)
 #else
     set_engine_of(TSEL, ENGI_DIGITAL);
     {
-        static const char *const CYC_F[] = {"EDIT 1", "EDIT 2", "OPERATOR", "OP ENV", "OPERATOR 2", "GEN", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
+        static const char *const CYC_F[] = {"EDIT 1", "EDIT 2", "OPERATOR", "OP ENV", "OPERATOR 2", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
         bad += check("EDIT cycle (engine 1 asked for: FM6, DIGITAL retired): EDIT 1 EDIT 2 OPERATOR OP ENV OPERATOR 2 VOICE .. VOICE 3",
                      TSEL->eng_req == ENGI_FM6 && engine_cycle(CYC_F, NELEM(CYC_F)));
     }
@@ -4283,7 +4283,8 @@ static int test_quick_layers(void)
     btn_up(B_EDIT); frame();
     bad += check("  every engine one can pick has its white key from F3 (NENG_SHOWN, not a fixed count; never DIGITAL)",
                  ok && a == eng_count_for(song.sel) - (FELUCCA_ADPCM && eng_allowed(song.sel, ENGI_ADPCM)) -
-                           eng_allowed(song.sel, ENGI_DRONE));   /* (ADPCM, DRONE: no key) */
+                           eng_allowed(song.sel, ENGI_DRONE) - eng_allowed(song.sel, ENGI_GOLANA));   /* (ADPCM, DRONE, GOLANA:
+                                                                                                    * no key) */
     set_engine_of(TSEL, 0);
     lay_combo(B_EDIT, white(eng_rank(2))); key_up(white(eng_rank(2))); frame();
     turn(EN_K2, 1);
@@ -5276,10 +5277,10 @@ static int test_fm4_retired(void)
     bad += check("PRESETS KNOB 2: the engines in order, DIGITAL skipped, back to the first (Pad: no bells, no noises)",
                  seen == (all & ~(1u << ENGI_NOISE) & ~(FELUCCA_BELL ? 1u << ENGI_BELL : 0u) & ~(FELUCCA_AMBI ? 1u << ENGI_AMBI : 0u)) &&
                  TSEL->eng_req == 0u && eng_step(0, 1) == ENGI_FM6 && eng_step(ENGI_FM6, 1) == 2u &&
-                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_DRONE));
+                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_GOLANA));
     {   /* the display order (engines.c ENGINE_ORDER): every engine one can pick once; the PRESETS list follows it */
         static const char *const ORDER[] = {"ANALOG", "FM6", "PHASE", FELUCCA_LOFI ? "LOFI" : "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
-                                            "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM", "DRONE",
+                                            "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM", "DRONE", "GOLANA",
 #if FELUCCA_ADPCM
                                             "ADPCM",
 #endif
@@ -6095,10 +6096,10 @@ static int test_roles(void)
     bad += check("  DRONE on a kit: the kit's four", ok);
     /* the parts at power-on (TRK_DEF, main.c; Fantasma 2.0): DRONE's DRONE, ANALOG's WARM PAD, the bells, a kit */
     ok = TRK_DEF[0][0] == ENGI_DRONE && str_eq(ENGINES[ENGI_DRONE]->presets[TRK_DEF[0][1]].name, "DRONE") &&
-         TRK_DEF[1][0] == 0 && str_eq(ENGINES[0]->presets[TRK_DEF[1][1]].name, "WARM PAD") &&
+         TRK_DEF[1][0] == ENGI_GOLANA && str_eq(ENGINES[ENGI_GOLANA]->presets[TRK_DEF[1][1]].name, "SOFT PAD") &&
          TRK_DEF[2][0] == (FELUCCA_BELL ? ENGI_BELL : 0) && TRK_DEF[3][0] == ENGI_DRUM &&
          TRK_DEF[3][2] == 0 && str_eq(PATTERNS[13].name, "DRONE") && trk[3].step[0].time == ST_REST;
-    bad += check("  power-on parts: DRONE's DRONE, ANALOG WARM PAD, the bells, a kit, its steps empty", ok);
+    bad += check("  power-on parts: DRONE's DRONE, GOLANA's SOFT PAD, the bells, a kit, its steps empty", ok);
     {   /* the DRUMS track starts with empty steps (the DRONE pattern is still in SAVE > PHRASES for whoever wants it) */
         track_t *t = &trk[3];
         uint32_t i;
@@ -9509,7 +9510,8 @@ static int test_fm6_foot_name(void)
 static int slot_own(void) { return TSEL->p[P_E7] == FM6_OWN && fm6_slot[song.sel] == FM6_OWN; }
 static int test_fm6_ops(void)
 {
-    static const char *const CYC_F[] = {"EDIT 1", "EDIT 2", "OPERATOR", "OP ENV", "OPERATOR 2", "VOICE", "VOICE 2", "VOICE 3", "EDIT 1"};
+    static const char *const CYC_F[] = {"EDIT 1", "EDIT 2", "OPERATOR", "OP ENV", "OPERATOR 2", "GEN", "VOICE", "VOICE 2", "VOICE 3",
+                                        "EDIT 1"};   /* (T2: PAD's GEN, Fantasma 2.0) */
     static const struct { const char *page; uint32_t k, off; } F[] = {
         {"OPERATOR", EN_K2, FP_FC}, {"OPERATOR", EN_K3, FP_FF}, {"OPERATOR", EN_K4, FP_OL},
         {"OPERATOR 2", EN_K2, FP_MODE}, {"OPERATOR 2", EN_K3, FP_DET}, {"OPERATOR 2", EN_K4, FP_KVS},
@@ -9521,7 +9523,7 @@ static int test_fm6_ops(void)
     ui_power_on();
     song.sel = 1;                                    /* T2: FM6 PAD (SLOT F5) */
     tr = song.sel;
-    bad += check("FM6 ops: FM6's EDIT cycle EDIT 1 EDIT 2 OPERATOR OP ENV OPERATOR 2 VOICE VOICE 2 EDIT 1",
+    bad += check("FM6 ops: FM6's EDIT cycle EDIT 1 EDIT 2 OPERATOR OP ENV OPERATOR 2 GEN VOICE VOICE 2 EDIT 1",
                  TSEL->eng_req == ENGI_FM6 && engine_cycle(CYC_F, NELEM(CYC_F)));
     ok = TSEL->p[P_E7] == 4 && fm6_slot[tr] == 4u;
     go_title("OPERATOR"); frame();

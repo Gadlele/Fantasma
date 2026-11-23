@@ -291,13 +291,12 @@ Press **SCL** again for the **CHORD** page: CHRD picks the chord keys (OFF, the 
 sevenths, or a fixed shape) and VOIC the voicing.
 
 **Channels** (Fantasma 2.0): the four tracks are four channels, each with one engine: **DRONE** (track 1: the DRONE
-engine, below; REL at its top is **INF**, a note that never stops and comes back if cut), **PAD** (track 2: ANALOG's
-pads and soft leads, with the chord progression: DENS, BARS, CHORDS, SEED), **BELLS** (track 3: BELL and its generator) and
+engine, below; REL at its top is **INF**, a note that never stops and comes back if cut), **PAD** (track 2: the GOLANA
+engine, below, with the chord progression: DENS, BARS, CHORDS, SEED), **BELLS** (track 3: BELL and its generator) and
 **DRUMS** (track 4: DRUM). PRESETS and the ENG knob stay on the channel's own sounds; another engine's key in EDIT says
 NOT FOR THIS PART. HOME's footer shows the selected channel. HOME's four knobs: DRONE and PAD the sound's first knob,
 **ATK**, **REL**, **REV**; BELLS **DENS**, **EVOLVE**, **SCL**, **REV**; DRUMS the kit's own four. At power-on: DRONE is
-DRONE's DRONE, PAD ANALOG WARM PAD, BELLS the bells, DRUMS a kit, the steps empty. PAD's own engine comes in the next
-steps of 2.0.
+DRONE's DRONE, PAD GOLANA's SOFT PAD, BELLS the bells, DRUMS a kit, the steps empty.
 
 **The DRONE engine** (Fantasma 2.0, after [Niagara Drift](https://github.com/evanyerburgh/niagara-drift)'s drones by
 Evan Yerburgh): a drone that breathes and drifts, and that you play. EDIT 1 (OSC): **WAVE** blends SINE > TRI > SAW >
@@ -311,6 +310,19 @@ wave. EDIT 3 (**FILTER**): **CUT** (the corner at C4), **RES**, **KTR** (how far
 the way) and **TYPE** (LP, BP, HP); each sound sets them, and ENV and the LFO on FLT, the matrix's CUT and the keys'
 pressure move it as well. SHP routings move WAVE. Its sounds play LEGATO with a glide: a new key bends the drone there.
 HOME: WAVE, ATK, REL, REV.
+
+**The GOLANA engine** (Fantasma 2.0, PAD's): [Golana](https://github.com/Gadlele/Golana)'s synth made smaller. EDIT 1
+(OSC): **WAVE** of OSC 1 and its **CTRL1**: SAW (an octave-up saw blended in), PULSE (the width), TRI (folds), SINE
+(OSC 2 modulates it), MORPH (from the saw to the square); **WAVE2** (SAW, SQR, TRI, MIX) and its **MOD** (OFF, RING,
+SYNC, R+S). EDIT 2 (OSC 2): **SEMI** and **TUNE** of OSC 2, the **OSC2** and **SUB** levels. **FILTER**: **TYPE** (LPF24,
+LPF12, BPF, HPF, MS20: a driven low-pass that screams with RESO), **CUT**, **RESO**, **KTR** (+-63: 63 the keys exactly).
+**TONE**: **OSC1**'s level, **SUBTYP** (a square, sine, saw or mix an octave or two below), **NOISE**, **DRIFT** (each
+note a little off, slowly wandering, as an old machine). Golana's own LFOs, filter EG, patch, arpeggiator and effects
+are the track's: the LFO (LFO DEST SHP moves CTRL1, as Golana's CTRL2; PIT a vibrato; FLT the cutoff), ENV DEST FLT
+(the filter EG), the matrix, the ARP, the INSERT and the sends; each sound sets what it needs of them. At most 4 voices.
+HOME on PAD: CUT, ATK, REL, REV. 16 sounds: SOFT PAD, PHASE PAD, SYNC PAD, OLD STRINGS, AGED PAD, DARK UNISON,
+POLY CHORUS, WORN TAPE, 80S BRASS, GLASS PAD, and the leads GLIDE LEAD, WARM LEAD, DRIFT LEAD, SUPERSAW (UNISON),
+MORPH LEAD, BREATH LEAD.
 
 **AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
 LEVEL, REVERB) play an ambience under the four channels: the 13 AMBI scenes plus THUNDER, BREATH, NIGHT, EMBERS and

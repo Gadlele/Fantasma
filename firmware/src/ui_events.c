@@ -59,6 +59,8 @@ static int ev_id_ok(const track_t *t, uint32_t id)
         return 1;
     if (id >= P_DCUT && id <= P_DKTR && eng_idx(t->eng_req) == ENGI_DRONE)   /* (Fantasma 2.0) DRONE's FILTER */
         return 1;
+    if (id >= GO_FTYPE && id <= GO_DRIFT && eng_idx(t->eng_req) == ENGI_GOLANA)   /* .. GOLANA's FILTER, TONE */
+        return 1;
     if (id >= P_COUNT || !motion_param(id) || id == P_ED_FX || (id >= P_FM1_ATK && id <= P_FM4_LEVEL))
         return 0;
     if (id >= P_LN0 && id <= P_LN7)

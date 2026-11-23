@@ -43,16 +43,25 @@
                                             * one for all with one, as up to 1.6 */
 #define C1_PI(t) ((uint32_t)((t) - trk) % C1_NP)   /* a part's copy */
 #ifndef FELUCCA_ADPCM
-#define FELUCCA_ADPCM 0          /* the ADPCM engine (eng_adpcm.c), engine 15 (Felucca's 14): not built by default (FELUCCA_ADPCM=1 builds
+#define FELUCCA_ADPCM 0          /* the ADPCM engine (eng_adpcm.c), engine 16 (Felucca's 14): not built by default (FELUCCA_ADPCM=1 builds
                                   * it): on the FM-1 it costs about three ANALOG voices a voice (eng_adpcm.c, the figures) */
 #endif
-#define NENGINES (15 + FELUCCA_ADPCM)   /* engine 13 is SLICE or, in Fantasma's default build, BELL; 14 DRONE (Fantasma
-                                        * 2.0); then ADPCM (15; Felucca's 14): the other engines keep their numbers */
+#define NENGINES (16 + FELUCCA_ADPCM)   /* engine 13 is SLICE or, in Fantasma's default build, BELL; 14 DRONE, 15 GOLANA
+                                        * (Fantasma 2.0); then ADPCM (16; Felucca's 14): the other engines keep their numbers */
 #define ENGI_DRONE 14u           /* (Fantasma 2.0) DRONE's engine (eng_drone.c) */
 #define P_DCUT P_FM1_ATK         /* (Fantasma 2.0) DRONE's FILTER CUT RES KTR: DIGITAL's OP 1 ATK DEC SUS, which a DRONE */
 #define P_DRES P_FM1_DEC         /* sound has no other use for (eng_drone.c DR_FILT_P) */
 #define P_DKTR P_FM1_SUS
-#define ENGI_ADPCM 15u
+#define ENGI_GOLANA 15u          /* (Fantasma 2.0) PAD's engine (eng_golana.c) */
+#define GO_FTYPE P_FM1_ATK       /* (Fantasma 2.0) GOLANA's FILTER (TYPE CUT RESO KTR) and TONE (OSC1 SUBTYP NOISE DRIFT): */
+#define GO_CUT P_FM1_DEC         /* DIGITAL's OP 1 and OP 2 envelopes, which a GOLANA sound has no other use for (as */
+#define GO_RESO P_FM1_SUS        /* Golana keeps them there; eng_golana.c GO_P) */
+#define GO_KTR P_FM1_REL
+#define GO_OSC1 P_FM1_LEVEL
+#define GO_SUBTYP P_FM2_ATK
+#define GO_NOISE P_FM2_DEC
+#define GO_DRIFT P_FM2_SUS
+#define ENGI_ADPCM 16u
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
 #define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */

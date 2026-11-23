@@ -23,6 +23,10 @@ static uint8_t *fav_bit(uint32_t engine, uint32_t preset, uint8_t *mask)   /* th
         *mask = (uint8_t)(1u << (preset % 8u));
         return &favorites.factory[13][24u + preset / 8u];
     }
+    if (engine == ENGI_GOLANA && preset < 16u) {    /* .. GOLANA's after them (bytes 26, 27) */
+        *mask = (uint8_t)(1u << (preset % 8u));
+        return &favorites.factory[13][26u + preset / 8u];
+    }
 #if FELUCCA_ADPCM
     if (engine == ENGI_ADPCM && preset < 8u) {
         *mask = (uint8_t)(1u << preset);

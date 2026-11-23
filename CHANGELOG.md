@@ -12,9 +12,8 @@ fixes, a new **X** may change how things are saved.
 - Projects of Fantasma 1.x load; a project now keeps up to 122 knob movements (128 before: the six last of a
   full one are let go), to make room for the new parameters.
 - **Four channels, one engine each**: **DRONE** (part 1: the DRONE engine, below; REL at its top is INF, a note
-  that never stops), **PAD** (part 2: ANALOG's pads and soft leads, with the chord progression),
-  **BELLS** (part 3: BELL and the bells generator) and **DRUMS** (part 4: DRUM). PAD's own engine comes in the next
-  steps.
+  that never stops), **PAD** (part 2: the GOLANA engine, below, with the chord progression),
+  **BELLS** (part 3: BELL and the bells generator) and **DRUMS** (part 4: DRUM).
 - **AMBI is no longer a part**: HOME › AMBI and AMBI 2 switch an ambience on under the four channels (SCENE, TONE,
   MOTION, INTENS, LEVEL, REVERB), with five new scenes: THUNDER, BREATH, NIGHT, EMBERS, TAPE END. Saved with the
   project.
@@ -24,6 +23,12 @@ fixes, a new **X** may change how things are saved.
   MIX between them, a soft NOISE and DRIFT: the drone never quite still; and a FILTER page of its own (CUT, RES,
   KTR, TYPE LP / BP / HP). 12 sounds (DRONE, FIFTHS, OCTAVES, DEEP,
   HOLLOW, GLOW, TIDE, RUST, VESSEL, HUM, WIND HUM, SHADOW), LEGATO with a glide: a new key bends the drone there.
+- **The GOLANA engine**, PAD's own: [Golana](https://github.com/Gadlele/Golana)'s engine made smaller for a channel.
+  OSC 1 (SAW, PULSE, TRI, SINE, MORPH with CTRL1), OSC 2 (SAW, SQR, TRI, MIX; RING, SYNC; SEMI, TUNE), the SUB, the
+  NOISE, the five filters (LPF24, LPF12, BPF, HPF, MS20) with CUT, RESO and KTR, DRIFT; its LFOs, filter EG,
+  patch, arpeggiator and effects are the track's (CTRL2 is the LFO's SHP). Pages EDIT 1 (OSC), EDIT 2 (OSC 2), FILTER,
+  TONE. 16 sounds: 10 pads (SOFT PAD, PHASE PAD, SYNC PAD, OLD STRINGS, AGED PAD, DARK UNISON, POLY CHORUS, WORN TAPE,
+  80S BRASS, GLASS PAD) and 6 leads (GLIDE LEAD, WARM LEAD, DRIFT LEAD, SUPERSAW, MORPH LEAD, BREATH LEAD).
 - The ambient machine plays the four channels: a DRONE note at INF, PAD's progression, the bells, and the
   ambience on; OCT- STOP lets them all go.
 
