@@ -219,7 +219,8 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
     if (r->size != cf.v[c][CF_SIZE])
         cr_gains(r, c, cf.v[c][CF_SIZE]);
     for (i = 0; i + 1u < n; i += 2u) {
-        int32_t x = (in[i] + in[i + 1u]) >> 1, o[4], h[4], m, s, sw, ax = x < 0 ? -x : x;   /* (loud in the lines: a long tail stays above
+        int32_t x = (in[i] + in[i + 1u]) >> 4, o[4], h[4], m, s, sw, ax = x < 0 ? -x : x;   /* (quiet in the lines: a
+                                                                         * held chord into a long SIZE builds up ~20 dB) */   /* (loud in the lines: a long tail stays above
                                                                           * the rounding; out a quarter, below) */
         if (r->sh) {                                    /* the send's envelope (Q8): up at once, down over ~3 s */
             r->env -= (r->env >> 16) + (r->env > 0);     /* (+1: it reaches 0, no floor left to feed the loop) */
@@ -262,11 +263,14 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
         h[2] = CR_H2(o[0] + o[1] - o[2] - o[3]);
         h[3] = CR_H2(o[0] - o[1] - o[2] + o[3]);
         for (k = 0; k < 4u; k++) {
-            int32_t y = mulq15z(h[k], r->g[k]) +
-                        ((k & 1u) ? -x : x);
+            int32_t y = mulq15z(h[k], r->g[k]);
+            if (y >= -1 && y <= 1)                      /* (a last LSB goes: no +-1 left ringing for ever) */
+                y = 0;
+            y += (k & 1u) ? -x : x;
             r->dc[k] += ((y << 12) - r->dc[k]) >> 12;       /* (a pole at ~1 Hz; Q12: it settles below an LSB) */
-            y -= (r->dc[k] + 2048) >> 12;
-            r->ln[k][r->w[k]] = (int16_t)(y > 24000 || y < -24000 ? soft_knee(y, 24000) : y);   /* (soft: never stuck) */
+            y -= (r->dc[k] + ((r->dc[k] >> 31) & 4095)) >> 12;   /* (toward zero: a settled blocker leaves no +-1) */
+            r->ln[k][r->w[k]] = (int16_t)(y > 24000 || y < -24000 ? clamp(soft_knee(y, 24000), -32767, 32767) : y);   /* (soft,
+                                                                         * and never past int16: a wrap would crackle) */
             if (++r->w[k] >= CR_LEN[c][k])
                 r->w[k] = 0;
         }
@@ -284,10 +288,10 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
             r->shr = r->shr >= (2u << 8) ? r->shr - (1u << 8) : (CR_SHW - 1u) << 8;   /* the read nears the write by
                                                                                     * one a sample: twice the speed */
         }
-        wet[i] += ((r->pm + m) * 5) >> 3;               /* back to the rate: between the two, then this one */
-        side[i] += ((r->ps + s) * 5) >> 3;
-        wet[i + 1u] += (m * 5) >> 2;
-        side[i + 1u] += (s * 5) >> 2;
+        wet[i] += (r->pm + m) * 5;               /* back to the rate: between the two, then this one */
+        side[i] += (r->ps + s) * 5;
+        wet[i + 1u] += m * 10;
+        side[i + 1u] += s * 10;
         r->pm = m;
         r->ps = s;
     }
