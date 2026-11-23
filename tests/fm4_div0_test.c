@@ -278,7 +278,8 @@ int main(void)
             pr = fm4_convert_ref(ref, v);
             fm6_pack(v, pk);
             ok = q.t[t].engine == ENGI_FM6 && q.t[t].preset == pr && pr == FM4_TO_FM6[(k + t + 4u) % FM4_NPRESETS] &&
-                 !memcmp(q.fm6[t], pk, FM6_PACKED) && !memcmp(q.t[t].p, ref, sizeof ref);
+                 !memcmp(q.fm6[t], t == 3u ? FM6_INIT : pk, FM6_PACKED) && !memcmp(q.t[t].p, ref, sizeof ref);
+                                                        /* (Fantasma 2.0: track 4 keeps no FM6 patch) */
         }
         if (!k)
             check("ORGAN: INDEX + FLT ENV is 0 (#61's divisor)", str_eq(DIGITAL_PRESETS[4].name, "ORGAN") &&

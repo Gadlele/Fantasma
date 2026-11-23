@@ -174,9 +174,11 @@ static int select_page(void)
     ok = title_is("MIXER");
     turn(EN_SELECT, 1);
     ok &= title_is("CLOCK");
+    turn(EN_SELECT, 2);                                 /* (Fantasma 2.0: AMBI, AMBI 2) */
+    ok &= title_is("AMBI 2");
     turn(EN_SELECT, 1);
     ok &= ui.home;
-    turn(EN_SELECT, -1);
+    turn(EN_SELECT, -3);
     ok &= title_is("CLOCK");
     b0 = song.g[G_BPM];
     turn(EN_K1, 1);

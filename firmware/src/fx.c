@@ -1105,6 +1105,21 @@ static void mix_block(int32_t *out, uint32_t n)
     for (i = 0; i < NPART; i++)                         /* (one core: as 1.6) */
         mix_part(&trk[i], n);
 #endif
+#if FELUCCA_AMBI
+    {   /* (Fantasma 2.0) the ambience layer (ambi_layer.c): centred, and into the reverb by its REVERB */
+        static int32_t ab[CTL];
+        for (i = 0; i < n; i++)
+            ab[i] = 0;
+        if (al_render(ab, n)) {
+            int32_t r = al.v[AL_REV] * 258;
+            for (i = 0; i < n; i++) {
+                mix_l[i] += ab[i];
+                mix_r[i] += ab[i];
+                send_r[i] += mulq15(ab[i], r);
+            }
+        }
+    }
+#endif
     if (perf)
         perf_pre(mix_l, mix_r, send_d, send_r, n);
     fx_buses(send_c, send_d, send_r, wet, n);

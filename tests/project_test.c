@@ -470,10 +470,12 @@ int main(void)
         memcpy(a.name, "FM SONG", 7);
         a.sum = proj_sum(&a);
         ok = proj_pack(&st, &a) && ((uint32_t *)st.raw)[0] == 0x46554E41u && proj_import(&c, &st, sizeof st);
-        for (k = 0; k < NTRK; k++)
+        for (k = 0; k < 3u; k++)                    /* (Fantasma 2.0: track 4's place holds the FANTASMA 2 block) */
             ok &= !memcmp(c.fm6[k], FM6_FACTORY[k * 2u], FM6_PACKED) && c.t[k].engine == ENGI_FM6 &&
                   !memcmp(st.raw + PROJ_FM6_OFF + k * FM6_PACKED, FM6_FACTORY[k * 2u], FM6_PACKED);
-        bad += check("FUN10: the four FM6 patches round trip (bytes at PROJ_FM6_OFF)", ok && !memcmp(c.name, "FM SONG", 7));
+        ok &= !memcmp(c.fm6[3], FM6_INIT, FM6_PACKED) && st.raw[PROJ_F2_OFF] == 0xF2u && st.raw[PROJ_F2_OFF + 1u] == 0xA2u;
+        bad += check("FUN10: three FM6 patches round trip (bytes at PROJ_FM6_OFF), the fourth's place the FANTASMA 2 block",
+                     ok && !memcmp(c.name, "FM SONG", 7));
         st.raw[PROJ_FM6_OFF + 5] ^= 1u;
         bad += check("FUN10: a patch byte changed: the hash refuses it", !proj_import(&c, &st, sizeof st));
         st.raw[PROJ_FM6_OFF + 5] ^= 1u;
@@ -504,9 +506,9 @@ int main(void)
             ok = ok && proj_import(&c, v8, sizeof v8);
             for (k = 0; ok && k < NTRK; k++) {
                 for (j = P_LN0; j <= P_LN7; j++) ok &= c.t[k].p[j] == 127;
-                ok &= !memcmp(c.fm6[k], FM6_FACTORY[k * 2u], FM6_PACKED);
+                ok &= !memcmp(c.fm6[k], k < 3u ? FM6_FACTORY[k * 2u] : FM6_INIT, FM6_PACKED);   /* (2.0: track 4 none) */
             }
-            bad += check("FUN8 of 1.0.x (91 parameters): lane levels 100 %, E0..E7 at P_E0, patches and name kept", ok &&
+            bad += check("FUN8 of 1.0.x (91 parameters): lane levels 100 %, E0..E7 at P_E0, patches (three) and name kept", ok &&
                          c.t[3].engine == ENGI_DRUM && c.t[3].p[P_E3] == 30 && c.t[2].p[P_E7] == 4 &&
                          !memcmp(c.name, "FM SONG", 7));
             bad += check("  its motion: E3 (86 then) at P_E3, REV kept", c.motion.count == 3u &&

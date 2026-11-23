@@ -40,6 +40,7 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #include "../engines/src/eng_noise.c"
 #if FELUCCA_AMBI
 #include "eng_ambi.c"          /* AMBI: an ambient noise generator (Fantasma), engine 3 in LOFI's place (uses eng_noise.c's isqrt32) */
+#include "ambi_layer.c"         /* Fantasma 2.0: AMBI as a layer of its own under the four channels */
 #endif
 #include "eng_fm6.c"            /* FM6: 6-operator FM, msfa ported (fm6_core.c, Apache-2.0) */
 #include "fm4_convert.c"        /* DIGITAL's tables, and its sounds -> FM6 */

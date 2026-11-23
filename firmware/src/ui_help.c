@@ -56,6 +56,8 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"AMBIENT", "[OCT+]RANDOMIZE[OCT-]STOP"},
     {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]CLOCK"},
     {"CLOCK", "[SELECT]TEMPO[GLO]HOLD: TAP"},
+    {"AMBI", "[K1]SCENE[K2]TONE[HOME]AMBI 2"},   /* (Fantasma 2.0: the ambience layer) */
+    {"AMBI 2", "[K1]ON[K2]LEVEL[K3]REVERB"},
 };
 #define H_HOME "[PRESETS]SOUND[HOME]HOLD: MENU"
 #define H_LEVELS "[K1-4]T1-T4 LEVEL[HOME]MIXER"

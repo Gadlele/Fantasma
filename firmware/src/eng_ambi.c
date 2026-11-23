@@ -29,14 +29,15 @@ static void ambi_note_on(track_t *t, voice_t *v)
     v->ph[2] = 0;
 }
 
-static void ambi_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
+/* the noise of one voice from the eight engine values e (COLR FREQ RES SWELL CRKL POP RATE BAL): a track's
+ * (ambi_render) or, in Fantasma 2.0, the ambience layer's (ambi_layer.c) */
+static void ambi_dsp(const int16_t *e, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
 {
-    const int16_t *p = t->p;
     uint32_t i;
-    int32_t swell = p[P_E3], rate = p[P_E6], bedf = p[P_E7] <= 64 ? 32767 : (127 - p[P_E7]) * 512, crkf = p[P_E7] >= 64 ? 32767 : p[P_E7] * 512, pe = (int32_t)v->ph[0];
+    int32_t swell = e[3], rate = e[6], bedf = e[7] <= 64 ? 32767 : (127 - e[7]) * 512, crkf = e[7] >= 64 ? 32767 : e[7] * 512, pe = (int32_t)v->ph[0];
     int32_t ic1 = v->s[0], ic2 = v->s[1], rng = v->s[2], b0 = v->s[4], b1 = v->s[5], b2 = v->s[6], br = v->s[7];
     int32_t drift = (int32_t)v->ph[2], d16 = 0, gain = 32767, gq, colr, cut, k, a1, a2, a3, g, bpg, mix, cf, thr = 0;
-    int32_t dec = 31000 + p[P_E5] * 13;               /* a pop's decay per sample: 0.946 .. 0.9985 */
+    int32_t dec = 31000 + e[5] * 13;               /* a pop's decay per sample: 0.946 .. 0.9985 */
     if (swell) {                                      /* a new random target every 0.7 .. 24 s, followed with a lag */
         int32_t tg = v->s[3] >> 16, cnt = v->s[3] & 0xFFFF;
         if (--cnt <= 0) {
@@ -51,18 +52,18 @@ static void ambi_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
         d16 = ((drift >> 11) * swell * swell) >> 14;  /* up to about +-16 semitones */
         gain = 32767 - ((((32767 - (drift >> 4)) >> 1) * swell) >> 8);   /* down to -6 dB as it falls */
     }
-    colr = clamp((p[P_E0] << 8) + m->shape - (64 << 8), 0, 127 << 8);   /* COLR (+ SHP): white -> pink -> brown */
+    colr = clamp((e[0] << 8) + m->shape - (64 << 8), 0, 127 << 8);   /* COLR (+ SHP): white -> pink -> brown */
     cf = colr <= (64 << 8) ? colr << 1 : ((colr - (64 << 8)) * 520) >> 8;   /* the crossfade, Q15 */
-    cut = clamp((p[P_E1] << 8) + m->cutoff + ((d16 * 4785) >> 8), 0, 127 << 8);   /* FREQ (+ FLT), the swell */
+    cut = clamp((e[1] << 8) + m->cutoff + ((d16 * 4785) >> 8), 0, 127 << 8);   /* FREQ (+ FLT), the swell */
     g = SVF_G[cut >> 8];
     if (cut < (127 << 8))
         g += ((SVF_G[(cut >> 8) + 1] - g) * (cut & 255)) >> 8;
-    k = 8192 - p[P_E2] * 7800 / 127;                  /* damping, Q12: 2.0 .. 0.1 */
+    k = 8192 - e[2] * 7800 / 127;                  /* damping, Q12: 2.0 .. 0.1 */
     a1 = (int32_t)((4096u << 13) / (uint32_t)(4096 + ((g * (g + k)) >> 12)));
     a2 = (a1 * g) >> 12;
     a3 = (a2 * g) >> 12;
     bpg = (int32_t)isqrt32((uint32_t)k << 12);        /* band-pass x 1.5 sqrt(damping): its level holds with the Q */
-    mix = p[P_E2] * 258;                              /* low-pass -> band-pass, Q15 */
+    mix = e[2] * 258;                              /* low-pass -> band-pass, Q15 */
     {   /* the bed's level: what the filter takes from white noise made up (less for pink and brown), the swell's */
         int32_t wf = 32767 - ((colr * 230) >> 8), mk = (((((127 << 8) - cut) >> 8) * 7) * wf) >> 15;
         mk += 214;
@@ -73,9 +74,9 @@ static void ambi_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
         if (gq > 65535)
             gq = 65535;
     }
-    if (p[P_E4]) {                                    /* pops: 1 .. 2000 a second */
-        uint32_t e = (uint32_t)p[P_E4] * 22u, r = 1u << (e >> 8);   /* 2^(CRKL * 11 / 127), Q8 fraction */
-        r += (r * (e & 255u)) >> 8;
+    if (e[4]) {                                    /* pops: 1 .. 2000 a second */
+        uint32_t x = (uint32_t)e[4] * 22u, r = 1u << (x >> 8);   /* 2^(CRKL * 11 / 127), Q8 fraction */
+        r += (r * (x & 255u)) >> 8;
         thr = (int32_t)((r * 97391u) >> 16);          /* per 2^16 of a sample: rate * 65536 / FS, Q16 */
     }
     for (i = 0; i < n; i++) {
@@ -125,6 +126,11 @@ static void ambi_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
     v->s[7] = br;
     v->ph[0] = (uint32_t)pe;
     v->ph[2] = (uint32_t)drift;
+}
+
+static void ambi_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
+{
+    ambi_dsp(&t->p[P_E0], v, out, n, m);
 }
 
 /* {COLR, FREQ, RES, SWELL, CRKL, POP, RATE, BAL} */
