@@ -49,6 +49,9 @@
 #define NENGINES (15 + FELUCCA_ADPCM)   /* engine 13 is SLICE or, in Fantasma's default build, BELL; 14 DRONE (Fantasma
                                         * 2.0); then ADPCM (15; Felucca's 14): the other engines keep their numbers */
 #define ENGI_DRONE 14u           /* (Fantasma 2.0) DRONE's engine (eng_drone.c) */
+#define P_DCUT P_FM1_ATK         /* (Fantasma 2.0) DRONE's FILTER CUT RES KTR: DIGITAL's OP 1 ATK DEC SUS, which a DRONE */
+#define P_DRES P_FM1_DEC         /* sound has no other use for (eng_drone.c DR_FILT_P) */
+#define P_DKTR P_FM1_SUS
 #define ENGI_ADPCM 15u
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
 #define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,

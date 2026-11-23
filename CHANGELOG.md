@@ -21,7 +21,8 @@ fixes, a new **X** may change how things are saved.
 - **The DRONE engine**, DRONE's own (after [Niagara Drift](https://github.com/evanyerburgh/niagara-drift)'s drones,
   rewritten for Fantasma): a main oscillator that blends SINE > TRI > SAW > SQUARE (WAVE, the square's WIDTH), a
   partner at an INTERVAL (tempered or just) with its DETUNE, a SUB an octave to four below or a subharmonic (1/3, 1/5),
-  MIX between them, a soft NOISE and DRIFT: the drone never quite still. 12 sounds (DRONE, FIFTHS, OCTAVES, DEEP,
+  MIX between them, a soft NOISE and DRIFT: the drone never quite still; and a FILTER page of its own (CUT, RES,
+  KTR, TYPE LP / BP / HP). 12 sounds (DRONE, FIFTHS, OCTAVES, DEEP,
   HOLLOW, GLOW, TIDE, RUST, VESSEL, HUM, WIND HUM, SHADOW), LEGATO with a glide: a new key bends the drone there.
 - The ambient machine plays the four channels: a DRONE note at INF, PAD's progression, the bells, and the
   ambience on; OCT- STOP lets them all go.

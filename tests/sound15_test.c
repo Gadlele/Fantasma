@@ -203,7 +203,7 @@ static void test_filter(void)
     {
         uint32_t i, k = 0;
         for (i = 0; i < NPAGES; i++)
-            if (str_eq(PAGES[i].title, "FILTER"))
+            if (str_eq(PAGES[i].title, "FILTER") && !k)    /* (the first: ANALOG's; DRONE's own follows, Fantasma 2.0) */
                 k = i + 1u;
         check("EDIT > FILTER: TYPE CUT RES KTR (ANALOG's), after EDIT 2",
               k && PAGES[k - 1u].fam == FAM_EDIT && PAGES[k - 1u].id[0] == P_FTYPE && PAGES[k - 1u].id[1] == P_E4 &&
@@ -211,11 +211,11 @@ static void test_filter(void)
     }
     /* every engine but ANALOG ignores TYPE; ANALOG's LP is the golden renders' (regress.c) */
     for (e = 1; e < NENGINES; e++) {
-        if (ENGINES[e] == ENGINES[0] || !ENGINES[e]->npresets)
+        if (ENGINES[e] == ENGINES[0] || e == ENGI_DRONE || !ENGINES[e]->npresets)   /* (DRONE: its FILTER's TYPE too) */
             continue;
         same &= phrase_child(e, 0, 0) == phrase_child(e, 0, type_hp);
     }
-    check("TYPE BP / HP on every other engine: its phrase bit for bit (only ANALOG reads it)", same);
+    check("TYPE BP / HP on every other engine: its phrase bit for bit (only ANALOG and DRONE read it)", same);
     {
         uint64_t h0 = phrase_child(0, 0, 0), h1 = phrase_child(0, 0, type_bp), h2 = phrase_child(0, 0, type_hp);
         check("ANALOG SAW LEAD: BP and HP sound other than LP (and each other)", h0 != h1 && h0 != h2 && h1 != h2);

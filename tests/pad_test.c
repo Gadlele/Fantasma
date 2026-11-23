@@ -2,7 +2,7 @@
  * Copyright (C) 2026 Gadlele, based on Fantasma 1.x's (Leo Kuroshita's Felucca tests) */
 /* Fantasma 2.0's four channels (engines.c eng_allowed / part_preset_ok / ROLE_NAME / TRK_DEF, ui.c list_keep and
  * ambient_random): DRONE plays DRONE, PAD ANALOG (until Golana's), BELLS BELL, DRUMS DRUM, nothing else; DRONE's
- * list its 12, PAD's ANALOG's pads and soft leads (21); PRESETS lists exactly those; the power-on
+ * list its 12 (and its FILTER page), PAD's ANALOG's pads and soft leads (21); PRESETS lists exactly those; the power-on
  * sounds; the ambient machine picks from them, holds a DRONE note at INF, switches PAD's progression, BELLS' bells and
  * the AMBI layer on. Built and run by tests/run_tests.sh (without FANTASMA_PAD_ALL, which the other UI tests use). */
 #define UI_TEST_NO_MAIN 1
@@ -29,6 +29,31 @@ int main(void)
     for (k = 0; k < ENGINES[ENGI_DRONE]->npresets; k++)       /* DRONE: every DRONE sound */
         CHK(part_preset_ok(0, ENGI_DRONE, k));
     CHK(str_eq(ENGINES[ENGI_DRONE]->name, "DRONE") && ENGINES[ENGI_DRONE]->npresets == 12u);
+    {   /* DRONE's FILTER page: CUT RES KTR TYPE, on a DRONE track only; each sound sets them; CLEAN INIT the defaults */
+        uint32_t pg, seen = 0;
+        track_t *t = &trk[0];
+        int16_t *vp;
+        song.sel = 0;
+        set_engine_of(t, ENGI_DRONE);
+        apply_preset_to(t, 4);                                /* HOLLOW: a band */
+        CHK(str_eq(track_desc(t, P_DCUT)->label, "CUT") && str_eq(track_desc(t, P_DRES)->label, "RES") &&
+            str_eq(track_desc(t, P_DKTR)->label, "KTR") && track_desc(t, P_DCUT)->fmt == F_CUTOFF);
+        CHK(t->p[P_DCUT] == DR_FILT[4][0] && t->p[P_DRES] == DR_FILT[4][1] && t->p[P_DKTR] == DR_FILT[4][2] &&
+            t->p[P_FTYPE] == 1);
+        for (pg = 0; pg < NPAGES; pg++)
+            if (PAGES[pg].id[0] == P_DCUT && PAGES[pg].id[3] == P_FTYPE && page_visible(pg) &&
+                page_desc(&PAGES[pg], 0, &vp) == &DR_FILT_P[0] && vp == &t->p[P_DCUT])
+                seen++;
+        CHK(seen == 1u);
+        clean_engine_of(t);
+        CHK(t->p[P_DCUT] == DR_FILT_P[0].def && t->p[P_DRES] == DR_FILT_P[1].def && t->p[P_DKTR] == DR_FILT_P[2].def &&
+            !t->p[P_FTYPE]);
+        set_engine_of(t, 0);                                  /* another engine: no DRONE FILTER page, its own labels */
+        for (pg = 0, seen = 0; pg < NPAGES; pg++)
+            seen += PAGES[pg].id[0] == P_DCUT && PAGES[pg].id[3] == P_FTYPE && page_visible(pg);
+        CHK(!seen && !str_eq(track_desc(t, P_DCUT)->label, "CUT"));
+        set_engine_of(t, ENGI_DRONE);
+    }
     CHK(TRK_DEF[0][0] == ENGI_DRONE && TRK_DEF[0][1] == 0u && TRK_DEF[1][0] == 0u && TRK_DEF[1][1] == 18u &&
         TRK_DEF[2][0] == ENGI_BELL && TRK_DEF[3][0] == ENGI_DRUM);   /* the power-on sounds (main.c; the tests' own differ) */
     for (ti = 0; ti < 4u; ti++)                               /* (each channel on its own engine, as the power-on) */

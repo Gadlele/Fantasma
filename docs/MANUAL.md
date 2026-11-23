@@ -307,8 +307,9 @@ partner up to 30 cents off, a slow beating. EDIT 2 (MIX): **SUB** a sine an octa
 subharmonic (**1/3**: an octave and a fifth down; **1/5**: two octaves and a major third); **MIX** from the oscillators
 (0) to the sub (127) at equal power; **NOISE** a soft pink noise; **DRIFT** how much it wanders: the oscillators each
 glide to a new pitch every fifth of a second, and every half a minute or so it moves slowly in brightness, level and
-wave. A low-pass about three octaves above the note softens it; ENV and the LFO on FLT, the matrix's CUT and the keys'
-pressure open and close it; SHP routings move WAVE. Its sounds play LEGATO with a glide: a new key bends the drone there.
+wave. EDIT 3 (**FILTER**): **CUT** (the corner at C4), **RES**, **KTR** (how far the filter follows the note: 127 all
+the way) and **TYPE** (LP, BP, HP); each sound sets them, and ENV and the LFO on FLT, the matrix's CUT and the keys'
+pressure move it as well. SHP routings move WAVE. Its sounds play LEGATO with a glide: a new key bends the drone there.
 HOME: WAVE, ATK, REL, REV.
 
 **AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
