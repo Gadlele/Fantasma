@@ -89,6 +89,14 @@ int main(int argc, char **argv)
                 peak = r;
         CHK(peak < 12000.0);
     }
+    /* SHIMMR never sustains itself: SIZE 124 (not 127, which holds), SHIMMR 127, its tail ends */
+    cf.v[1][CF_SIZE] = 124; cf.v[1][CF_DAMP] = 25;
+    trk_note_on(&trk[1], 60, 120);
+    run_rms(4.0, 0);
+    trk_note_off(&trk[1], 60);
+    for (k = 0; k < 15u; k++)
+        run_rms(6.0, 0);
+    CHK(run_rms(1.0, 0) < 20.0);
     /* the pages: the selected channel's values, the modes the project's */
     {
         uint32_t pg;

@@ -152,6 +152,7 @@ typedef struct {
     int32_t g[4];                        /* each line's gain, Q15 */
     int32_t lp[4], hp, shy;              /* the lines' damping, the low cut (Q8), SHIMMER's last out */
     int32_t dc[4];                       /* each line's DC (Q12): the integers' rounding leaves none to build up */
+    int32_t env;                         /* SHIMMER: the send's envelope (Q8) */
     int32_t pm, ps;                      /* the last half-rate outputs (mid, side): the way back up */
     uint32_t mph;                        /* the swaying lines' phase */
     int16_t size;                        /* the SIZE the gains are for (-1: none yet) */
@@ -210,19 +211,27 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
 {
     cr_t *r = &cr[c];
     uint32_t i, k;
-    /* SHIMMER s (Q15, up to 0.39): the octave-up tail fed back in at s, the lines' own gains down by as much (1 - s),
-     * so the loop's gain stays below 1 at any SIZE (it rises, it never runs away) */
+    /* SHIMMER s (Q15, up to ~0.4): the tail an octave up fed back into the reverb's input, as a shimmer pedal's: each
+     * time round it climbs another octave. What it feeds back is never louder than what is sent in (an envelope that
+     * follows the send, ~3 s to fall): while a sound goes in the tail rises and shines; once it stops, the shimmer
+     * fades within seconds and the tail decays as SIZE says. It never builds up by itself, at any SIZE */
     int32_t kd = 32767 - clamp(cf.v[c][CF_DAMP], 0, 127) * 120, shim = r->sh ? clamp(cf.v[c][CF_SHIM], 0, 127) * 100 : 0;
-    int32_t gk = 32767 - (shim >> 3);
     if (r->size != cf.v[c][CF_SIZE])
         cr_gains(r, c, cf.v[c][CF_SIZE]);
     for (i = 0; i + 1u < n; i += 2u) {
-        int32_t x = (in[i] + in[i + 1u]) >> 1, o[4], h[4], m, s, sw;   /* (loud in the lines: a long tail stays above
+        int32_t x = (in[i] + in[i + 1u]) >> 1, o[4], h[4], m, s, sw, ax = x < 0 ? -x : x;   /* (loud in the lines: a long tail stays above
                                                                           * the rounding; out a quarter, below) */
+        if (r->sh) {                                    /* the send's envelope (Q8): up at once, down over ~3 s */
+            r->env -= (r->env >> 16) + (r->env > 0);     /* (+1: it reaches 0, no floor left to feed the loop) */
+            if ((ax << 8) > r->env)
+                r->env = ax << 8;
+        }
+        if (shim) {                                     /* SHIMMER: the octave up, back in, no louder than the send */
+            int32_t e = r->env >> 8;
+            x += clamp(mulq15(r->shy, shim), -e, e);
+        }
         r->hp += ((x << 8) - r->hp) >> CR_HP;          /* (Q8, rounded: it settles at 0, no offset left in) */
         x -= (r->hp + 128) >> 8;
-        if (shim)
-            x += mulq15(r->shy, shim) >> 1;             /* (shy: the lines' mean; a quarter to each, with the sign) */
         for (k = 0; k < 2u; k++) {                      /* the diffusers */
             int16_t *a = r->ap[k];
             int32_t d = a[r->apw[k]], v = clamp(x - mulq15(d, CR_APG), -32767, 32767);
@@ -253,7 +262,8 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
         h[2] = CR_H2(o[0] + o[1] - o[2] - o[3]);
         h[3] = CR_H2(o[0] - o[1] - o[2] + o[3]);
         for (k = 0; k < 4u; k++) {
-            int32_t y = mulq15z(mulq15z(h[k], r->g[k]), gk) + ((k & 1u) ? -x : x);
+            int32_t y = mulq15z(h[k], r->g[k]) +
+                        ((k & 1u) ? -x : x);
             r->dc[k] += ((y << 12) - r->dc[k]) >> 12;       /* (a pole at ~1 Hz; Q12: it settles below an LSB) */
             y -= (r->dc[k] + 2048) >> 12;
             r->ln[k][r->w[k]] = (int16_t)(y > 24000 || y < -24000 ? soft_knee(y, 24000) : y);   /* (soft: never stuck) */
@@ -265,8 +275,10 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
         if (r->sh) {                                     /* SHIMMER: the tail an octave up, two heads crossfaded */
             uint32_t d1 = r->shr >> 8, d2 = (d1 + CR_SHW / 2u) & (CR_SHW - 1u);
             int32_t g1 = (int32_t)(d1 < CR_SHW / 2u ? d1 : CR_SHW - d1), g2 = (int32_t)(CR_SHW / 2u) - g1;
-            r->sh[r->shw & (CR_SH - 1u)] = (int16_t)clamp(m >> 2, -32767, 32767);   /* (the lines' mean) */
-            r->shy = (r->sh[(r->shw - d1 - 2u) & (CR_SH - 1u)] * g1 + r->sh[(r->shw - d2 - 2u) & (CR_SH - 1u)] * g2) >> 8;
+            r->sh[r->shw & (CR_SH - 1u)] = (int16_t)clamp(m >> 1, -32767, 32767);   /* (the lines' mean: given to each
+                                                                         * of the four, the loop's gain stays below 1) */
+            int32_t sy = (r->sh[(r->shw - d1 - 2u) & (CR_SH - 1u)] * g1 + r->sh[(r->shw - d2 - 2u) & (CR_SH - 1u)] * g2) >> 8;
+            r->shy += (sy - r->shy) >> 1;                /* (a gentle low-pass: no fizz from the octaves on top) */
             _Static_assert(CR_SHW / 2u == 256u, "the crossfade's shift");
             r->shw++;
             r->shr = r->shr >= (2u << 8) ? r->shr - (1u << 8) : (CR_SHW - 1u) << 8;   /* the read nears the write by
