@@ -242,6 +242,8 @@ static uint32_t delay_samples(void)
     return s < 16u ? 16u : s >= DLY_LEN ? DLY_LEN - 1u : s;
 }
 
+#include "chfx.c"                                    /* (Fantasma 2.0) each channel its delay and reverb */
+
 /* ROOM (G_RTYPE 0): 4 damped combs + 2 allpasses (Freeverb-like, mono), added to out */
 static __attribute__((noinline)) void rev_room(const int32_t *rev_in, int32_t *out, uint32_t n)
 {
@@ -618,14 +620,23 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
             y += (c0 + (((c1 - c0) * f) >> 8)) << 1;
         }
         fx.cho_w++;
-        /* delay with a low-passed feedback */
-        x = dly_buf[(fx.dly_w - dl) & (DLY_LEN - 1u)];
-        fx.dly_lp += mulq15(x - fx.dly_lp, col);
-        dly_buf[fx.dly_w & (DLY_LEN - 1u)] =
-            (int16_t)clamp((dly_in[i] >> 1) + mulq15(fx.dly_lp, fb), -32768, 32767);
-        fx.dly_w++;
-        y += mulq15(x << 1, dmix);
+        /* delay with a low-passed feedback (BUS: the line is the channels' with CHAN, chfx.c) */
+        if (!cf.drun) {
+            x = dly_buf[(fx.dly_w - dl) & (DLY_LEN - 1u)];
+            fx.dly_lp += mulq15(x - fx.dly_lp, col);
+            dly_buf[fx.dly_w & (DLY_LEN - 1u)] =
+                (int16_t)clamp((dly_in[i] >> 1) + mulq15(fx.dly_lp, fb), -32768, 32767);
+            fx.dly_w++;
+            y += mulq15(x << 1, dmix);
+        }
         wet[i] = y;
+    }
+    if (cf.drun == 1u || cf.mode[1]) {                  /* (Fantasma 2.0) CHAN: each channel's own (chfx.c) */
+        chfx_buses(wet, n, cf.drun == 1u, cf.mode[1] != 0);
+        if (cf.mode[1]) {
+            hl.side = 0;
+            return;                                     /* (the bus reverb rests: nothing is sent to it) */
+        }
     }
     rt = song.g[G_RTYPE];
     rt = rt >= 1 && rt <= 3 ? rt : 0;
@@ -640,6 +651,14 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
         rev_room(rev_in, wet, n);
 }
 
+static __attribute__((noinline)) void rev_side_mix_ch(int32_t *l, int32_t *r, uint32_t n)
+{
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        l[i] += rev_side_ch[i];
+        r[i] -= rev_side_ch[i];
+    }
+}
 /* after the buses: HALL's stereo difference to the left and from the right of the dry mix (the wet bus adds the
  * same to both) */
 static __attribute__((noinline)) void rev_side_mix(int32_t *l, int32_t *r, uint32_t n)
@@ -871,6 +890,8 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
     int32_t glm = (gla + glb) >> 1, grm = (gra + grb) >> 1, gld = (gla - glb) >> 1, grd = (gra - grb) >> 1;
     int32_t c = t->p[P_CHOR] * 258, dl = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
     int32_t xmax = c > dl ? c : dl;
+    uint32_t pi = (uint32_t)(t - trk) % NPART;
+    int32_t *sd = cf.drun == 1u ? chd[pi] : SM(d), *sv = cf.mode[1] ? chv[pi] : SM(v);   /* (2.0: CHAN, chfx.c) */
     xmax = 0x7FFFFFFF / ((xmax > r ? xmax : r) | 1);
     for (i = 0; i < n; i++)
         d[i] = (d[i] << 1) - b[i];                      /* left - right */
@@ -888,9 +909,9 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
         if (c)
             SM(c)[i] += mulq15(xs, c);
         if (dl)
-            SM(d)[i] += mulq15(xs, dl);
+            sd[i] += mulq15(xs, dl);
         if (r)
-            SM(v)[i] += mulq15(xs, r);
+            sv[i] += mulq15(xs, r);
         SM(l)[i] += ((x * glm) >> 12) + ((y * gld) >> 12);
         SM(r)[i] += ((x * grm) >> 12) + ((y * grd) >> 12);
     }
@@ -922,10 +943,13 @@ static const uint16_t ENG_VCOST[NENGINES] = {163, FELUCCA_FM4 ? 181 : 0, 162, 67
 static void mix_part(track_t *t, uint32_t n SM_DECL)
 {
     int32_t *b = SM(b);
-    uint32_t i;
+    uint32_t i, pi = (uint32_t)(t - trk) % NPART;
+    int32_t *sd = cf.drun == 1u ? chd[pi] : SM(d), *sv = cf.mode[1] ? chv[pi] : SM(v);   /* (2.0: CHAN, chfx.c) */
 #if FELUCCA_CPU2
     uint32_t nr;
 #endif
+    for (i = 0; i < n; i++)
+        chd[pi][i] = chv[pi][i] = 0;                    /* (this part's own sends: either core) */
     mod_begin(t);                                       /* the matrix's per-block values into t->p (mod.c) */
     T_SPREAD(t) = t->p[P_SPRD] > 0 && (trk_vmode(t) == V_POLY || trk_vmode(t) == V_UNISON);   /* (SPREAD, mix_spread) */
 #if FELUCCA_CPU2
@@ -970,16 +994,16 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
             if (c)
                 SM(c)[i] += mulq15(xs, c);
             if (d)
-                SM(d)[i] += mulq15(xs, d);
+                sd[i] += mulq15(xs, d);
             if (r)
-                SM(v)[i] += mulq15(xs, r);
+                sv[i] += mulq15(xs, r);
             SM(l)[i] += (x * gl) >> 12;
             SM(r)[i] += (x * gr) >> 12;
         }
         t->peak = pk;
     }
     if (pf.thr)
-        perf_throw(t, b, SM(d), SM(v), n);              /* perform.c: REV / ECHO THROW (1.5.1), the sends towards full */
+        perf_throw(t, b, sd, sv, n);                    /* perform.c: REV / ECHO THROW (1.5.1), the sends towards full */
     if (MOD(t).on)
         mod_end(t);                                     /* the stored values back */
 }
@@ -1115,10 +1139,11 @@ static void mix_block(int32_t *out, uint32_t n)
             ab[i] = 0;
         if (al_render(ab, n)) {
             int32_t r = al.v[AL_REV] * 258;
+            int32_t *rs = cf.mode[1] ? chv[(uint32_t)clamp(al.v[AL_TO], 0, NPART - 1)] : send_r;   /* (CHAN: TO's) */
             for (i = 0; i < n; i++) {
                 mix_l[i] += ab[i];
                 mix_r[i] += ab[i];
-                send_r[i] += mulq15(ab[i], r);
+                rs[i] += mulq15(ab[i], r);
             }
         }
     }
@@ -1128,6 +1153,8 @@ static void mix_block(int32_t *out, uint32_t n)
     fx_buses(send_c, send_d, send_r, wet, n);
     if (hl.side)
         rev_side_mix(mix_l, mix_r, n);                  /* HALL: stereo */
+    else if (cf.mode[1])
+        rev_side_mix_ch(mix_l, mix_r, n);               /* (2.0) the channels' reverbs: stereo */
     if (scope_mix)
         scope_take_mix(n);
     if (perf) {

@@ -41,6 +41,12 @@ fixes, a new **X** may change how things are saved.
   dialled, DRIFT walking on), FEEL (accents on the beats, softer steps between). On both, OCT+ is **DICE** (a new
   pattern at random) and OCT- goes back to the pattern dialled; every rewrite one undo. A kit change keeps them.
 - **Six ambient kits** for DRUM: SOFT KIT, DUST KIT, TAPE KIT, DUB KIT, WOOD KIT, CLICK KIT.
+- **Each channel its own delay and reverb** (FX › CH DELAY, CH REVERB; the power-on's, **CHAN**): every track's DLY
+  send goes to its own delay (1.5 s, dark as a tape's, a slow wow; TIME, FDBK, TONE) and its REV send to its own
+  stereo reverb (SIZE from 0.3 s to a minute, 127 holds; DAMP; SHIMMR, the tail an octave up, on DRONE, PAD and
+  BELLS; DRUMS a room). **BUS** keeps one delay and one reverb for all, as in 1.x: every project before 2.0 loads so
+  and sounds as it did. The AMBI layer sends to the reverb its TO names (AMBI 2). DRIVE and MOD per channel are FX's
+  DIST and the INSERT (SOFT HARD FOLD FUZZ CRUSH, PHASR FLANG CHOR), as before.
 - The ambient machine plays the four channels: a DRONE note at INF, PAD's progression, the bells, and the
   ambience on; OCT- STOP lets them all go.
 

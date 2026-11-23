@@ -24,6 +24,7 @@ FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_re
          "slice_render", "slc_rev",                          # SLICE (eng_slice.c): the render, the reverse windows
          "ambi_render", "bell_render",                       # Fantasma: AMBI (engine 3, LOFI's place), BELL (13, SLICE's)
          "drone_render", "go_render", "chime_render",       # Fantasma 2.0: DRONE (engine 14), GOLANA (15), CHIME (16)
+         "chfx_delays", "chfx_reverb",                      # Fantasma 2.0: the channels' delays and reverbs (chfx.c)
          "gen_step", "prog_step", "gen_free",                # .. BELL's generator, the Pad's progression, their clock (seq.c)
          "fm1_alnk0_irq", "fm1_timer5_irq",               # the audio ISR; TIMER5: the key / LED scan (bsp/boards/fm1/fm1_input.h)
          "mix_part",                                        # a part's block (fx.c), on either core since the second

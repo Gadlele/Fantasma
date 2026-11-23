@@ -133,6 +133,7 @@ typedef struct {
     uint8_t fm6[NTRK][FM6_PACKED];             /* each track's FM6 patch, packed (eng_fm6.c) */
     uint8_t mch[NTRK];                         /* 1.5.5: MIDI IN TRACK's channels, as song.mch (PROJ_MIDI_OFF) */
     int16_t ambi[AL_N];                        /* Fantasma 2.0: the ambience layer's values (ambi_layer.c; PROJ_F2_OFF) */
+    int16_t chfx[CF_N];                        /* Fantasma 2.0: each channel's delay and reverb, the two modes (chfx.c) */
     char name[PROJ_NAME_LEN];                  /* the project's name: upper-case ASCII 32..126, 0-padded; "" = none */
     uint32_t sum;
 } project_t;
@@ -171,11 +172,13 @@ _Static_assert(sizeof(project_v5_t) == 3352u && sizeof(project_v6_t) == 3388u, "
  * there as that block. Every project before has them 0: channels 1..4, MIDI IN as its G_ROUTE says */
 #define PROJ_MIDI_OFF (PROJ_FM6_OFF - 3u)
 /* Fantasma 2.0: the FANTASMA 2 block, in track 4's FM6 patch (its channel, DRUMS, plays no FM6): 0xF2 0xA2 (bytes an FM6
- * patch never holds: its bytes are 0..127), the block's version (1), the layer's count AL_N, its values + 64 (ambi_layer.c);
+ * patch never holds: its bytes are 0..127), the block's version (2), the layer's count AL_N, its values + 64 (ambi_layer.c);
+ * (version 2) then the count CF_N and the channels' delay and reverb values + 64 (chfx.c; a version 1 block: 0 there,
+ * BUS);
  * the rest 0, for what 2.0 adds later. A FUN10 without it (Fantasma 1.x, Felucca): the layer's defaults, track 4's
  * patch as stored */
 #define PROJ_F2_OFF (PROJ_FM6_OFF + 3u * FM6_PACKED)
-#define PROJ_F2_VER 1u
+#define PROJ_F2_VER 2u
 typedef union { uint32_t align; uint8_t raw[PROJ_STORE_SIZE]; } project_store_t;
 _Static_assert(G_COUNT == 27u, "FUN7 globals retain original IDs");
 _Static_assert(sizeof(project_store_t) == 3840u && PROJ_STORE_V7 == sizeof(project_v6_t), "FUN10 / FUN7 sizes");
@@ -404,7 +407,7 @@ static int proj_from_v4(project_t *q, const project_v4_t *v4, int n)
         v4->sum != proj_hash(v4, sizeof *v4 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     memcpy(q->g, v4->g, sizeof q->g);
@@ -427,7 +430,7 @@ static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
         v3->sum != proj_hash(v3, sizeof *v3 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     memcpy(q->g, v3->g, sizeof q->g);
@@ -449,7 +452,7 @@ static int proj_from_v2(project_t *q, const project_v2_t *v2, int n)
         v2->sum != proj_hash(v2, sizeof *v2 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     proj_g_from_v2(q->g, v2->g);
@@ -469,7 +472,7 @@ static int proj_from_v1(project_t *q, const project_v1_t *v1, int n)
         v1->sum != proj_hash(v1, sizeof *v1 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     proj_g_from_v2(q->g, v1->g);
@@ -598,7 +601,7 @@ static int proj_import_old(project_t *q, const void *b, int n)
              (bytes == sizeof *v6 && v->magic == PROJ_MAGIC_V6 && chain_from_v9(&c6, &v6->chain))) &&
             v->size == bytes && ((const uint32_t *)b)[bytes / 4u - 1u] == proj_hash(b, bytes - 4u)) {
             memset(q, 0, sizeof *q);
-    al_defaults(q->ambi);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
             q->magic = PROJ_MAGIC; q->size = sizeof *q;
             memcpy(q->g, v->g, sizeof q->g);
             proj_rtype_room(q->g);
@@ -717,6 +720,11 @@ static int proj_pack(project_store_t *out, const project_t *q)
         if (q->ambi[i] < -64 || q->ambi[i] > 127) return 0;
         b[PROJ_F2_OFF + 4u + i] = (uint8_t)(q->ambi[i] + 64);
     }
+    b[PROJ_F2_OFF + 4u + AL_N] = (uint8_t)CF_N;
+    for (i = 0; i < CF_N; i++) {
+        if (q->chfx[i] < -64 || q->chfx[i] > 127) return 0;
+        b[PROJ_F2_OFF + 5u + AL_N + i] = (uint8_t)(q->chfx[i] + 64);
+    }
     {   /* the name (0-padded; stops at the first 0) */
         char n[PROJ_NAME_LEN + 1u];
         memcpy(b + PROJ_NAME_OFF, n, proj_name_get(n, (const uint8_t *)q->name));
@@ -773,7 +781,7 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
         size != st || sum != proj_hash(b, st - 4u) ||
         np < 8u || np > P_COUNT || 68u + NTRK * (np + 2u + NSTEP * 9u) + chn + mot > end)
         return 0;
-    memset(q, 0, sizeof *q); q->magic = PROJ_MAGIC; q->size = sizeof *q; al_defaults(q->ambi);
+    memset(q, 0, sizeof *q); q->magic = PROJ_MAGIC; q->size = sizeof *q; al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
     memcpy(q->g, b + 8, sizeof q->g); q->sel = b[62]; q->parts = b[63]; q->phys = b[64];
     if (v7 && (q->g[G_RTYPE] < 0 || q->g[G_RTYPE] > 1))   /* a FUN7 may still hold the old drum channel there */
         proj_rtype_room(q->g);
@@ -829,6 +837,9 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
             memcpy(q->fm6[t], FM6_INIT, FM6_PACKED);
             for (i = 0; i < AL_N && i < f[3]; i++)
                 q->ambi[i] = (int16_t)param_fit(&AL_P[i], (int32_t)f[4u + i] - 64);
+            if (f[3] <= 16u && 5u + f[3] + CF_N <= FM6_PACKED && f[4u + f[3]] == CF_N)   /* (version 2: the channels' FX) */
+                for (i = 0; i < CF_N; i++)
+                    q->chfx[i] = (int16_t)param_fit(chfx_desc(i), (int32_t)f[5u + f[3] + i] - 64);
         } else {
             for (i = 0; i < FM6_PACKED; i++)
                 q->fm6[t][i] = f[i] & 0x7Fu;
@@ -957,6 +968,7 @@ static void project_capture(project_t *p)
     p->motion = motion;
     memcpy(p->mch, song.mch, sizeof p->mch);
     memcpy(p->ambi, al.v, sizeof p->ambi);          /* (Fantasma 2.0: the ambience layer) */
+    chfx_get(p->chfx);                              /* (Fantasma 2.0: the channels' delays and reverbs) */
     motion_unguard(f);
     memcpy(p->name, proj_name, str_len(proj_name));
     p->sum = proj_sum(p);
@@ -1162,6 +1174,12 @@ static int project_restore_runtime(const project_t *input)
         song.mch[k] = (uint8_t)(p->mch[k] < MCH_N ? p->mch[k] : 0u);
     for (k = 0; k < AL_N; k++)                          /* (Fantasma 2.0) the ambience layer */
         al.v[k] = (int16_t)param_fit(&AL_P[k], p->ambi[k]);
+    {   /* (Fantasma 2.0) the channels' delays and reverbs (a mode change clears the line: chfx_poll) */
+        int16_t v[CF_N];
+        for (k = 0; k < CF_N; k++)
+            v[k] = (int16_t)param_fit(chfx_desc(k), p->chfx[k]);
+        chfx_put(v);
+    }
     midi_route = MIDI_ROUTE_AGAIN;                      /* (events_block: what the channels no longer hear let go) */
     for (k = 0; k < NTRK; k++) {
         track_t *t = &trk[k];
@@ -1224,7 +1242,7 @@ static int project_new(void)
     project_t *q = &proj_scratch;
     uint32_t i, k;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     q->parts = NPART;

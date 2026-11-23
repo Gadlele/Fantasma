@@ -60,6 +60,12 @@ static void felucca_init(void)
 #if FELUCCA_AMBI
     al_init();                                /* (Fantasma 2.0) the ambience layer: its defaults, off */
 #endif
+    {   /* (Fantasma 2.0) each channel its delay and reverb (chfx.c): CHAN, the channels' own values */
+        int16_t v[CF_N];
+        chfx_init();
+        chfx_defaults(v, 1);
+        chfx_put(v);
+    }
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
         track_defaults(t);

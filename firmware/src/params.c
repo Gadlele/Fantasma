@@ -467,7 +467,7 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
 /* ------------------------------------------------------------ pages --- */
 enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE, FAM_ARP, FAM_SEQ, FAM_TRK,
        FAM_COUNT };
-enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_AMBI };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit);
+enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_AMBI, SC_CHFX };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit);
                                                                       * SC_AMBI (Fantasma 2.0): the ambience layer's (al.v) */
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
        GR_SLCR, GR_MOD, GR_PATS, GR_SONG, GR_TOOLS, GR_CHORD, GR_SLICES, GR_EVENTS,
@@ -494,6 +494,8 @@ static const page_t PAGES[] = {
     {"DLY", FAM_FX, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},
     {"REVERB", FAM_FX, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* TYPE: ROOM / SPRING / HALL / AMBI */
     {"CHORUS", FAM_FX, SC_GLOBAL, GR_NONE, {G_CRATE, G_CDEPTH, 0xFF, 0xFF}},
+    {"CH DELAY", FAM_FX, SC_CHFX, GR_NONE, {0, 1, 2, 6}},      /* (Fantasma 2.0) the channel's own (chfx.c): TIME FDBK TONE, DLY mode */
+    {"CH REVERB", FAM_FX, SC_CHFX, GR_NONE, {3, 4, 5, 7}},     /* .. SIZE DAMP SHIMMR, REV mode */
     {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_TRANS}},
     {"CHORD", FAM_SCL, SC_TRACK, GR_CHORD, {P_CHRD, P_VOIC, 0xFF, 0xFF}},   /* SCL again: the chord keys (chord.c) */
     {"EDIT 1", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E0, P_E1, P_E2, P_E3}},
@@ -545,12 +547,14 @@ static const page_t PAGES[] = {
 #if FELUCCA_AMBI
     /* Fantasma 2.0: the ambience layer (ambi_layer.c), HOME's taps after CLOCK */
     {"AMBI", FAM_TRK, SC_AMBI, GR_NONE, {AL_SCENE, AL_TONE, AL_MOTION, AL_INTENS}},
-    {"AMBI 2", FAM_TRK, SC_AMBI, GR_NONE, {AL_ON, AL_LEVEL, AL_REV, 0xFF}},
+    {"AMBI 2", FAM_TRK, SC_AMBI, GR_NONE, {AL_ON, AL_LEVEL, AL_REV, AL_TO}},
 #endif
 };
 #define NPAGES (sizeof(PAGES) / sizeof(PAGES[0]))
 static uint8_t mod_ui_slot;      /* the MOD page: the matrix slot (0..3) KNOB 2..4 edit */
 
+static int16_t *chfx_val(uint32_t id);              /* (Fantasma 2.0: chfx.c) */
+static const param_desc_t *chfx_pdesc(uint32_t id);
 static const param_desc_t *page_desc(const page_t *pg, uint32_t slot, int16_t **valp)
 {
     uint32_t id = pg->id[slot];
@@ -565,6 +569,10 @@ static const param_desc_t *page_desc(const page_t *pg, uint32_t slot, int16_t **
     if (pg->scope == SC_GLOBAL) {
         *valp = &song.g[id];
         return &GP[id];
+    }
+    if (pg->scope == SC_CHFX) {                       /* (Fantasma 2.0) the channel's delay and reverb (chfx.c) */
+        *valp = chfx_val(id);
+        return chfx_pdesc(id);
     }
 #if FELUCCA_AMBI
     if (pg->scope == SC_AMBI) {                       /* (Fantasma 2.0) the ambience layer */

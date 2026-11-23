@@ -199,6 +199,13 @@ static void ui_power_on(void)
 #if FELUCCA_AMBI
     al_init();                                    /* (Fantasma 2.0) the ambience layer, as main.c felucca_init */
 #endif
+    {   /* (Fantasma 2.0) the channels' delays and reverbs (chfx.c): BUS here, as the tests were made with (main.c: CHAN) */
+        int16_t v[CF_N];
+        chfx_init();
+        chfx_defaults(v, 0);
+        chfx_put(v);
+        cf.drun = 0;
+    }
     for (i = 0; i < G_COUNT; i++)
         song.g[i] = GP[i].def;
     song.g[G_BPM] = 120;                          /* (the tests count in 120 BPM; power-on is 30) */

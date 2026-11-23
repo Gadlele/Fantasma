@@ -92,7 +92,7 @@ static int mom_turn(uint32_t k, int32_t s)
         d = &TP[MIX_ID[k & 3u]];
     } else {
         if (act_cols() || lock_held() || !(pg->scope == SC_TRACK || pg->scope == SC_ENGINE || pg->scope == SC_GLOBAL ||
-                                          pg->scope == SC_AMBI) ||
+                                          pg->scope == SC_AMBI || pg->scope == SC_CHFX) ||
             pg->graph == GR_EVENTS || pg->graph == GR_SONG || pg->graph == GR_BROWSE || pg->graph == GR_USER ||
             pg->graph == GR_PATS || pg->graph == GR_AMBI || (pg->graph == GR_SLICES && k < 2u) || (pg->graph == GR_MOD && k == 0u))
             return 0;
@@ -1109,7 +1109,7 @@ static void edit_param(uint32_t slot, int32_t steps)
         return;
     }
     *vp = (int16_t)v;
-    if (pg->scope != SC_GLOBAL && pg->scope != SC_AMBI) {
+    if (pg->scope != SC_GLOBAL && pg->scope != SC_AMBI && pg->scope != SC_CHFX) {
         motion_capture(TSEL, (uint32_t)(vp - TSEL->p), *vp);
         ml_knob(TSEL, (uint32_t)(vp - TSEL->p));        /* (MIDI LEARN: picked) */
     }
@@ -1560,6 +1560,22 @@ static void ui_notices(void)
     }
 }
 
+/* (Fantasma 2.0, chfx.c) */
+/* the UI pass: a delay mode changed: the line cleared (the bus's and the lanes' share it), then the new one runs */
+static void chfx_poll(void)
+{
+    if ((uint8_t)cf.mode[0] != cf.drun) {
+        uint8_t m = (uint8_t)(cf.mode[0] != 0);
+        fm1_irq_off();
+        cf.drun = 2u;                                    /* (neither runs while it clears) */
+        fm1_irq_on();
+        memset(dly_buf, 0, sizeof dly_buf);
+        memset(cd, 0, sizeof cd);
+        fx.dly_lp = 0;
+        cf.drun = m;
+    }
+}
+
 static void ui_input(void)
 {
     uint32_t pressed = fm1_input_edges(0), notes = fm1_input_note_edges(), now = fm1_ticks(), id, b, k;
@@ -1572,6 +1588,7 @@ static void ui_input(void)
     midi_pc_poll();                                     /* MIDI Program Change (before fm6_poll: a bank voice) */
     fm6_poll();                                         /* FM6: PTCH turned -> its patch */
     dg_poll();                                          /* (Fantasma 2.0) the DRUMS' MUTATE, on its loops */
+    chfx_poll();                                        /* (Fantasma 2.0) the channels' delays: a mode change */
 #if !FELUCCA_FM4
     for (k = 0; k < NTRK; k++)                          /* a DIGITAL sound any other way (the paths convert it */
         if (trk[k].eng_req == ENGI_DIGITAL)             /* already): FM6 (fm4_convert.c) */

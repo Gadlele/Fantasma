@@ -41,6 +41,8 @@ bell_render 62
 drone_render 793
 go_render 1639
 chime_render 90
+chfx_delays 384
+chfx_reverb 665
 gen_step 285
 prog_step 212
 gen_free 178

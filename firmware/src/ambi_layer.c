@@ -6,10 +6,11 @@
  *   AMBI     SCENE (an AMBI sound: SEA .. VHS HISS, then the layer's own five), TONE (darker / brighter: the filter
  *            and the noise's colour together), MOTION (how much and how fast it swells; 0: the scene's own),
  *            INTENS (a scene with crackles: how many; a bed: how heavy; 0: the scene's own)
- *   AMBI 2   AMBI (OFF / ON: it fades in and out over about a second), LEVEL, REVERB
+ *   AMBI 2   AMBI (OFF / ON: it fades in and out over about a second), LEVEL, REVERB, TO (with the reverbs a channel's
+ *            own, chfx.c: which one it sends to)
  * Saved with the project (project.c: the FANTASMA 2 block), not as a track's parameters. The values are the editor's
  * and the knobs' (al.v); the render reads them once a block */
-enum { AL_SCENE, AL_TONE, AL_MOTION, AL_INTENS, AL_ON, AL_LEVEL, AL_REV, AL_N };
+enum { AL_SCENE, AL_TONE, AL_MOTION, AL_INTENS, AL_ON, AL_LEVEL, AL_REV, AL_TO, AL_N };
 
 /* the layer's own scenes after the engine's (COLR FREQ RES SWELL CRKL POP RATE BAL, as AMBI_PRESETS) */
 static const int8_t AL_EXTRA[][8] = {
@@ -25,6 +26,7 @@ static const char *const N_ALSCENE[] = {"SEA", "SURF", "STORM", "WIND", "STREAM"
                                         "THUNDER", "BREATH", "NIGHT", "EMBERS", "TAPE END", 0};
 _Static_assert(NELEM(N_ALSCENE) == AL_NSCENE + 1u, "a name a scene");
 static const char *const N_ALON[] = {"OFF", "ON", 0};
+static const char *const N_ALTO[] = {"DRONE", "PAD", "BELLS", "DRUMS", 0};
 static const param_desc_t AL_P[AL_N] = {
     {"SCENE", F_ENUM, 0, (int16_t)(AL_NSCENE - 1u), 0, N_ALSCENE, 0},
     {"TONE", F_BIPCT, -64, 63, 0, 0, 0},
@@ -33,6 +35,7 @@ static const param_desc_t AL_P[AL_N] = {
     {"AMBI", F_ENUM, 0, 1, 0, N_ALON, 0},
     {"LEVEL", F_PCT, 0, 127, 90, 0, 0},
     {"REVERB", F_PCT, 0, 127, 70, 0, 0},
+    {"TO", F_ENUM, 0, 3, 0, N_ALTO, 0},       /* (FX CHAN: which channel's reverb REVERB sends to; BUS: the bus's) */
 };
 
 static struct {

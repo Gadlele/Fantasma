@@ -1680,6 +1680,11 @@ static void ambient_random(void)
     song.g[G_RTYPE] = 3;                                        /* the reverb: AMBI, SIZE 100, DAMP 0 */
     song.g[G_RSIZE] = 127;
     song.g[G_RDAMP] = 0;
+    for (ti = 0; ti < 3u; ti++) {                               /* (2.0) the channels' own reverbs (CHAN): big spaces, */
+        cf.v[ti][CF_SIZE] = (int16_t)(105u + rng() % 18u);       /* a little shimmer now and then */
+        cf.v[ti][CF_DAMP] = (int16_t)(30u + rng() % 40u);
+        cf.v[ti][CF_SHIM] = (int16_t)(ti && rng() % 2u ? 15u + rng() % 40u : 0u);
+    }
     trk[3].p[P_ROOT] = (int16_t)root;                           /* DRUMS: only ROOT and SCALE */
     trk[3].p[P_SCALE] = (int16_t)scale;
     ui_message("AMBIENT MACHINE");

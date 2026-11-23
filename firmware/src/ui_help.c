@@ -26,7 +26,9 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"INSERT 2", "[K1]DRY / WET[FX]DLY"},
     {"DLY", "[K1-4]ALL TRACKS[FX]REVERB"},
     {"REVERB", "[K1]ROOM SPRING HALL[FX]CHORUS"},
-    {"CHORUS", "[K1-4]ALL TRACKS[FX]FX"},
+    {"CHORUS", "[K1-4]ALL TRACKS[FX]CH DELAY"},
+    {"CH DELAY", "[K1]TIME[K4]CHAN BUS[FX]CH REVERB"},   /* (Fantasma 2.0, chfx.c) */
+    {"CH REVERB", "[K3]SHIMMER[K4]CHAN BUS[FX]FX"},
     {"SCL", "[K2]SCALE[K3]QUANTIZE[SCL]CHORDS"},
     {"CHORD", "[K1]CHORD[KEYS]ONE FINGER[SCL]SCL"},
     {"EDIT 1", H_EDIT},
@@ -57,7 +59,7 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]CLOCK"},
     {"CLOCK", "[SELECT]TEMPO[GLO]HOLD: TAP"},
     {"AMBI", "[K1]SCENE[K2]TONE[HOME]AMBI 2"},   /* (Fantasma 2.0: the ambience layer) */
-    {"AMBI 2", "[K1]ON[K2]LEVEL[K3]REVERB"},
+    {"AMBI 2", "[K1]ON[K3]REVERB[K4]TO"},
 };
 #define H_HOME "[PRESETS]SOUND[HOME]HOLD: MENU"
 #define H_LEVELS "[K1-4]T1-T4 LEVEL[HOME]MIXER"

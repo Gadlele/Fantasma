@@ -346,6 +346,19 @@ EUCLID and MUTATE, **OCT+ is DICE** (a new pattern at random) and **OCT- goes ba
 is one undo (SAVE held); the kick on step 1 always stays. A kit change keeps these settings. Ambient kits: SOFT KIT,
 DUST KIT, TAPE KIT, DUB KIT, WOOD KIT, CLICK KIT.
 
+**Each channel its effects** (Fantasma 2.0). FX › **CH DELAY** and **CH REVERB** edit the selected channel's:
+- **CH DELAY**: **TIME** (the note values of the delay: 1/4 .. 4BAR, dotted), **FDBK**, **TONE** (how dark the
+  repeats get), and **DLY** (the project's: **CHAN** each track its own delay, **BUS** one for all, as in 1.x). Each
+  channel's delay holds 1.5 s; it runs at a quarter of the rate, so its repeats are dark, as a tape's, with a slow
+  wow.
+- **CH REVERB**: **SIZE** (0.3 s to a minute; 127 holds the sound), **DAMP**, **SHIMMR** (the tail an octave up, fed
+  back in: it rises and shines; DRONE, PAD and BELLS), and **REV** (**CHAN** each its own reverb, **BUS** the one of
+  FX › REVERB, ROOM SPRING HALL AMBI). DRUMS' reverb is a room, at most ~10 s, no shimmer.
+- Each track's sends are FX's DLY and REV, as always; its **drive** is DIST and its **modulation** the INSERT
+  (PHASR, FLANG, CHOR; or another drive: SOFT HARD FOLD FUZZ CRUSH).
+- At power-on both are CHAN; a project of Fantasma 1.x loads as BUS and sounds as it did. HOME › AMBI 2's **TO** says
+  which channel's reverb the ambience goes to (CHAN).
+
 **AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
 LEVEL, REVERB) play an ambience under the four channels: the 13 AMBI scenes plus THUNDER, BREATH, NIGHT, EMBERS and
 TAPE END. It fades in and out over about a second and is saved with the project.
