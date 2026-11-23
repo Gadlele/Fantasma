@@ -443,6 +443,8 @@ static int page_visible(uint32_t i)
                                        (PAGES[i].id[0] == GO_OSC1 && PAGES[i].id[1] == GO_SUBTYP)))   /* FILTER, TONE
                                                                        * (Fantasma 2.0): GOLANA's */
         return TSEL->eng_req % NENGINES == ENGI_GOLANA;
+    if (PAGES[i].graph == GR_NONE && PAGES[i].id[0] == CH_ENV && PAGES[i].id[1] == CH_DTN)   /* TONE (2.0): CHIME's */
+        return TSEL->eng_req % NENGINES == ENGI_CHIME;
     if (PAGES[i].graph >= GR_FMOP && PAGES[i].graph <= GR_FMENV)
         return TSEL->eng_req % NENGINES == ENGI_FM6;
 #if FELUCCA_SLICE
@@ -534,7 +536,7 @@ static uint32_t home_id(const track_t *t, uint32_t k)
     k &= 3u;
     if (ti < 2u && !chord_kit(t))                     /* (Fantasma 2.0: DRONE and PAD) */
         return k == 0u ? e->knob[0] : k == 1u ? (uint32_t)P_ATK : k == 2u ? (uint32_t)P_REL : (uint32_t)P_REV;
-    if (ti == 2u && FELUCCA_BELL && t->eng_req == ENGI_BELL)
+    if (ti == 2u && gen_engine(eng_idx(t->eng_req)))   /* (BELL, CHIME) */
         return k == 0u ? (uint32_t)P_E4 : k == 1u ? (uint32_t)P_E5 : k == 2u ? (uint32_t)P_SCALE : (uint32_t)P_REV;
     return e->knob[k];
 }
@@ -1427,6 +1429,8 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         dr_filter_load(t, pi);
     if (t->eng_req % NENGINES == ENGI_GOLANA)         /* .. GOLANA: its FILTER and TONE pages, its LFO and voice */
         go_extra_load(t, pi);
+    if (t->eng_req % NENGINES == ENGI_CHIME)          /* .. CHIME: its TONE page */
+        ch_tone_load(t, pi);
     if (FELUCCA_BELL && t->eng_req % NENGINES == ENGI_BELL) {   /* Echoes' sounds: reverb 100 %, delay 50 % */
         t->p[P_REV] = 127;
         t->p[P_DLY] = 64;
@@ -1499,6 +1503,8 @@ static void clean_engine_of(track_t *t)
         dr_filter_load(t, 0xFFu);
     if (ei == ENGI_GOLANA)                            /* .. its FILTER and TONE */
         go_extra_load(t, 0xFFu);
+    if (ei == ENGI_CHIME)                             /* .. its TONE */
+        ch_tone_load(t, 0xFFu);
     fm1_irq_on();
     if (ei == ENGI_FM6) {                             /* the init voice as the track's own patch (SLOT: OWN) */
         uint8_t v[FP_SIZE + 1u];
@@ -1629,7 +1635,7 @@ static void ambient_random(void)
             t->p[P_PLEN] = (int16_t)(2u + rng() % 3u);
             t->p[P_PEV] = (int16_t)(3u + rng() % 6u);
             t->p[P_PSEED] = (int16_t)(rng() % 128u);
-        } else if (FELUCCA_BELL && e == ENGI_BELL) {            /* BELLS: the bells play by themselves */
+        } else if (gen_engine(e)) {                            /* BELLS: the bells play by themselves (CHIME, BELL) */
             t->p[P_E4] = (int16_t)(20u + rng() % 11u);
             t->p[P_E5] = (int16_t)(15u + rng() % 36u);
             t->p[P_E6] = (int16_t)(1u + rng() % 2u);
@@ -1662,7 +1668,7 @@ static void ambient_stop(void)
 {
     track_t *t = &trk[0];
     trk[1].p[P_PDEN] = 0;
-    if (FELUCCA_BELL && eng_idx(trk[2].eng_req) == ENGI_BELL)
+    if (gen_engine(eng_idx(trk[2].eng_req)))
         trk[2].p[P_E4] = 0;
     if (t->p[P_REL] >= 127)
         t->p[P_REL] = 64;

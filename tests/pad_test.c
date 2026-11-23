@@ -20,7 +20,7 @@ int main(void)
     for (e = 0; e < NENGINES; e++) {                          /* each channel its one engine */
         CHK(eng_allowed(0, e) == (e == ENGI_DRONE));
         CHK(eng_allowed(1, e) == (e == ENGI_GOLANA));
-        CHK(eng_allowed(2, e) == (e == ENGI_BELL));
+        CHK(eng_allowed(2, e) == (e == ENGI_CHIME));
         CHK(eng_allowed(3, e) == (e == ENGI_DRUM));
     }
     for (k = 0; k < ENGINES[ENGI_GOLANA]->npresets; k++)      /* PAD: every GOLANA sound, pads and leads */
@@ -77,8 +77,30 @@ int main(void)
         apply_preset_to(t, 0);
         song.sel = 0;
     }
+    {   /* CHIME's TONE page, on a CHIME track only; each sound sets it; its GEN is BELL's generator */
+        uint32_t pg, seen = 0;
+        track_t *t = &trk[2];
+        int16_t *vp;
+        song.sel = 2;
+        set_engine_of(t, ENGI_CHIME);
+        apply_preset_to(t, 3);                                /* BOWL */
+        CHK(str_eq(track_desc(t, CH_ENV)->label, "ENV") && str_eq(track_desc(t, CH_BREATH)->label, "BREATH") &&
+            t->p[CH_BREATH] == CH_TONEV[3][2] && t->p[CH_TONE] == CH_TONEV[3][3]);
+        for (pg = 0; pg < NPAGES; pg++)
+            if (page_visible(pg) && PAGES[pg].scope == SC_TRACK && page_desc(&PAGES[pg], 0, &vp) == &CH_P[0])
+                seen++;
+        CHK(seen == 1u && home_id(t, 0) == P_E4 && home_id(t, 1) == P_E5);   /* HOME: DENS EVOLVE SCL REV, as BELL's */
+        t->p[P_E4] = 30;
+        CHK(gen_on(t));
+        t->p[P_E4] = 0;
+        CHK(!gen_on(t));
+        clean_engine_of(t);
+        CHK(t->p[CH_ENV] == CH_P[0].def && t->p[CH_TONE] == CH_P[3].def);
+        apply_preset_to(t, 0);
+        song.sel = 0;
+    }
     CHK(TRK_DEF[0][0] == ENGI_DRONE && TRK_DEF[0][1] == 0u && TRK_DEF[1][0] == ENGI_GOLANA && TRK_DEF[1][1] == 0u &&
-        TRK_DEF[2][0] == ENGI_BELL && TRK_DEF[3][0] == ENGI_DRUM);   /* the power-on sounds (main.c; the tests' own differ) */
+        TRK_DEF[2][0] == ENGI_CHIME && TRK_DEF[3][0] == ENGI_DRUM);   /* the power-on sounds (main.c; the tests' own differ) */
     for (ti = 0; ti < 4u; ti++)                               /* (each channel on its own engine, as the power-on) */
         if (!eng_allowed(ti, trk[ti].eng_req)) {
             set_engine_of(&trk[ti], TRK_DEF[ti][0]);
@@ -88,7 +110,7 @@ int main(void)
     for (ti = 0; ti < 4u; ti++) {                             /* PRESETS: each channel's own list, exactly */
         song.sel = (uint8_t)ti;
         CHK(preset_pos(&total) <= total);
-        CHK(total == ENGINES[ti == 0u ? ENGI_DRONE : ti == 1u ? ENGI_GOLANA : ti == 2u ? ENGI_BELL : ENGI_DRUM]->npresets);
+        CHK(total == ENGINES[ti == 0u ? ENGI_DRONE : ti == 1u ? ENGI_GOLANA : ti == 2u ? ENGI_CHIME : ENGI_DRUM]->npresets);
         for (n = 0; n < total; n++) {
             uint32_t kk, ee = preset_at(n, &kk);
             CHK(eng_allowed(ti, ee) && part_preset_ok(ti, ee, kk));
@@ -100,7 +122,7 @@ int main(void)
         CHK(trk[0].eng_req == ENGI_DRONE && part_preset_ok(0, ENGI_DRONE, trk[0].preset) && trk[0].p[P_REL] == 127 && noise_inf(&trk[0]));
         CHK(trk[1].eng_req == ENGI_GOLANA && part_preset_ok(1, ENGI_GOLANA, trk[1].preset) && trk[1].p[P_VOICE] == V_POLY &&
             trk[1].p[P_PDEN] > 0);
-        CHK(trk[2].eng_req == ENGI_BELL && trk[2].p[P_E4] > 0);
+        CHK(trk[2].eng_req == ENGI_CHIME && trk[2].p[P_E4] > 0);
         CHK(al.v[AL_ON] == 1 && al.v[AL_SCENE] < (int16_t)AL_NSCENE);
         CHK(trk[3].eng_req == ENGI_DRUM && trk[3].p[P_ROOT] == trk[0].p[P_ROOT] && trk[3].p[P_SCALE] == trk[0].p[P_SCALE]);
     }

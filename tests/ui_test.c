@@ -852,6 +852,8 @@ static int test_midi(void)
         int ok;
         ui_power_on();
         song.sel = 2;
+        set_engine_of(TSEL, ENGI_CHIME);                 /* (Fantasma 2.0: T3 BELLS browses CHIME's; on it already, so */
+        TSEL->engine = TSEL->eng_req;                    /* no engine switch delays the note below) */
         go_page(GR_BROWSE);
         e3 = TSEL->eng_req; p3 = TSEL->preset;
         e1 = trk[0].eng_req; p1 = trk[0].preset;
@@ -4058,7 +4060,7 @@ static int test_ambient(void)
         scales |= 1u << pad->p[P_SCALE];
         seen_root |= 1 << pad->p[P_ROOT];
         engs |= 1u << pad->eng_req;
-        eng_ok_ &= eng_allowed(1, pad->eng_req) && eng_allowed(0, dr->eng_req) && pad->eng_req != ENGI_DRUM && (!FELUCCA_BELL || ech->eng_req == ENGI_BELL);
+        eng_ok_ &= eng_allowed(1, pad->eng_req) && eng_allowed(0, dr->eng_req) && pad->eng_req != ENGI_DRUM && ech->eng_req == ENGI_CHIME;   /* (2.0: BELLS plays CHIME) */
         gen_ok &= pad->p[P_PDEN] > 0 && pad->p[P_PLEN] >= 0 && pad->p[P_PLEN] <= 8 && pad->p[P_VOICE] == V_POLY &&
                   pad->p[P_REV] >= 50 && ech->p[P_REV] >= 50 && !pad->p[P_MUTE] && !ech->p[P_MUTE] &&
                   dr->p[P_REL] == 127 && al.v[AL_ON] == 1;
@@ -4283,7 +4285,8 @@ static int test_quick_layers(void)
     btn_up(B_EDIT); frame();
     bad += check("  every engine one can pick has its white key from F3 (NENG_SHOWN, not a fixed count; never DIGITAL)",
                  ok && a == eng_count_for(song.sel) - (FELUCCA_ADPCM && eng_allowed(song.sel, ENGI_ADPCM)) -
-                           eng_allowed(song.sel, ENGI_DRONE) - eng_allowed(song.sel, ENGI_GOLANA));   /* (ADPCM, DRONE, GOLANA:
+                           eng_allowed(song.sel, ENGI_DRONE) - eng_allowed(song.sel, ENGI_GOLANA) -
+                           eng_allowed(song.sel, ENGI_CHIME));   /* (ADPCM, DRONE, GOLANA:
                                                                                                     * no key) */
     set_engine_of(TSEL, 0);
     lay_combo(B_EDIT, white(eng_rank(2))); key_up(white(eng_rank(2))); frame();
@@ -5277,10 +5280,10 @@ static int test_fm4_retired(void)
     bad += check("PRESETS KNOB 2: the engines in order, DIGITAL skipped, back to the first (Pad: no bells, no noises)",
                  seen == (all & ~(1u << ENGI_NOISE) & ~(FELUCCA_BELL ? 1u << ENGI_BELL : 0u) & ~(FELUCCA_AMBI ? 1u << ENGI_AMBI : 0u)) &&
                  TSEL->eng_req == 0u && eng_step(0, 1) == ENGI_FM6 && eng_step(ENGI_FM6, 1) == 2u &&
-                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_GOLANA));
+                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_CHIME));
     {   /* the display order (engines.c ENGINE_ORDER): every engine one can pick once; the PRESETS list follows it */
         static const char *const ORDER[] = {"ANALOG", "FM6", "PHASE", FELUCCA_LOFI ? "LOFI" : "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
-                                            "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM", "DRONE", "GOLANA",
+                                            "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM", "DRONE", "GOLANA", "CHIME",
 #if FELUCCA_ADPCM
                                             "ADPCM",
 #endif
@@ -6033,20 +6036,20 @@ static int test_part_sounds(void)
     bad += check("part sounds: Pad and Lead list every engine but the bells and the noises", ok);
     if (FELUCCA_BELL) {
         song.sel = 2;
-        set_engine_of(TSEL, ENGI_BELL);
+        set_engine_of(TSEL, ENGI_CHIME);                  /* (Fantasma 2.0: BELLS plays CHIME) */
         preset_pos(&total);
         memset(seen, 0, sizeof seen);
         for (i = 0; i < total; i++) {
             e = preset_at(i, &k);
-            ok &= e < NENGINES && e == ENGI_BELL && k < ENGINES[e]->npresets;
+            ok &= e < NENGINES && e == ENGI_CHIME && k < ENGINES[e]->npresets;
         }
-        bad += check("part sounds: Echoes lists the bells only", ok && total == preset_shown(ENGI_BELL) && total < all);
+        bad += check("part sounds: BELLS lists CHIME's only", ok && total == preset_shown(ENGI_CHIME) && total < all);
         for (i = 0; i < total + 2u; i++)
             preset_step(1);
-        ok = TSEL->eng_req == ENGI_BELL;
-        select_engine(eng_step_for(2, ENGI_BELL, 1));
-        ok &= eng_step_for(2, ENGI_BELL, 1) == ENGI_BELL && eng_step_for(2, ENGI_BELL, -1) == ENGI_BELL;
-        bad += check("part sounds: Echoes stays on BELL (PRESETS and the ENG knob)", ok && TSEL->eng_req == ENGI_BELL);
+        ok = TSEL->eng_req == ENGI_CHIME;
+        select_engine(eng_step_for(2, ENGI_CHIME, 1));
+        ok &= eng_step_for(2, ENGI_CHIME, 1) == ENGI_CHIME && eng_step_for(2, ENGI_CHIME, -1) == ENGI_CHIME;
+        bad += check("part sounds: BELLS stays on CHIME (PRESETS and the ENG knob)", ok && TSEL->eng_req == ENGI_CHIME);
     }
     song.sel = 3;                                       /* (Fantasma 2.0: DRUMS) */
     set_engine_of(TSEL, ENGI_DRUM);
@@ -6097,9 +6100,9 @@ static int test_roles(void)
     /* the parts at power-on (TRK_DEF, main.c; Fantasma 2.0): DRONE's DRONE, ANALOG's WARM PAD, the bells, a kit */
     ok = TRK_DEF[0][0] == ENGI_DRONE && str_eq(ENGINES[ENGI_DRONE]->presets[TRK_DEF[0][1]].name, "DRONE") &&
          TRK_DEF[1][0] == ENGI_GOLANA && str_eq(ENGINES[ENGI_GOLANA]->presets[TRK_DEF[1][1]].name, "SOFT PAD") &&
-         TRK_DEF[2][0] == (FELUCCA_BELL ? ENGI_BELL : 0) && TRK_DEF[3][0] == ENGI_DRUM &&
+         TRK_DEF[2][0] == ENGI_CHIME && TRK_DEF[3][0] == ENGI_DRUM &&
          TRK_DEF[3][2] == 0 && str_eq(PATTERNS[13].name, "DRONE") && trk[3].step[0].time == ST_REST;
-    bad += check("  power-on parts: DRONE's DRONE, GOLANA's SOFT PAD, the bells, a kit, its steps empty", ok);
+    bad += check("  power-on parts: DRONE's DRONE, GOLANA's SOFT PAD, CHIME's GLASS, a kit, its steps empty", ok);
     {   /* the DRUMS track starts with empty steps (the DRONE pattern is still in SAVE > PHRASES for whoever wants it) */
         track_t *t = &trk[3];
         uint32_t i;

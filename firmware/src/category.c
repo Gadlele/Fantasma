@@ -19,7 +19,7 @@ static uint32_t cat_of_engine(uint32_t e) { return e == 10u || (e == 13u && FELU
  * L LEAD, P PAD, U PLUCK, K KEYS, D DRUM, F FX, O OTHER); a preset past its string (DIGITAL's, FELUCCA_FM4 builds
  * only; SAMPLE's retired PERC, past SMP_NPRESETS): its engine's (cat_of_engine). tests/ui_test.c checks every string
  * against its engine's preset count. A preset's category is a hint for browsing: nothing else reads it */
-static const char *const PRESET_CAT[17] = {
+static const char *const PRESET_CAT[18] = {
     "LPBPBKLBULLPPPPPPPPPPPPLLLLPL",       /* 0 ANALOG: SAW LEAD, SOFT PAD, SQR BASS, PWM STR, ACID, SINE KEY, RAVE, SUB BASS,
                                   * PLUCK, BRASS, WIND, STRINGS, AIR, DRONE, GLASS PAD, SWELL, HAZE, MOON .. (1.1) NOSTALGIA, HAZY LEAD */
     "",                          /* 1 DIGITAL (retired) */
@@ -47,7 +47,8 @@ static const char *const PRESET_CAT[17] = {
     "PPPPPPPPPPPP",              /* 14 DRONE (Fantasma 2.0): DRONE, FIFTHS, OCTAVES, DEEP, HOLLOW, GLOW, TIDE, RUST, VESSEL, HUM,
                                   * WIND HUM, SHADOW */
     "PPPPPPPPPPLLLLLL",          /* 15 GOLANA (Fantasma 2.0): SOFT PAD .. GLASS PAD, GLIDE LEAD .. BREATH LEAD */
-    "LLBBKKPD",                  /* 16 ADPCM: SQUARE LEAD, PULSE LEAD, SAW BASS, SUB BASS, SOFT SINE, ORGAN, ECHO PAD,
+    "UUUUUUUUUUUUUU",            /* 16 CHIME (Fantasma 2.0): GLASS .. RING MOD */
+    "LLBBKKPD",                  /* 17 ADPCM: SQUARE LEAD, PULSE LEAD, SAW BASS, SUB BASS, SOFT SINE, ORGAN, ECHO PAD,
                                   * NOISE HAT */
 };
 static uint32_t preset_cat(uint32_t e, uint32_t k)    /* factory preset k of engine e */

@@ -40,9 +40,10 @@ ambi_render 216
 bell_render 62
 drone_render 793
 go_render 1639
+chime_render 90
 gen_step 285
 prog_step 212
-gen_free 142
+gen_free 178
 fm1_alnk0_irq 6989
 fm1_timer5_irq 17372
 click_render 30

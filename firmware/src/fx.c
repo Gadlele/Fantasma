@@ -910,6 +910,7 @@ static const uint16_t ENG_VCOST[NENGINES] = {163, FELUCCA_FM4 ? 181 : 0, 162, 67
 #endif
                                              205,      /* DRONE (Fantasma 2.0; an estimate: its loop costs 1.25 x ANALOG's, tests/target_budget.txt) */
                                              245,      /* GOLANA (Fantasma 2.0; an estimate: ~1.5 x ANALOG's, as in Golana) */
+                                             120,      /* CHIME (Fantasma 2.0; an estimate: two or three sines, as BELL's) */
 #if FELUCCA_ADPCM
                                              168,      /* ADPCM (ORGAN, 1693 instructions / sample at 8 notes) */
 #endif

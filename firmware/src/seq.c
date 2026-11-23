@@ -107,10 +107,12 @@ static int32_t song_key(uint32_t k)
     return k < 10u ? S[k] : -1;
 }
 
-/* BELL's generator is on (Fantasma; below): a track on BELL with DENS above 0 */
+/* BELL's generator is on (Fantasma; below): a track on BELL or (2.0) CHIME, whose GEN pages are the same, with DENS
+ * above 0 */
+static inline uint32_t gen_engine(uint32_t e) { return (FELUCCA_BELL && e == ENGI_BELL) || e == ENGI_CHIME; }
 static inline uint32_t gen_on(const track_t *t)
 {
-    return FELUCCA_BELL && eng_idx(t->eng_req) == ENGI_BELL && t->p[P_E4] > 0;
+    return gen_engine(eng_idx(t->eng_req)) && t->p[P_E4] > 0;
 }
 
 /* The garden (Fantasma, after AMB-1): while a track's generator is on its keys do not play, each one turns its pitch

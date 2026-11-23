@@ -27,6 +27,10 @@ static uint8_t *fav_bit(uint32_t engine, uint32_t preset, uint8_t *mask)   /* th
         *mask = (uint8_t)(1u << (preset % 8u));
         return &favorites.factory[13][26u + preset / 8u];
     }
+    if (engine == ENGI_CHIME && preset < 16u) {     /* .. CHIME's after them (bytes 28, 29) */
+        *mask = (uint8_t)(1u << (preset % 8u));
+        return &favorites.factory[13][28u + preset / 8u];
+    }
 #if FELUCCA_ADPCM
     if (engine == ENGI_ADPCM && preset < 8u) {
         *mask = (uint8_t)(1u << preset);
