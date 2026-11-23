@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* The Pad's chord progression (Fantasma; seq.c prog_step): with DENS above 0 track 1 plays chords of its ROOT / SCALE by
+/* The Pad's chord progression (Fantasma; seq.c prog_step): with DENS above 0 track 2 (Fantasma 2.0: PAD; 1.x: track 1) plays chords of its ROOT / SCALE by
  * itself instead of its steps (EVOLVE chords to choose between: 4 = I IV V vi, up to 8 with ii iii vii and a bVII; BARS 0 =
  * RND). Checks: DENS 0 plays the steps as ever; the chords are the diatonic triads of the
  * scale (major and minor), only on I IV V vi, I the most often; each is struck once and held for BARS x 16 steps; DENS
@@ -18,7 +18,7 @@ static uint32_t play(uint32_t dens, uint32_t bars, uint32_t scale, uint32_t root
     track_t *t;
     uint32_t b, steps = 0, tot = 0;
     ui_power_on();
-    t = &trk[0];
+    t = &trk[1];                                     /* (Fantasma 2.0: PAD, part 2) */
     track_defaults_steps(t);
     t->engine = t->eng_req = 0;
     t->p[P_VOICE] = V_POLY; t->p[P_VOIC] = VC_CLOSE; t->p[P_CHRD] = 0;
@@ -29,9 +29,9 @@ static uint32_t play(uint32_t dens, uint32_t bars, uint32_t scale, uint32_t root
     memset(at_step, 0, sizeof at_step); memset(cn, 0, sizeof cn);
     seq_start();
     for (b = 0; steps < NSTEPS && b < 40000000u; b++) {
-        uint32_t v0 = vage, before = prog_c[0];
+        uint32_t v0 = vage, before = prog_c[1];
         seq_tick(t, CTL);
-        if (prog_c[0] != before && steps < NSTEPS) steps++;
+        if (prog_c[1] != before && steps < NSTEPS) steps++;
         if (v0 != vage && steps && steps <= NSTEPS) {
             uint32_t i;
             at_step[steps - 1] = (uint8_t)t->seq_n;
@@ -136,7 +136,7 @@ int main(void)
         track_t *t;
         uint32_t b, struck = 0, v0;
         ui_power_on();
-        t = &trk[0];
+        t = &trk[1];                                     /* (Fantasma 2.0: PAD, part 2) */
         t->engine = t->eng_req = 0;
         t->p[P_VOICE] = V_POLY; t->p[P_PDEN] = 100; t->p[P_PLEN] = 1; t->p[P_PEV] = 4;
         song.g[G_CLOCK] = 0; song.g[G_BPM] = 120;

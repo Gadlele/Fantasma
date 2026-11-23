@@ -11,6 +11,15 @@ fixes, a new **X** may change how things are saved.
   the palettes and the tempo from 30 BPM stay.
 - Projects of Fantasma 1.x load; a project now keeps up to 122 knob movements (128 before: the six last of a
   full one are let go), to make room for the new parameters.
+- **Four channels, one engine each**: **DRONE** (part 1: for now ANALOG's long, still sounds, REL at its top
+  is INF, a note that never stops), **PAD** (part 2: ANALOG's pads and soft leads, with the chord progression),
+  **BELLS** (part 3: BELL and the bells generator) and **DRUMS** (part 4: DRUM). DRONE's and PAD's own engines come
+  in the next steps.
+- **AMBI is no longer a part**: HOME › AMBI and AMBI 2 switch an ambience on under the four channels (SCENE, TONE,
+  MOTION, INTENS, LEVEL, REVERB), with five new scenes: THUNDER, BREATH, NIGHT, EMBERS, TAPE END. Saved with the
+  project.
+- The ambient machine plays the four channels: a DRONE note at INF, PAD's progression, the bells, and the
+  ambience on; OCT- STOP lets them all go.
 
 ## 1.1 — 2026-10-16
 

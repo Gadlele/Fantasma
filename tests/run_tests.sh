@@ -313,9 +313,9 @@ if [ -f build/gen/felucca_tables.h ]; then
         -o "$OUT/noise_inf_ovf" tests/noise_inf_test.c -lm
     run "AMBI's noise with no signed overflow (1.0: its pink pole wrapped, a click on the device) (UBSan)" "$OUT/noise_inf_ovf"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/noise_on_test" tests/noise_on_test.c -lm
-    run "Noise always on: keeps sounding at INF through new sounds and cuts" "$OUT/noise_on_test"
+    run "DRONE always on (2.0; the Noise in 1.x): keeps sounding at INF through new sounds and cuts" "$OUT/noise_on_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/pad_test" tests/pad_test.c -lm
-    run "Pad: its six engines and 33 polyphonic sounds, the list, the ambient machine" "$OUT/pad_test"
+    run "the four channels (2.0): DRONE PAD BELLS DRUMS, one engine each, their lists, the ambient machine" "$OUT/pad_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/ratchet_test" tests/ratchet_test.c -lm
     run "RATCH: x1..x4 in a step (notes, chords, drum hits), gates, chance, swing, projects, user presets, AUTOMATION RATCH rows" "$OUT/ratchet_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/step15_test" tests/step15_test.c -lm

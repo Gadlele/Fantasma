@@ -1208,10 +1208,11 @@ static void engine_columns(void)
     draw_column(3, "", "", "", T_THEME, -1, ICON_NONE);
 }
 
-/* Fantasma: AMBI with REL at its top never lets go (voice.c): the card says INF where it said ~10 s */
+/* Fantasma: DRONE (2.0; 1.x: AMBI) with REL at its top never lets go (voice.c): the card says INF where it said ~10 s */
 static void rel_inf(const int16_t *vp, char *val, const char **unit)
 {
-    if (FELUCCA_AMBI && vp == &TSEL->p[P_REL] && *vp >= 127 && !TSEL->p[P_ESYNC] && eng_idx(TSEL->eng_req) == ENGI_AMBI) {
+    if (vp == &TSEL->p[P_REL] && *vp >= 127 && !TSEL->p[P_ESYNC] &&
+        (song.sel == 0u || (FELUCCA_AMBI && eng_idx(TSEL->eng_req) == ENGI_AMBI))) {
         str_cpy(val, "INF", 12);
         *unit = "";
     }

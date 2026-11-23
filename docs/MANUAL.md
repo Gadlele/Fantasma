@@ -290,15 +290,21 @@ Drum kits and incoming MIDI keep their own note mapping.
 Press **SCL** again for the **CHORD** page: CHRD picks the chord keys (OFF, the scale's triads or
 sevenths, or a fixed shape) and VOIC the voicing.
 
-**Parts** (Fantasma): the four tracks are named for what they play, **PAD, LEAD, ECHOES, NOISE**: HOME's footer shows the
-selected track's part, and the tracks' rows lead with it ("PAD / SOFT PAD"). HOME's four knobs follow the part: the **PAD**
-(track 1) has its sound's first knob, **ATK** (the swell in), **REL** (the tail out) and **REV** (the space); **ECHOES**
-(track 3, the BELL engine) has **DENS** and **EVOLVE** of the generator, then the **SCL** (the scale the bells are drawn from, on the track's ROOT, which is set on the SCL page: MAJ, MIN, DOR, PHRY, PEN ..; another scale starts the garden again from it) and the **REV** send (the delay is on its FX page); LEAD and NOISE keep
-their engine's own four. At power-on: the PAD is FM6 PAD (CHRD OFF: OMNI is one turn of SCL > CHORD away), the LEAD ANALOG SAW LEAD, ECHOES the bells,
-NOISE the AMBI sea, its steps empty (play a key, or use the ambient machine; REL at its top makes it endless).
+**Channels** (Fantasma 2.0): the four tracks are four channels, each with one engine: **DRONE** (track 1: ANALOG's long,
+still sounds for now; REL at its top is **INF**, a note that never stops and comes back if cut), **PAD** (track 2: ANALOG's
+pads and soft leads, with the chord progression: DENS, BARS, CHORDS, SEED), **BELLS** (track 3: BELL and its generator) and
+**DRUMS** (track 4: DRUM). PRESETS and the ENG knob stay on the channel's own sounds; another engine's key in EDIT says
+NOT FOR THIS PART. HOME's footer shows the selected channel. HOME's four knobs: DRONE and PAD the sound's first knob,
+**ATK**, **REL**, **REV**; BELLS **DENS**, **EVOLVE**, **SCL**, **REV**; DRUMS the kit's own four. At power-on: DRONE is
+ANALOG DRONE, PAD ANALOG WARM PAD, BELLS the bells, DRUMS a kit, the steps empty. DRONE's and PAD's own engines come
+in the next steps of 2.0.
 
-**A colour for each part** (Fantasma): the screen's theme colour follows the selected track: the palette's own for the PAD, its hue
-turned for the LEAD (warm), ECHOES (green) and NOISE (violet), whichever palette is chosen (the background, the text and the
+**AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
+LEVEL, REVERB) play an ambience under the four channels: the 13 AMBI scenes plus THUNDER, BREATH, NIGHT, EMBERS and
+TAPE END. It fades in and out over about a second and is saved with the project.
+
+**A colour for each part** (Fantasma): the screen's theme colour follows the selected track: the palette's own for DRONE, its hue
+turned for PAD (warm), BELLS (green) and DRUMS (violet), whichever palette is chosen (the background, the text and the
 accent stay). GREY and MONO have no hue and stay as they are.
 
 **The garden** (Fantasma, after [AMB-1](https://github.com/charlesvestal/fm1-amb)): on **ECHOES** (the BELL engine with DENS above 0)

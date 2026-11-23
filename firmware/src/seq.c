@@ -1038,13 +1038,13 @@ static void ambient_drone(track_t *t, uint32_t note)
  * as REL says), and at power-on REL is 64: nothing starts by itself */
 static inline int noise_inf(const track_t *t)
 {
-    return FELUCCA_AMBI && trk_index(t) == 3u && eng_idx(t->eng_req) == ENGI_AMBI && t->p[P_REL] >= 127 && !t->p[P_ESYNC];
+    return trk_index(t) == 0u && t->p[P_REL] >= 127 && !t->p[P_ESYNC];   /* (Fantasma 2.0: DRONE's; 1.x: the Noise's) */
 }
 static uint8_t noise_wait;
 static void noise_keep(track_t *t)
 {
     uint32_t i;
-    if (!noise_inf(t) || t->engine != ENGI_AMBI || kb_boot_hold) {
+    if (!noise_inf(t) || t->engine != t->eng_req || kb_boot_hold) {
         noise_wait = 0;
         return;
     }
@@ -1305,7 +1305,7 @@ static void gen_reset(gen_t *g, uint32_t seed)
  * SCALE (the diatonic triads, in the VOIC voicing), instead of reading its steps. Every BARS bars (16 steps each, at the
  * track's DIV) a chord is chosen, and it sounds with chance DENS (the rest are silence, the tail rings on). The chord is
  * struck once and held across the bars (ties), so a slow ATK swells and REL carries it into the next */
-#define PROG_TRACKS 1u
+#define PROG_TRACK 1u                       /* (Fantasma 2.0: PAD, part 2) */
 static uint16_t prog_c[NTRK];                      /* steps into the chord */
 static uint16_t prog_len[NTRK];                    /* .. of this many (0: a chord to choose) */
 static uint32_t prog_s[NTRK];                      /* the progression's own random state (SEED) */
@@ -1313,7 +1313,7 @@ static uint8_t prog_sd[NTRK];
 static uint8_t prog_deg[NTRK] = {0}, prog_play[NTRK], prog_new[NTRK];   /* prog_new: the first chord after a restart always sounds */
 static inline uint32_t prog_on(const track_t *t)
 {
-    return t->p[P_PDEN] > 0 && trk_index(t) < PROG_TRACKS && !chord_kit(t);
+    return t->p[P_PDEN] > 0 && trk_index(t) == PROG_TRACK && !chord_kit(t);
 }
 static void gen_restart(uint32_t k) { gen[k].ok = 0; prog_c[k] = 0; prog_len[k] = 0; prog_s[k] = 0; prog_play[k] = 0; prog_deg[k] = 0xFFu; prog_new[k] = 1; }
 static uint32_t prog_rand(uint32_t ti)               /* xorshift32: the same SEED is the same progression */
@@ -1837,7 +1837,7 @@ static void events_block(uint32_t n)
         seq_tick(&trk[i], seq_n);
         gen_free(&trk[i], n);                         /* (the generators' own clock: the transport stopped) */
     }
-    noise_keep(&trk[3]);                              /* (the Noise at INF is always on) */
+    noise_keep(&trk[0]);                              /* (Fantasma 2.0: DRONE at INF is always on) */
     if (cin_flush)
         cin_record();
     if (song.playing)

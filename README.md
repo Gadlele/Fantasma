@@ -41,7 +41,7 @@ noise of sea, rain or vinyl, and an Omnichord on the keys. In a neon skin, with 
 | **A Pad that writes chords** | DENS, BARS, CHORDS, SEED: a progression of its own in the key, never the same twice. |
 | **OMNI** | The black keys are chord buttons, the white keys strum. ENV makes it minor, LFO adds the seventh, OMNI H holds the chord. |
 | **AMBI reverb** | Tails from 7 s up to about 90 s. |
-| **Four parts** | PAD, LEAD, ECHOES and NOISE, each with its own colour and warm sounds made for it. |
+| **Four channels** (2.0, in progress) | DRONE, PAD, BELLS and DRUMS, one engine each, and the AMBI ambience under them. |
 | **The neon look** | The ECTO palette, an animated ghost at power-on, and one on the AMBIENT page. |
 | **Tape sounds (1.1)** | NOSTALGIA, HAZY LEAD, TAPE EP, FADED CHOIR, MUSIC BOX and VHS HISS, with a slow wow on the pitch, like a worn cassette. [Hear every sound](https://gadlele.github.io/Fantasma/#sounds). |
 

@@ -1967,11 +1967,11 @@ function makeMockDevice(opt = {}) {
     st.bank[slot] = snapshot(name);
     clearSteps(); st.p[29] = 16;
   });
-  /* the power-on sounds (engines.c TRK_DEF): FM6 PAD, ANALOG SAW LEAD, BELL THUMB, AMBI SEA */
-  [[1, 0, 0], [2, ENG.findIndex((e) => e.name === "BELL"), 0], [3, 3, 0], [0, FM6_E, 4]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); });
+  /* the power-on sounds (engines.c TRK_DEF; Fantasma 2.0): ANALOG DRONE, ANALOG WARM PAD, BELL THUMB, a DRUM kit */
+  [[1, 0, 18], [2, ENG.findIndex((e) => e.name === "BELL"), 0], [3, ENG.findIndex((e) => e.name === "DRUM"), 0], [0, 0, 13]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); });
   /* the device powers on with its sequencers empty (TRK_DEF suggests no pattern); the mock starts as a little demo
-     to look at: track 1 with the ACID pattern (as SAVE > PHRASES would load it), pads left, lead right; track 4
-     (AMBI SEA) empty, as on the device */
+     to look at: track 1 with the ACID pattern (as SAVE > PHRASES would load it), the pad left, the bells right; track 4
+     (the kit) empty, as on the device */
   st.sel = 0; loadPattern(0);
   st.tracks[1].p[39] = -24; st.tracks[2].p[39] = 20; st.tracks[2].p[0] = 92;
   const project = () => JSON.parse(JSON.stringify({ tracks: st.tracks, sel: st.sel, g: st.g, songRows: st.songRows }));

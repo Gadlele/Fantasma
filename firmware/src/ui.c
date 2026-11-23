@@ -526,7 +526,7 @@ static uint32_t home_id(const track_t *t, uint32_t k)
     const engine_t *e = ENGINES[t->eng_req % NENGINES];
     uint32_t ti = (uint32_t)(t - trk);
     k &= 3u;
-    if (ti == 0u && !chord_kit(t))
+    if (ti < 2u && !chord_kit(t))                     /* (Fantasma 2.0: DRONE and PAD) */
         return k == 0u ? e->knob[0] : k == 1u ? (uint32_t)P_ATK : k == 2u ? (uint32_t)P_REL : (uint32_t)P_REV;
     if (ti == 2u && FELUCCA_BELL && t->eng_req == ENGI_BELL)
         return k == 0u ? (uint32_t)P_E4 : k == 1u ? (uint32_t)P_E5 : k == 2u ? (uint32_t)P_SCALE : (uint32_t)P_REV;
@@ -1557,20 +1557,19 @@ static void select_engine(uint32_t e)
     ui.force = 1;
 }
 
-/* Fantasma: SEQ > AMBIENT, OCT+: the ambient machine. The Pad (part 1) and Echoes (part 3) are drawn anew: one ROOT and one
- * soft SCALE for both, each an engine of its own kinds (eng_allowed; no kit) and a sound of it, the Pad's progression (DENS,
- * BARS, EVOLVE, SEED) and Echoes' bells (DENS, EVOLVE, RANGE, SEED) switched on, slow attacks and long releases on the Pad,
- * some reverb and delay. The Noise (part 4) gets an AMBI sound of the drawn kind and one note of the scale that goes on for
- * good (REL at its top: voice.c). The generators run on their own clock (seq.c gen_free): nothing starts the transport. The
- * Lead gets the same ROOT and SCALE (nothing else: its sound is the player's), so it can be played along; the tempo and the global
- * reverb are the player's too: not touched */
+/* Fantasma: SEQ > AMBIENT, OCT+: the ambient machine. Fantasma 2.0: DRONE (part 1), PAD (part 2) and BELLS (part 3) drawn
+ * anew, one ROOT and one soft SCALE for the four channels, each a sound of its own list (part_preset_ok); DRONE one low
+ * note of the scale that goes on for good (REL at its top: voice.c, seq.c noise_keep), PAD's progression (DENS, BARS,
+ * EVOLVE, SEED) and BELLS' bells (DENS, EVOLVE, RANGE, SEED) switched on, slow attacks and long releases on DRONE and
+ * PAD, some reverb and delay; the AMBI layer a scene, on. The generators run on their own clock (seq.c gen_free):
+ * nothing starts the transport. DRUMS get the ROOT and SCALE only; the tempo is the player's: not touched */
 static void ambient_random(void)
 {
     static const uint8_t SCL[8] = {1, 2, 3, 4, 5, 6, 8, 9};      /* N_SCALE: MAJ MIN DOR MIX PEN MPEN PHRY LYD */
-    uint32_t root = rng() % 12u, scale = SCL[rng() % 8u], n;
+    uint32_t root = rng() % 12u, scale = SCL[rng() % 8u], ti;
     if (chain_busy()) { ui_message("STOP TO EDIT"); return; }
-    for (n = 0; n < 3u; n++) {
-        uint32_t ti = n == 0u ? 0u : n == 1u ? 2u : 3u, list[NENGINES], nl = 0, e, k, j, n2;
+    for (ti = 0; ti < 3u; ti++) {
+        uint32_t list[NENGINES], nl = 0, e, k, j, n2;
         track_t *t = &trk[ti];
         for (e = 0; e < NENGINES; e++)
             if (eng_ok(e) && eng_allowed(ti, e) && !ENGINES[e]->oneshot && !ENGINES[e]->keys && ENGINES[e]->npresets)
@@ -1579,41 +1578,44 @@ static void ambient_random(void)
             continue;
         e = list[rng() % nl];
         set_engine_of(t, e);
-        for (n2 = 0; n2 < 64u; n2++) {                          /* (the Pad only plays its own list) */
+        for (n2 = 0, j = 0; n2 < 64u; n2++) {                   /* (each channel plays its own list) */
             k = rng() % preset_shown(e);
             for (j = 0; preset_orig(ENGINES[e], j) != j || k--; j++)
                 ;
-            if (ti != 0u || pad_preset_ok(e, j))
+            if (part_preset_ok(ti, e, j))
                 break;
         }
-        if (ti == 0u && !pad_preset_ok(e, j))
-            for (j = 0; j + 1u < ENGINES[e]->npresets && !pad_preset_ok(e, j); j++)
+        if (!part_preset_ok(ti, e, j))
+            for (j = 0; j + 1u < ENGINES[e]->npresets && !part_preset_ok(ti, e, j); j++)
                 ;
         apply_preset_to(t, j);
         t->p[P_ROOT] = (int16_t)root;
         t->p[P_SCALE] = (int16_t)scale;
         t->p[P_MUTE] = 0;
-        if (ti != 3u && t->p[P_REV] < 50)
+        if (t->p[P_REV] < 50)
             t->p[P_REV] = (int16_t)(50u + rng() % 30u);
-        if (ti == 0u) {                                        /* the Pad: chords, poly, swelling, long */
+        if (ti < 2u) {                                         /* DRONE, PAD: swelling, long */
+            if (t->p[P_ATK] < 70)
+                t->p[P_ATK] = (int16_t)(70u + rng() % 30u);
+            if (t->p[P_REL] < 85)
+                t->p[P_REL] = (int16_t)(85u + rng() % 25u);
+        }
+        if (ti == 0u) {                                        /* DRONE: one low note, never let go */
+            uint32_t note;
+            t->p[P_REL] = 127;
+            t->p[P_ESYNC] = 0;
+            note = (uint32_t)clamp(scale_snap(t, 36 + (int32_t)(rng() % 12u)), 0, 127);
+            fm1_irq_off();                                     /* (the voices are the audio ISR's) */
+            seq_release(t);
+            ambient_drone(t, note);
+            fm1_irq_on();
+        } else if (ti == 1u) {                                 /* PAD: chords by themselves */
             t->p[P_VOICE] = V_POLY;
             t->p[P_PDEN] = (int16_t)(45u + rng() % 46u);
             t->p[P_PLEN] = (int16_t)(2u + rng() % 3u);
             t->p[P_PEV] = (int16_t)(3u + rng() % 6u);
             t->p[P_PSEED] = (int16_t)(rng() % 128u);
-            if (t->p[P_ATK] < 70)
-                t->p[P_ATK] = (int16_t)(70u + rng() % 30u);
-            if (t->p[P_REL] < 85)
-                t->p[P_REL] = (int16_t)(85u + rng() % 25u);
-        } else if (ti == 3u) {                                 /* the Noise: one note, never let go */
-            t->p[P_REL] = 127;
-            t->p[P_ESYNC] = 0;
-            uint32_t note = (uint32_t)clamp(scale_snap(t, 36 + (int32_t)(rng() % 24u)), 0, 127);
-            fm1_irq_off();                                     /* (the voices are the audio ISR's) */
-            seq_release(t);
-            ambient_drone(t, note);
-            fm1_irq_on();
-        } else if (FELUCCA_BELL && e == ENGI_BELL) {            /* Echoes: the bells play by themselves */
+        } else if (FELUCCA_BELL && e == ENGI_BELL) {            /* BELLS: the bells play by themselves */
             t->p[P_E4] = (int16_t)(20u + rng() % 11u);
             t->p[P_E5] = (int16_t)(15u + rng() % 36u);
             t->p[P_E6] = (int16_t)(1u + rng() % 2u);
@@ -1622,33 +1624,41 @@ static void ambient_random(void)
                 t->p[P_DLY] = (int16_t)(30u + rng() % 30u);
         }
         fm1_irq_off();
-        garden[ti] = 0;                                         /* Echoes' garden starts again from the scale */
+        garden[ti] = 0;                                         /* BELLS' garden starts again from the scale */
         gen_restart(ti);
         fm1_irq_on();
     }
+#if FELUCCA_AMBI
+    al.v[AL_SCENE] = (int16_t)(rng() % AL_NSCENE);              /* the AMBI layer: a scene, on (it fades in) */
+    al.v[AL_ON] = 1;
+#endif
     song.g[G_RTYPE] = 3;                                        /* the reverb: AMBI, SIZE 100, DAMP 0 */
     song.g[G_RSIZE] = 127;
     song.g[G_RDAMP] = 0;
-    trk[1].p[P_ROOT] = (int16_t)root;                           /* the Lead: only ROOT and SCALE, to play along on the same scale */
-    trk[1].p[P_SCALE] = (int16_t)scale;
+    trk[3].p[P_ROOT] = (int16_t)root;                           /* DRUMS: only ROOT and SCALE */
+    trk[3].p[P_SCALE] = (int16_t)scale;
     ui_message("AMBIENT MACHINE");
     ui.force = 1;
 }
 
-/* SEQ > AMBIENT, OCT-: the panic button. The Pad's and Echoes' DENS to 0 (no new notes; what rings fades), the Noise's REL
- * to its middle (64, as at power-on), its voices let go: everything off. The transport, the Lead and the rest are not touched */
+/* SEQ > AMBIENT, OCT-: the panic button. PAD's and BELLS' DENS to 0 (no new notes; what rings fades), DRONE's REL to its
+ * middle (64), its voices let go, the AMBI layer off (it fades out): everything off. The transport and DRUMS are not
+ * touched */
 static void ambient_stop(void)
 {
-    track_t *t = &trk[3];
-    trk[0].p[P_PDEN] = 0;
+    track_t *t = &trk[0];
+    trk[1].p[P_PDEN] = 0;
     if (FELUCCA_BELL && eng_idx(trk[2].eng_req) == ENGI_BELL)
         trk[2].p[P_E4] = 0;
-    if (FELUCCA_AMBI && eng_idx(t->eng_req) == ENGI_AMBI)
+    if (t->p[P_REL] >= 127)
         t->p[P_REL] = 64;
     fm1_irq_off();
     seq_release(t);
     fm1_irq_on();
-    panic_req |= (uint8_t)(1u << 3);                    /* the Noise: every voice let go now, and noise_keep no longer strikes it */
+    panic_req |= (uint8_t)(1u << 0);                    /* DRONE: every voice let go now, and noise_keep no longer strikes it */
+#if FELUCCA_AMBI
+    al.v[AL_ON] = 0;
+#endif
     ui_message("AMBIENT STOP");
     ui.force = 1;
 }
@@ -1705,9 +1715,9 @@ static uint32_t sound_cat(uint32_t e, uint32_t k) { return e == NENGINES ? up_ca
 static int list_keep(uint32_t e, uint32_t k)
 {
     uint32_t m = list_mode();
-    if (!eng_allowed(song.sel, e == NENGINES ? up_engine(k) : e))     /* (Fantasma: Echoes BELL, Noise noise) */
+    if (!eng_allowed(song.sel, e == NENGINES ? up_engine(k) : e))     /* (Fantasma 2.0: each channel its engine) */
         return 0;
-    if (song.sel == 0u && e != NENGINES && !pad_preset_ok(e, k))     /* (Fantasma: the Pad's own list) */
+    if (e != NENGINES && !part_preset_ok(song.sel, e, k))           /* (.. and its own list of its sounds) */
         return 0;
     return m == 1u ? favorite_has(e, k) : m ? sound_cat(e, k) == m - 1u : 1;
 }
