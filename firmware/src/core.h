@@ -67,6 +67,13 @@
 #define CH_DTN P_FM3_DEC         /* CHIME sound has no other use for (eng_chime.c CH_P) */
 #define CH_BREATH P_FM3_SUS
 #define CH_TONE P_FM3_REL
+#define DG_DENS P_FM4_ATK         /* (Fantasma 2.0) the DRUMS' generator (drum_gen.c): EUCLID DENS ROT LANE, MUTATE EVERY */
+#define DG_ROT P_FM4_DEC          /* AMOUNT MODE FEEL, in DIGITAL's retired OP 4 envelope and two of its others, which a */
+#define DG_LANE P_FM4_REL         /* DRUM sound has no other use for (where a project before 2.0 left 0 there, OFF) */
+#define DG_EVERY P_FM2_REL
+#define DG_AMT P_FM4_LEVEL
+#define DG_MODE P_FM3_ATK
+#define DG_FEEL P_FM4_SUS
 #define ENGI_ADPCM 17u
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
 #define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,

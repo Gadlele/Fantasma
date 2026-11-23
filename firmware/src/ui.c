@@ -445,6 +445,9 @@ static int page_visible(uint32_t i)
         return TSEL->eng_req % NENGINES == ENGI_GOLANA;
     if (PAGES[i].graph == GR_NONE && PAGES[i].id[0] == CH_ENV && PAGES[i].id[1] == CH_DTN)   /* TONE (2.0): CHIME's */
         return TSEL->eng_req % NENGINES == ENGI_CHIME;
+    if (PAGES[i].graph == GR_NONE && ((PAGES[i].id[0] == DG_DENS && PAGES[i].id[1] == P_SLEN) ||
+                                       (PAGES[i].id[0] == DG_EVERY && PAGES[i].id[1] == DG_AMT)))   /* EUCLID, MUTATE (2.0) */
+        return TSEL->eng_req % NENGINES == ENGI_DRUM;
     if (PAGES[i].graph >= GR_FMOP && PAGES[i].graph <= GR_FMENV)
         return TSEL->eng_req % NENGINES == ENGI_FM6;
 #if FELUCCA_SLICE
@@ -529,6 +532,13 @@ static int lock_page_ok(uint32_t i)
  * on BELL): DENS and EVOLVE of its generator, then the SCALE its bells are drawn from (on the ROOT; the delay is on its
  * FX page) and the reverb send. LEAD and NOISE (and any other sound
  * on a part): the engine's own four. */
+/* (Fantasma 2.0) the DRUMS' generator (drum_gen.c, with SEQ TOOLS') */
+static void dg_defaults(track_t *t);
+static int dg_page(const page_t *pg);
+static void dg_write(track_t *t);
+static void dg_dice(track_t *t);
+static void dg_anchor(track_t *t);
+static void dg_poll(void);
 static uint32_t home_id(const track_t *t, uint32_t k)
 {
     const engine_t *e = ENGINES[t->eng_req % NENGINES];
@@ -1374,6 +1384,7 @@ static void apply_preset_to(track_t *t, uint32_t pi)
     const engine_t *e = ENGINES[t->eng_req % NENGINES];
     uint32_t i;
     int inf;
+    int16_t dg_keep[7];
 #if !FELUCCA_FM4
     if (t->eng_req % NENGINES == ENGI_DIGITAL) {
         fm4_load_preset(t, pi);
@@ -1385,6 +1396,11 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         return;                                       /* (core.h drum_from_perc) */
     }
     load_begin(t, UNDO_SOUND);
+    {   /* (Fantasma 2.0) a kit to a kit: the DRUMS' generator's settings stay (set_engine_of: the defaults) */
+        static const uint8_t DGI[7] = {DG_DENS, DG_ROT, DG_LANE, DG_EVERY, DG_AMT, DG_MODE, DG_FEEL};
+        for (i = 0; i < 7u; i++)
+            dg_keep[i] = t->p[DGI[i]];
+    }
     inf = noise_inf(t);                               /* (Fantasma: the Noise at INF is always on: a new sound plays on, REL stays) */
     if (!inf)
         panic_req |= (uint8_t)(1u << trk_index(t));   /* MONO/POLY may change: release what sounds */
@@ -1431,6 +1447,11 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         go_extra_load(t, pi);
     if (t->eng_req % NENGINES == ENGI_CHIME)          /* .. CHIME: its TONE page */
         ch_tone_load(t, pi);
+    if (t->eng_req % NENGINES == ENGI_DRUM) {         /* .. DRUM: its generator's settings as they were */
+        static const uint8_t DGI[7] = {DG_DENS, DG_ROT, DG_LANE, DG_EVERY, DG_AMT, DG_MODE, DG_FEEL};
+        for (i = 0; i < 7u; i++)
+            t->p[DGI[i]] = dg_keep[i];
+    }
     if (FELUCCA_BELL && t->eng_req % NENGINES == ENGI_BELL) {   /* Echoes' sounds: reverb 100 %, delay 50 % */
         t->p[P_REV] = 127;
         t->p[P_DLY] = 64;
@@ -1456,6 +1477,8 @@ static void set_engine_of(track_t *t, uint32_t ei)
     t->eng_req = (uint8_t)(ei % NENGINES);
     for (i = 0; i < 8u; i++)
         t->p[P_E0 + i] = e->edit[i].def;
+    if (ei % NENGINES == ENGI_DRUM)                  /* (Fantasma 2.0) the generator from its defaults */
+        dg_defaults(t);
     apply_preset_to(t, 0);
     fm1_irq_on();
     load_end(t);
@@ -1505,6 +1528,8 @@ static void clean_engine_of(track_t *t)
         go_extra_load(t, 0xFFu);
     if (ei == ENGI_CHIME)                             /* .. its TONE */
         ch_tone_load(t, 0xFFu);
+    if (ei == ENGI_DRUM)                              /* .. the generator */
+        dg_defaults(t);
     fm1_irq_on();
     if (ei == ENGI_FM6) {                             /* the init voice as the track's own patch (SLOT: OWN) */
         uint8_t v[FP_SIZE + 1u];

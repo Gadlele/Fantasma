@@ -232,13 +232,13 @@ static int kits(void)
         }
     bad += check("KITS (#216): DEEP TIGHT PERC appended (9..11), each lane one of the five kits' (DEEP's kick 2 st down)", ok);
 
-    ok = ENG_DRUM.npresets == 4u && str_eq(ENG_DRUM.presets[0].name, "DRUM KIT") && ENG_DRUM.presets[0].e[0] == DK_STD &&
+    ok = ENG_DRUM.npresets >= 4u && str_eq(ENG_DRUM.presets[0].name, "DRUM KIT") && ENG_DRUM.presets[0].e[0] == DK_STD &&
          str_eq(ENG_DRUM.presets[1].name, "DEEP KIT") && ENG_DRUM.presets[1].e[0] == DK_DEEP &&
          str_eq(ENG_DRUM.presets[2].name, "TIGHT KIT") && ENG_DRUM.presets[2].e[0] == DK_TIGHT &&
          str_eq(ENG_DRUM.presets[3].name, "PERC KIT") && ENG_DRUM.presets[3].e[0] == DK_PERC;
     for (k = 1; k < 4u; k++)
         ok &= preset_cat(ENGI_DRUM, k) == CAT_DRUM;
-    bad += check("  DRUM's presets: DRUM KIT first as before, then DEEP KIT, TIGHT KIT, PERC KIT (category DRUM)", ok);
+    bad += check("  DRUM's presets: DRUM KIT first as before, then DEEP KIT, TIGHT KIT, PERC KIT (category DRUM; Fantasma 2.0's after)", ok);
 
     ui_power_on();
     t = &trk[0];

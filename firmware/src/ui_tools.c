@@ -636,3 +636,5 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
     tl_unlock(t, was, len);
     return msg;
 }
+
+#include "drum_gen.c"                                  /* (Fantasma 2.0) the DRUMS' EUCLID, MUTATE, DICE */

@@ -35,6 +35,12 @@ fixes, a new **X** may change how things are saved.
   slowly) and TONE (a soft low-pass); GEN is BELL's generator, as it was. 14 sounds: GLASS, CRYSTAL, ICE, BOWL,
   TEMPLE, GAMELAN, TUBULAR, SPARKLE, RAINDROP, STARLIGHT, DARK METAL, SHIMMER, TINE, RING MOD. BELL stays in the
   tree and its sounds still load, but BELLS plays CHIME.
+- **The DRUMS' generator**, after [JIANT](https://github.com/juanjiant-bit/JIANT)'s EUCLID and MUTATE: two pages on a
+  DRUM track. **EUCLID**: DENS (OFF, 1..8: a whole kit as euclidean rhythms, live), LEN (each channel its own, 1..64),
+  ROT, LANE (ALL or one lane alone). **MUTATE**: EVERY (OFF, 1..16 loops), AMOUNT, MODE (ORBIT round the pattern
+  dialled, DRIFT walking on), FEEL (accents on the beats, softer steps between). On both, OCT+ is **DICE** (a new
+  pattern at random) and OCT- goes back to the pattern dialled; every rewrite one undo. A kit change keeps them.
+- **Six ambient kits** for DRUM: SOFT KIT, DUST KIT, TAPE KIT, DUB KIT, WOOD KIT, CLICK KIT.
 - The ambient machine plays the four channels: a DRONE note at INF, PAD's progression, the bells, and the
   ambience on; OCT- STOP lets them all go.
 

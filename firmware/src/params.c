@@ -257,6 +257,8 @@ static const param_desc_t *track_desc(const track_t *t, uint32_t id)
         return &GO_P[id - GO_FTYPE];
     if (id >= CH_ENV && id <= CH_TONE && eng_idx(t->eng_req) == ENGI_CHIME)   /* (Fantasma 2.0) CHIME's TONE */
         return &CH_P[id - CH_ENV];
+    if (eng_idx(t->eng_req) == ENGI_DRUM && dg_desc(id))   /* (Fantasma 2.0) the DRUMS' EUCLID and MUTATE */
+        return dg_desc(id);
     if (t->p[P_ESYNC] && (id == P_ATK || id == P_DEC || id == P_REL))   /* ENV SYNC: note values (1.5, #175) */
         return &ESYNC_DESC[id == P_ATK ? 0 : id == P_DEC ? 1 : 2];
     return &TP[id];
@@ -272,6 +274,8 @@ static const param_desc_t *param_desc_of(uint32_t e, uint32_t id)
         return &GO_P[id - GO_FTYPE];
     if (e == ENGI_CHIME && id >= CH_ENV && id <= CH_TONE)
         return &CH_P[id - CH_ENV];
+    if (e == ENGI_DRUM && dg_desc(id))
+        return dg_desc(id);
     return id >= P_E0 ? &ENGINES[e]->edit[id - P_E0] : &TP[id];
 }
 
@@ -501,6 +505,8 @@ static const page_t PAGES[] = {
     {"TONE", FAM_EDIT, SC_TRACK, GR_NONE, {CH_ENV, CH_DTN, CH_BREATH, CH_TONE}},   /* CHIME only (Fantasma 2.0): ENV DTN BREATH TONE */
     {"LANES", FAM_EDIT, SC_TRACK, GR_NONE, {P_LN0, P_LN1, P_LN2, P_LN3}},   /* DRUM only: the lane levels */
     {"LANES 2", FAM_EDIT, SC_TRACK, GR_NONE, {P_LN4, P_LN5, P_LN6, P_LN7}},
+    {"EUCLID", FAM_EDIT, SC_TRACK, GR_NONE, {DG_DENS, P_SLEN, DG_ROT, DG_LANE}},   /* DRUM only (Fantasma 2.0, drum_gen.c) */
+    {"MUTATE", FAM_EDIT, SC_TRACK, GR_NONE, {DG_EVERY, DG_AMT, DG_MODE, DG_FEEL}},
     {"SLICES", FAM_EDIT, SC_TRACK, GR_SLICES, {0xFF, 0xFF, 0xFF, 0xFF}},   /* SLICE only: the slices by hand (ui_slice.c) */
     {"OPERATOR", FAM_EDIT, SC_TRACK, GR_FMOP, {0xFF, 0xFF, 0xFF, 0xFF}},    /* FM6 only: KNOB 1 the operator, then its */
     {"OP ENV", FAM_EDIT, SC_TRACK, GR_FMENV, {0xFF, 0xFF, 0xFF, 0xFF}},     /* bytes of the track's patch (ui_fm6op.c): */

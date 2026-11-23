@@ -334,6 +334,18 @@ slowly in brightness and level) and **TONE** (a soft low-pass, 127 open). HOME o
 sounds: GLASS, CRYSTAL, ICE, BOWL, TEMPLE, GAMELAN, TUBULAR, SPARKLE, RAINDROP, STARLIGHT, DARK METAL, SHIMMER, TINE,
 RING MOD. The old BELL engine stays (its sounds load), but BELLS plays CHIME.
 
+**The DRUMS' generator** (Fantasma 2.0, after [JIANT](https://github.com/juanjiant-bit/JIANT)'s EUCLID and MUTATE): on a
+DRUM track, EDIT's pages after LANES 2. **EUCLID**: **DENS** (OFF: the steps are yours; 1..8 a whole kit written as
+euclidean rhythms, from a lone kick to a busy groove: the snare on the backbeat, the hats off it), **LEN** (the track's
+length, 1..64: each channel its own), **ROT** (the pattern turned), **LANE** (ALL, or one lane alone: DENS its hits,
+eighths of LEN). Turning them rewrites steps 1..LEN at once (the steps past LEN stay). **MUTATE**: **EVERY** (OFF, 1, 2,
+4, 8, 16: after so many loops of the track, while playing, the pattern moves), **AMOUNT** (how many hits move a step,
+how many hats and rims come or go), **MODE** (ORBIT: each time from the pattern dialled, it never strays far; DRIFT: from
+the last, it walks on), **FEEL** (the beats as they are, softer steps between them, an accent on the first kick). On
+EUCLID and MUTATE, **OCT+ is DICE** (a new pattern at random) and **OCT- goes back** to the pattern dialled. Each rewrite
+is one undo (SAVE held); the kick on step 1 always stays. A kit change keeps these settings. Ambient kits: SOFT KIT,
+DUST KIT, TAPE KIT, DUB KIT, WOOD KIT, CLICK KIT.
+
 **AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
 LEVEL, REVERB) play an ambience under the four channels: the 13 AMBI scenes plus THUNDER, BREATH, NIGHT, EMBERS and
 TAPE END. It fades in and out over about a second and is saved with the project.

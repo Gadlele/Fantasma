@@ -36,7 +36,7 @@ static const char *const PRESET_CAT[18] = {
     "PFPPPP",                  /* 8 GRAIN: CLOUD PAD, GLITCH, FROZEN, SHIMMER */
     "UUUPUDDPU",                 /* 9 PHYS: BELL TREE, MARIMBA, PLUCK, BOWED METAL, KALIMBA, HAND DRUM, TOMS, DRONE
                                   * STRING, HARP */
-    "DDDD",                      /* 10 DRUM: DRUM KIT; 1.5.6: DEEP KIT, TIGHT KIT, PERC KIT */
+    "DDDDDDDDDD",                /* 10 DRUM: DRUM KIT; 1.5.6: DEEP KIT, TIGHT KIT, PERC KIT; 2.0: SOFT DUST TAPE DUB WOOD CLICK */
     "FFFFFFFFFFFF",              /* 11 NOISE: WIND, RAIN, ARCADE, METAL, SEA, SURF, FIRE, VINYL, STREAM, STORM, DRIPS, HISS */
     "KUBLPUKUPK",                 /* 12 FM6: TINE EP, BELL, FM BASS, BRASS, PAD, MARIMBA, ORGAN, PLUCK, SLOW STRINGS FM, (1.1) TAPE EP */
 #if FELUCCA_SLICE

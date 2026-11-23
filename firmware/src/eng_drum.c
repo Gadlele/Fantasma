@@ -322,7 +322,40 @@ static const preset_t DRUM_PRESETS[] = {
     {"DEEP KIT", {DK_DEEP, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 28), PAT(12)},
     {"TIGHT KIT", {DK_TIGHT, 64, 64, 56, 64, 100, 0, 16}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 8), PAT(12)},
     {"PERC KIT", {DK_PERC, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 24), PAT(12)},
+    /* Fantasma 2.0: ambient kits, soft and far, made for the reverb and the delay (appended) */
+    {"SOFT KIT", {DK_DEEP, 58, 40, 64, 30, 80, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 10, 25, 60), PAT(12)},
+    {"DUST KIT", {DK_80, 60, 35, 50, 40, 90, 0, 30}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 20, 45), PAT(12)},
+    {"TAPE KIT", {DK_66, 54, 30, 70, 25, 85, 0, 45}, {0, 100, 127, 100}, 0, 0, FX(0, 30, 45, 55), PAT(12)},
+    {"DUB KIT", {DK_DEEP, 54, 45, 64, 35, 90, 0, 20}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 60, 60), PAT(12)},
+    {"WOOD KIT", {DK_PERC, 70, 70, 40, 50, 85, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 30, 70), PAT(12)},
+    {"CLICK KIT", {DK_TIGHT, 90, 100, 15, 100, 90, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 40, 40), PAT(12)},
 };
+
+/* (Fantasma 2.0) the DRUMS' generator's pages, EUCLID and MUTATE (drum_gen.c; params.c track_desc labels them) */
+static const char *const N_DG_DENS[] = {"OFF", "1", "2", "3", "4", "5", "6", "7", "8"};
+static const char *const N_DG_LANE[] = {"ALL", "KICK", "SNARE", "CLAP", "HATCL", "HATOP", "TOM", "RIM", "BELL"};
+static const char *const N_DG_EVERY[] = {"OFF", "1", "2", "4", "8", "16"};
+static const char *const N_DG_MODE[] = {"ORBIT", "DRIFT"};
+static const uint8_t DG_EVERY_N[6] = {0, 1, 2, 4, 8, 16};
+static const param_desc_t DG_P[7] = {
+    {"DENS", F_ENUM, 0, 8, 0, N_DG_DENS, 0},
+    {"ROT", F_INT, 0, 63, 0, 0, 0},
+    {"LANE", F_ENUM, 0, 8, 0, N_DG_LANE, 0},
+    {"EVERY", F_ENUM, 0, 5, 0, N_DG_EVERY, "loop"},
+    {"AMOUNT", F_PCT, 0, 127, 38, 0, 0},
+    {"MODE", F_ENUM, 0, 1, 0, N_DG_MODE, 0},
+    {"FEEL", F_PCT, 0, 127, 40, 0, 0},
+};
+static const param_desc_t *dg_desc(uint32_t id)      /* (params.c track_desc / param_desc_of) */
+{
+    return id == DG_DENS ? &DG_P[0] : id == DG_ROT ? &DG_P[1] : id == DG_LANE ? &DG_P[2] : id == DG_EVERY ? &DG_P[3] :
+           id == DG_AMT ? &DG_P[4] : id == DG_MODE ? &DG_P[5] : id == DG_FEEL ? &DG_P[6] : 0;
+}
+static void dg_defaults(track_t *t)
+{
+    t->p[DG_DENS] = DG_P[0].def; t->p[DG_ROT] = DG_P[1].def; t->p[DG_LANE] = DG_P[2].def; t->p[DG_EVERY] = DG_P[3].def;
+    t->p[DG_AMT] = DG_P[4].def; t->p[DG_MODE] = DG_P[5].def; t->p[DG_FEEL] = DG_P[6].def;
+}
 
 static const engine_t ENG_DRUM = {
     .name = "DRUM",

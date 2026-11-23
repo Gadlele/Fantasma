@@ -1577,10 +1577,13 @@ static __attribute__((noinline)) void seq_nd_start(track_t *t, uint32_t period, 
 
 /* step seq_idx starts (seq_tick; top: PLAY's or a SONG section's first): a loop's first counts it (seq_cond_miss), a
  * recorded note held ties into it (not inlined: once a step, off the audio ISR's loop) */
+static volatile uint8_t dg_loops[NTRK];          /* (Fantasma 2.0) each track's loops, for the DRUMS' MUTATE (drum_gen.c) */
 static __attribute__((noinline)) void seq_enter(track_t *t, uint32_t top, uint32_t len)
 {
-    if (!t->seq_idx)
+    if (!t->seq_idx) {
         t->cond_loop = (uint8_t)(top || t->cond_loop + 1u >= COND_LOOPS ? 0u : t->cond_loop + 1u);
+        dg_loops[trk_index(t) % NTRK]++;
+    }
     rec_hold(t, t->seq_idx, len);
 }
 
