@@ -227,6 +227,7 @@ static const uint8_t MIDI_CC_ENG[NENGINES] = {
 #else
     0x20,                                             /* BELL TONE (E1) */
 #endif
+    0x18,                                             /* DRONE WAVE (E0), DRIFT (E7) (Fantasma 2.0: no filter knob) */
 #if FELUCCA_ADPCM
     0x00,                                             /* ADPCM - (no filter) */
 #endif

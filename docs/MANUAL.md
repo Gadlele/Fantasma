@@ -290,14 +290,26 @@ Drum kits and incoming MIDI keep their own note mapping.
 Press **SCL** again for the **CHORD** page: CHRD picks the chord keys (OFF, the scale's triads or
 sevenths, or a fixed shape) and VOIC the voicing.
 
-**Channels** (Fantasma 2.0): the four tracks are four channels, each with one engine: **DRONE** (track 1: ANALOG's long,
-still sounds for now; REL at its top is **INF**, a note that never stops and comes back if cut), **PAD** (track 2: ANALOG's
+**Channels** (Fantasma 2.0): the four tracks are four channels, each with one engine: **DRONE** (track 1: the DRONE
+engine, below; REL at its top is **INF**, a note that never stops and comes back if cut), **PAD** (track 2: ANALOG's
 pads and soft leads, with the chord progression: DENS, BARS, CHORDS, SEED), **BELLS** (track 3: BELL and its generator) and
 **DRUMS** (track 4: DRUM). PRESETS and the ENG knob stay on the channel's own sounds; another engine's key in EDIT says
 NOT FOR THIS PART. HOME's footer shows the selected channel. HOME's four knobs: DRONE and PAD the sound's first knob,
 **ATK**, **REL**, **REV**; BELLS **DENS**, **EVOLVE**, **SCL**, **REV**; DRUMS the kit's own four. At power-on: DRONE is
-ANALOG DRONE, PAD ANALOG WARM PAD, BELLS the bells, DRUMS a kit, the steps empty. DRONE's and PAD's own engines come
-in the next steps of 2.0.
+DRONE's DRONE, PAD ANALOG WARM PAD, BELLS the bells, DRUMS a kit, the steps empty. PAD's own engine comes in the next
+steps of 2.0.
+
+**The DRONE engine** (Fantasma 2.0, after [Niagara Drift](https://github.com/evanyerburgh/niagara-drift)'s drones by
+Evan Yerburgh): a drone that breathes and drifts, and that you play. EDIT 1 (OSC): **WAVE** blends SINE > TRI > SAW >
+SQUARE; **WIDTH** the square's pulse, 50 % to 5 %; **INTVL** (interval) the partner oscillator's, from an octave below to an
+octave and a fifth above, tempered or just (**J**: a pure ratio, a fifth or a third that does not beat); **DETUNE** the
+partner up to 30 cents off, a slow beating. EDIT 2 (MIX): **SUB** a sine an octave, two, three or four below, or a
+subharmonic (**1/3**: an octave and a fifth down; **1/5**: two octaves and a major third); **MIX** from the oscillators
+(0) to the sub (127) at equal power; **NOISE** a soft pink noise; **DRIFT** how much it wanders: the oscillators each
+glide to a new pitch every fifth of a second, and every half a minute or so it moves slowly in brightness, level and
+wave. A low-pass about three octaves above the note softens it; ENV and the LFO on FLT, the matrix's CUT and the keys'
+pressure open and close it; SHP routings move WAVE. Its sounds play LEGATO with a glide: a new key bends the drone there.
+HOME: WAVE, ATK, REL, REV.
 
 **AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
 LEVEL, REVERB) play an ambience under the four channels: the 13 AMBI scenes plus THUNDER, BREATH, NIGHT, EMBERS and

@@ -80,6 +80,7 @@ static const char *const N_ENGNAME[] = {"ANALOG", FELUCCA_FM4 ? "DIGITAL" : "-",
 #else
                                              "BELL",
 #endif
+                                             "DRONE",
 #if FELUCCA_ADPCM
                                              "ADPCM",
 #endif

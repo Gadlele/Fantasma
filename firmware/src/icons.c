@@ -260,6 +260,7 @@ static uint32_t engine_icon(const char *name)
         {"DRUM", ICON_DRUM},
         {"NOISE", ICON_NOISE},
         {"FM6", ICON_MOD},                    /* (symbol_modular: six operators patched; a glyph of its own wanted) */
+        {"DRONE", ICON_WAVE},                 /* (Fantasma 2.0: oscillators, as ANALOG) */
         {"ADPCM", ICON_SAMPLE},               /* (short sampled waves) */
     };
     uint32_t i;

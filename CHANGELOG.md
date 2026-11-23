@@ -11,13 +11,18 @@ fixes, a new **X** may change how things are saved.
   the palettes and the tempo from 30 BPM stay.
 - Projects of Fantasma 1.x load; a project now keeps up to 122 knob movements (128 before: the six last of a
   full one are let go), to make room for the new parameters.
-- **Four channels, one engine each**: **DRONE** (part 1: for now ANALOG's long, still sounds, REL at its top
-  is INF, a note that never stops), **PAD** (part 2: ANALOG's pads and soft leads, with the chord progression),
-  **BELLS** (part 3: BELL and the bells generator) and **DRUMS** (part 4: DRUM). DRONE's and PAD's own engines come
-  in the next steps.
+- **Four channels, one engine each**: **DRONE** (part 1: the DRONE engine, below; REL at its top is INF, a note
+  that never stops), **PAD** (part 2: ANALOG's pads and soft leads, with the chord progression),
+  **BELLS** (part 3: BELL and the bells generator) and **DRUMS** (part 4: DRUM). PAD's own engine comes in the next
+  steps.
 - **AMBI is no longer a part**: HOME › AMBI and AMBI 2 switch an ambience on under the four channels (SCENE, TONE,
   MOTION, INTENS, LEVEL, REVERB), with five new scenes: THUNDER, BREATH, NIGHT, EMBERS, TAPE END. Saved with the
   project.
+- **The DRONE engine**, DRONE's own (after [Niagara Drift](https://github.com/evanyerburgh/niagara-drift)'s drones,
+  rewritten for Fantasma): a main oscillator that blends SINE > TRI > SAW > SQUARE (WAVE, the square's WIDTH), a
+  partner at an INTERVAL (tempered or just) with its DETUNE, a SUB an octave to four below or a subharmonic (1/3, 1/5),
+  MIX between them, a soft NOISE and DRIFT: the drone never quite still. 12 sounds (DRONE, FIFTHS, OCTAVES, DEEP,
+  HOLLOW, GLOW, TIDE, RUST, VESSEL, HUM, WIND HUM, SHADOW), LEGATO with a glide: a new key bends the drone there.
 - The ambient machine plays the four channels: a DRONE note at INF, PAD's progression, the bells, and the
   ambience on; OCT- STOP lets them all go.
 

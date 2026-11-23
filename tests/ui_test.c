@@ -4282,7 +4282,8 @@ static int test_quick_layers(void)
     }
     btn_up(B_EDIT); frame();
     bad += check("  every engine one can pick has its white key from F3 (NENG_SHOWN, not a fixed count; never DIGITAL)",
-                 ok && a == eng_count_for(song.sel) - (FELUCCA_ADPCM && eng_allowed(song.sel, ENGI_ADPCM)));   /* (ADPCM: no key) */
+                 ok && a == eng_count_for(song.sel) - (FELUCCA_ADPCM && eng_allowed(song.sel, ENGI_ADPCM)) -
+                           eng_allowed(song.sel, ENGI_DRONE));   /* (ADPCM, DRONE: no key) */
     set_engine_of(TSEL, 0);
     lay_combo(B_EDIT, white(eng_rank(2))); key_up(white(eng_rank(2))); frame();
     turn(EN_K2, 1);
@@ -5275,10 +5276,10 @@ static int test_fm4_retired(void)
     bad += check("PRESETS KNOB 2: the engines in order, DIGITAL skipped, back to the first (Pad: no bells, no noises)",
                  seen == (all & ~(1u << ENGI_NOISE) & ~(FELUCCA_BELL ? 1u << ENGI_BELL : 0u) & ~(FELUCCA_AMBI ? 1u << ENGI_AMBI : 0u)) &&
                  TSEL->eng_req == 0u && eng_step(0, 1) == ENGI_FM6 && eng_step(ENGI_FM6, 1) == 2u &&
-                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_DRUM));
+                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_DRONE));
     {   /* the display order (engines.c ENGINE_ORDER): every engine one can pick once; the PRESETS list follows it */
         static const char *const ORDER[] = {"ANALOG", "FM6", "PHASE", FELUCCA_LOFI ? "LOFI" : "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
-                                            "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM",
+                                            "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM", "DRONE",
 #if FELUCCA_ADPCM
                                             "ADPCM",
 #endif
@@ -6092,13 +6093,12 @@ static int test_roles(void)
     trk[0].eng_req = ENGI_DRUM;
     ok = home_id(&trk[0], 1) == ENGINES[ENGI_DRUM]->knob[1];
     bad += check("  DRONE on a kit: the kit's four", ok);
-    /* the parts at power-on (TRK_DEF, main.c; Fantasma 2.0): ANALOG's DRONE, ANALOG's WARM PAD, the bells, a kit */
-    ok = TRK_DEF[0][0] == 0 && str_eq(ENGINES[0]->presets[TRK_DEF[0][1]].name, "DRONE") &&
+    /* the parts at power-on (TRK_DEF, main.c; Fantasma 2.0): DRONE's DRONE, ANALOG's WARM PAD, the bells, a kit */
+    ok = TRK_DEF[0][0] == ENGI_DRONE && str_eq(ENGINES[ENGI_DRONE]->presets[TRK_DEF[0][1]].name, "DRONE") &&
          TRK_DEF[1][0] == 0 && str_eq(ENGINES[0]->presets[TRK_DEF[1][1]].name, "WARM PAD") &&
          TRK_DEF[2][0] == (FELUCCA_BELL ? ENGI_BELL : 0) && TRK_DEF[3][0] == ENGI_DRUM &&
          TRK_DEF[3][2] == 0 && str_eq(PATTERNS[13].name, "DRONE") && trk[3].step[0].time == ST_REST;
-    if (!ok) printf("  TRK_DEF names: %s %s\n", ENGINES[0]->presets[TRK_DEF[0][1]].name, ENGINES[0]->presets[TRK_DEF[1][1]].name);
-    bad += check("  power-on parts: ANALOG DRONE, ANALOG WARM PAD, the bells, a kit, its steps empty", ok);
+    bad += check("  power-on parts: DRONE's DRONE, ANALOG WARM PAD, the bells, a kit, its steps empty", ok);
     {   /* the DRUMS track starts with empty steps (the DRONE pattern is still in SAVE > PHRASES for whoever wants it) */
         track_t *t = &trk[3];
         uint32_t i;

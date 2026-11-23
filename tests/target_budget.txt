@@ -38,6 +38,7 @@ dv_metal_mix 16
 slicer_track 557
 ambi_render 216
 bell_render 62
+drone_render 768
 gen_step 285
 prog_step 212
 gen_free 142

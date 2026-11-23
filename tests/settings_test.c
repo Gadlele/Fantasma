@@ -8,6 +8,7 @@
 #define UP_SLOTS 32u
 #define ENGI_SAMPLE 4u                           /* (core.h: SAMPLE, DRUM, the retired PERC set) */
 #define ENGI_DRUM 10u
+#define ENGI_DRONE 14u                           /* (core.h: Fantasma 2.0) */
 #define SMP_SET_PERC 4u
 static uint8_t fx_lowcut;
 static void fm1_led_key(unsigned k, int on) { (void)k; (void)on; }

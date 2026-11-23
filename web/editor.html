@@ -1687,7 +1687,7 @@ function makeMockDevice(opt = {}) {
     E("MIDI", ["USB", "TRS"], 0), E("SYNC", NDASH, 0), E("ROUT", ["CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16", "TRACK"], 0), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), E("NAME", NDASH, 0), E("LOAD", NGO, 0), E("SAVE", NGO, 0),
     E("ENG", ["ANALOG", "-", "PHASE", "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL",
-      "GRAIN", "PHYS", "DRUM", "NOISE", "FM6", "BELL"], 0), E("SET", NGO, 0),
+      "GRAIN", "PHYS", "DRUM", "NOISE", "FM6", "BELL", "DRONE"], 0), E("SET", NGO, 0),
     E("CLRSQ", NGO, 0), E("INIT", NGO, 0),
     E("TYPE", ["ROOM", "SPRING", "HALL", "AMBI"], 3),       /* G_RTYPE (id 24, was G_DRCH): the reverb's model (HALL: 1.2) */
     D("-", F.INT, 0, 0, 0), D("-", F.INT, 0, 0, 0),   /* G_DRLVL, G_DRREV: inert since 1.0 */
@@ -1816,6 +1816,17 @@ function makeMockDevice(opt = {}) {
         P("CLOISTER", [1, 32, 70, 6, 0, 20, 1, 50], [28, 115, 0, 118], 0, 8), P("DEW", [3, 16, 45, 10, 0, 20, 1, 99], [30, 92, 0, 100], 0, 7),
         P("WIND CHIME", [5, 24, 70, 10, 0, 20, 1, 58], [15, 100, 0, 105], 0, 7),
         P("MUSIC BOX", [5, 14, 50, 8, 0, 0, 0, 0], [6, 95, 0, 100], 0, 7)] },
+    { name: "DRONE", titles: ["OSC", "MIX"], edit: [D("WAVE", F.PCT, 0, 127, 60), D("WIDTH", F.PCT, 0, 127, 20),
+        E("INTVL", ["-OCT", "-5TH", "-5TH J", "-4TH", "-4TH J", "UNISON", "+m3", "+m3 J", "+M3", "+M3 J", "+4TH", "+4TH J", "+5TH", "+5TH J", "+OCT", "+OCT+5", "+OCT+5 J"], 5),
+        D("DETUNE", F.PCT, 0, 127, 20), E("SUB", ["-1 OCT", "-2 OCT", "1/3", "1/5", "-3 OCT", "-4 OCT"], 0), D("MIX", F.PCT, 0, 127, 35),
+        D("NOISE", F.PCT, 0, 127, 4), D("DRIFT", F.PCT, 0, 127, 50)],
+      presets: [
+        P("DRONE", [60, 20, 5, 20, 0, 35, 4, 50], [100, 100, 127, 112], 1, 14), P("FIFTHS", [45, 0, 13, 10, 1, 30, 0, 45], [100, 100, 127, 112], 1, 14),
+        P("OCTAVES", [30, 0, 14, 14, 0, 40, 0, 40], [95, 100, 127, 110], 1, 14), P("DEEP", [20, 0, 0, 8, 1, 60, 6, 35], [105, 100, 127, 114], 1, 14),
+        P("HOLLOW", [110, 70, 12, 18, 0, 25, 0, 50], [100, 100, 127, 112], 1, 14), P("GLOW", [10, 0, 9, 6, 0, 30, 0, 40], [110, 100, 127, 116], 1, 14),
+        P("TIDE", [64, 30, 5, 40, 0, 30, 25, 100], [110, 100, 127, 116], 1, 14), P("RUST", [85, 40, 3, 25, 2, 35, 12, 70], [95, 100, 127, 110], 1, 14),
+        P("VESSEL", [50, 0, 16, 12, 3, 35, 0, 55], [105, 100, 127, 114], 1, 14), P("HUM", [5, 0, 5, 4, 1, 50, 2, 25], [90, 100, 127, 110], 1, 14),
+        P("WIND HUM", [40, 0, 1, 30, 0, 30, 60, 90], [110, 100, 127, 116], 1, 14), P("SHADOW", [75, 20, 7, 15, 1, 45, 5, 60], [105, 100, 127, 114], 1, 14)] },
   ];
   const FM6_E = ENG.findIndex((e) => e.name === "FM6"), FM6_OWN = FM6.FACTORY_PK.length, DRUM_E = ENG.findIndex((e) => e.name === "DRUM");
   /* factory PATTERNS[] (engines.c; the device loads them from SAVE > PHRASES, presets only suggest one): absolute
@@ -1967,8 +1978,8 @@ function makeMockDevice(opt = {}) {
     st.bank[slot] = snapshot(name);
     clearSteps(); st.p[29] = 16;
   });
-  /* the power-on sounds (engines.c TRK_DEF; Fantasma 2.0): ANALOG DRONE, ANALOG WARM PAD, BELL THUMB, a DRUM kit */
-  [[1, 0, 18], [2, ENG.findIndex((e) => e.name === "BELL"), 0], [3, ENG.findIndex((e) => e.name === "DRUM"), 0], [0, 0, 13]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); });
+  /* the power-on sounds (engines.c TRK_DEF; Fantasma 2.0): DRONE's DRONE, ANALOG WARM PAD, BELL THUMB, a DRUM kit */
+  [[1, 0, 18], [2, ENG.findIndex((e) => e.name === "BELL"), 0], [3, ENG.findIndex((e) => e.name === "DRUM"), 0], [0, ENG.findIndex((e) => e.name === "DRONE"), 0]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); });
   /* the device powers on with its sequencers empty (TRK_DEF suggests no pattern); the mock starts as a little demo
      to look at: track 1 with the ACID pattern (as SAVE > PHRASES would load it), the pad left, the bells right; track 4
      (the kit) empty, as on the device */
@@ -2473,7 +2484,7 @@ function enumShown(d) {
    the engine numbers. engineOrder(names): the indices of names in that order, "-" (a reserved number) left out; a name
    the list does not know (another firmware) follows in index order */
 const ENGINE_ORDER = ["ANALOG", "FM6", "DIGITAL", "PHASE", "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN", "PHYS", "NOISE",
-  "BELL", "SLICE", "DRUM"];
+  "BELL", "SLICE", "DRUM", "DRONE", "ADPCM"];
 function engineOrder(names) {
   const rank = (n) => { const k = ENGINE_ORDER.indexOf(n); return k < 0 ? ENGINE_ORDER.length : k; };
   return (names || []).map((n, i) => i).filter((i) => names[i] !== "-")

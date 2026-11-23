@@ -26,11 +26,13 @@ int main(void)
 {
     int bad = 0;
     track_t *t;
-    static const uint8_t DRONES[] = {12, 13, 14, 15, 16, 17, 22};   /* (part_preset_ok's DRONE list) */
+    static const uint8_t DRONES[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};   /* (the DRONE engine's sounds) */
     uint32_t k;
     ui_power_on();
     song.playing = 0; song.master_q12 = 4096; kb_boot_hold = 0;
     t = &trk[0];
+    set_engine_of(t, ENGI_DRONE);                         /* (the tests' power-on has ANALOG there; the device DRONE) */
+    apply_preset_to(t, 0);
     t->engine = t->eng_req;
     CHK(t->p[P_REL] < 127);
     CHK(run(2) < 5.0 && !voices(t));                      /* below INF: nothing starts by itself */

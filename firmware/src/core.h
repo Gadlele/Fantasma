@@ -43,12 +43,13 @@
                                             * one for all with one, as up to 1.6 */
 #define C1_PI(t) ((uint32_t)((t) - trk) % C1_NP)   /* a part's copy */
 #ifndef FELUCCA_ADPCM
-#define FELUCCA_ADPCM 0          /* the ADPCM engine (eng_adpcm.c), engine 14: not built by default (FELUCCA_ADPCM=1 builds
+#define FELUCCA_ADPCM 0          /* the ADPCM engine (eng_adpcm.c), engine 15 (Felucca's 14): not built by default (FELUCCA_ADPCM=1 builds
                                   * it): on the FM-1 it costs about three ANALOG voices a voice (eng_adpcm.c, the figures) */
 #endif
-#define NENGINES (14 + FELUCCA_ADPCM)   /* engine 13 is SLICE or, in Fantasma's default build, BELL; then ADPCM (14):
-                                        * the other engines keep their numbers */
-#define ENGI_ADPCM 14u
+#define NENGINES (15 + FELUCCA_ADPCM)   /* engine 13 is SLICE or, in Fantasma's default build, BELL; 14 DRONE (Fantasma
+                                        * 2.0); then ADPCM (15; Felucca's 14): the other engines keep their numbers */
+#define ENGI_DRONE 14u           /* (Fantasma 2.0) DRONE's engine (eng_drone.c) */
+#define ENGI_ADPCM 15u
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
 #define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
