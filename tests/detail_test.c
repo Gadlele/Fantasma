@@ -108,16 +108,20 @@ static int page_cycle(void)
     press(B_SEQ); frames(320);
     ok &= cur_page()->graph == GR_AMBI && !detail_on();
     press(B_SEQ); frames(320);
+    ok &= str_eq(cur_page()->title, "DICE") && !detail_on();
+    press(B_SEQ); frames(320);
+    ok &= str_eq(cur_page()->title, "DICE 2") && !detail_on();
+    press(B_SEQ); frames(320);
     ok &= str_eq(cur_page()->title, "STEP") && !detail_on();
-    bad += check("SEQ: STEP -> DETAIL (the same cursor) -> AUTOMATION -> AMBIENT -> STEP", ok);
+    bad += check("SEQ: STEP -> DETAIL (the same cursor) -> AUTOMATION -> AMBIENT -> DICE -> DICE 2 -> STEP", ok);
     go_detail();
     {
         char ti[20];
         page_title(ti);
-        ok = str_eq(ti, "DETAIL 2/4");
+        ok = str_eq(ti, "DETAIL 2/6");
     }
     ok &= help_page() && str_eq(help_page(), "[PRESETS]STEP[K1]CHANCE+FILL");
-    bad += check("  its footer title DETAIL 2/4 (not the scale; Fantasma's SEQ has AMBIENT too), its HELP hint", ok);
+    bad += check("  its footer title DETAIL 2/6 (not the scale; Fantasma's SEQ has AMBIENT, DICE, DICE 2 too), its HELP hint", ok);
     return bad;
 }
 

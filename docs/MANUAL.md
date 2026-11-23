@@ -359,6 +359,20 @@ DUST KIT, TAPE KIT, DUB KIT, WOOD KIT, CLICK KIT.
 - At power-on both are CHAN; a project of Fantasma 1.x loads as BUS and sounds as it did. HOME › AMBI 2's **TO** says
   which channel's reverb the ambience goes to (CHAN).
 
+**DICE** (Fantasma 2.0, SEQ › DICE, after AMBIENT): roll the dice on the channels you pick.
+- **WHO**: ALL, DRONE, PAD, BELLS, DRUMS, DRN+PAD, PAD+BEL, NO DRUMS.
+- **WHAT**: **SOUND** (sometimes another of the channel's sounds, then its values moved; the generators, the sends
+  and the key stay), **NOTES** (the drone a new note of the scale; PAD's progression and BELLS' bells a new SEED, their
+  EVOLVE moved; DRUMS' EUCLID moved and written, or a random beat), **FX** (the sends, the channel's delay and reverb,
+  now and then a modulation on the INSERT), or **ALL**.
+- **AMOUNT**: how far a roll goes. **KEY**: KEEP, or NEW (one new ROOT and SCALE for all four channels, the drone
+  retuned).
+- **OCT+** rolls. **OCT-** is **BEFORE / NOW**: the channels as they were before the last roll, and again as it left
+  them, each press the other.
+- **DICE 2 › EVOLVE**: OFF, or a roll by itself every 1, 2, 4, 8 or 16 bars (at the project's BPM, with the transport
+  stopped too; KEY kept).
+- Not saved with the project: what the dice made is.
+
 **AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
 LEVEL, REVERB) play an ambience under the four channels: the 13 AMBI scenes plus THUNDER, BREATH, NIGHT, EMBERS and
 TAPE END. It fades in and out over about a second and is saved with the project.

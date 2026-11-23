@@ -467,7 +467,7 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
 /* ------------------------------------------------------------ pages --- */
 enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE, FAM_ARP, FAM_SEQ, FAM_TRK,
        FAM_COUNT };
-enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_AMBI, SC_CHFX };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit);
+enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_AMBI, SC_CHFX, SC_DICE };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit);
                                                                       * SC_AMBI (Fantasma 2.0): the ambience layer's (al.v) */
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
        GR_SLCR, GR_MOD, GR_PATS, GR_SONG, GR_TOOLS, GR_CHORD, GR_SLICES, GR_EVENTS,
@@ -540,6 +540,8 @@ static const page_t PAGES[] = {
     {"AUTOMATION", FAM_SEQ, SC_TRACK, GR_EVENTS, {0xFF, 0xFF, 0xFF, 0xFF}},  /* the locks, events, CHANCE and RATCH as a
                                                                              * list, PLAY and CLEAR (ui_events.c) */
     {"AMBIENT", FAM_SEQ, SC_GLOBAL, GR_AMBI, {0xFF, 0xFF, 0xFF, 0xFF}},      /* Fantasma: OCT+ draws the Pad and Echoes anew (ui.c ambient_random) */
+    {"DICE", FAM_SEQ, SC_DICE, GR_NONE, {0, 1, 2, 3}},          /* (Fantasma 2.0, dice.c) WHO WHAT AMOUNT KEY; OCT+ roll, OCT- BEFORE / NOW */
+    {"DICE 2", FAM_SEQ, SC_DICE, GR_NONE, {4, 0xFF, 0xFF, 0xFF}},   /* .. EVOLVE */
     /* HOME's pages (1.2): HOME tapped on HOME the MIXER (up to 1.1.5 GLO's; LEVEL PAN REV MUTE), again CLOCK (up to 1.1.5
      * GLO > GLOBAL; its TUNE is MENU > AUDIO's now), again HOME (ui.c home_tap) */
     {"MIXER", FAM_TRK, SC_TRK, GR_TRK, {0, 1, 2, 3}},
@@ -554,6 +556,8 @@ static const page_t PAGES[] = {
 static uint8_t mod_ui_slot;      /* the MOD page: the matrix slot (0..3) KNOB 2..4 edit */
 
 static int16_t *chfx_val(uint32_t id);              /* (Fantasma 2.0: chfx.c) */
+static int16_t *dice_val(uint32_t id);              /* (Fantasma 2.0: dice.c) */
+static const param_desc_t *dice_pdesc(uint32_t id);
 static const param_desc_t *chfx_pdesc(uint32_t id);
 static const param_desc_t *page_desc(const page_t *pg, uint32_t slot, int16_t **valp)
 {
@@ -569,6 +573,10 @@ static const param_desc_t *page_desc(const page_t *pg, uint32_t slot, int16_t **
     if (pg->scope == SC_GLOBAL) {
         *valp = &song.g[id];
         return &GP[id];
+    }
+    if (pg->scope == SC_DICE) {                       /* (Fantasma 2.0) the dice (dice.c) */
+        *valp = dice_val(id);
+        return dice_pdesc(id);
     }
     if (pg->scope == SC_CHFX) {                       /* (Fantasma 2.0) the channel's delay and reverb (chfx.c) */
         *valp = chfx_val(id);

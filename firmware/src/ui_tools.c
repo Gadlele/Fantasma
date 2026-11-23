@@ -638,3 +638,4 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
 }
 
 #include "drum_gen.c"                                  /* (Fantasma 2.0) the DRUMS' EUCLID, MUTATE, DICE */
+#include "dice.c"                                      /* (Fantasma 2.0) SEQ > DICE */

@@ -92,7 +92,7 @@ static int mom_turn(uint32_t k, int32_t s)
         d = &TP[MIX_ID[k & 3u]];
     } else {
         if (act_cols() || lock_held() || !(pg->scope == SC_TRACK || pg->scope == SC_ENGINE || pg->scope == SC_GLOBAL ||
-                                          pg->scope == SC_AMBI || pg->scope == SC_CHFX) ||
+                                          pg->scope == SC_AMBI || pg->scope == SC_CHFX || pg->scope == SC_DICE) ||
             pg->graph == GR_EVENTS || pg->graph == GR_SONG || pg->graph == GR_BROWSE || pg->graph == GR_USER ||
             pg->graph == GR_PATS || pg->graph == GR_AMBI || (pg->graph == GR_SLICES && k < 2u) || (pg->graph == GR_MOD && k == 0u))
             return 0;
@@ -1109,7 +1109,7 @@ static void edit_param(uint32_t slot, int32_t steps)
         return;
     }
     *vp = (int16_t)v;
-    if (pg->scope != SC_GLOBAL && pg->scope != SC_AMBI && pg->scope != SC_CHFX) {
+    if (pg->scope != SC_GLOBAL && pg->scope != SC_AMBI && pg->scope != SC_CHFX && pg->scope != SC_DICE) {
         motion_capture(TSEL, (uint32_t)(vp - TSEL->p), *vp);
         ml_knob(TSEL, (uint32_t)(vp - TSEL->p));        /* (MIDI LEARN: picked) */
     }
@@ -1589,6 +1589,7 @@ static void ui_input(void)
     fm6_poll();                                         /* FM6: PTCH turned -> its patch */
     dg_poll();                                          /* (Fantasma 2.0) the DRUMS' MUTATE, on its loops */
     chfx_poll();                                        /* (Fantasma 2.0) the channels' delays: a mode change */
+    dice_poll();                                        /* (Fantasma 2.0) DICE's EVOLVE */
 #if !FELUCCA_FM4
     for (k = 0; k < NTRK; k++)                          /* a DIGITAL sound any other way (the paths convert it */
         if (trk[k].eng_req == ENGI_DIGITAL)             /* already): FM6 (fm4_convert.c) */
@@ -1623,7 +1624,7 @@ static void ui_input(void)
         ui.rec_t0 |= 2u;                                /* (REC is its layer's button now: its tap is layer_tap's) */
     layer_oct_open(pressed);                            /* (OCT± with a SET layer's button down: it opens now) */
     oct = oct_taps(pressed, ui.menu || ui.confirm || act_cols() || name_on() || layer_set_open() || ui.ml.on ||
-                         (!ui.home && dg_page(cur_page())));   /* (2.0: EUCLID, MUTATE's DICE and back) */
+                         (!ui.home && (dg_page(cur_page()) || dice_page(cur_page()))));   /* (2.0: EUCLID, MUTATE, DICE) */
     oct = layer_oct(pressed, oct);                      /* (a SET layer's OCT-: put back) */
     layer_masks();                                      /* seq.c: keys pressed with a layer's button are its own */
     lay = layer_held();
@@ -1821,8 +1822,8 @@ static void ui_input(void)
             uint32_t both = (1u << panel.btn[B_OCTDN]) | (1u << panel.btn[B_OCTUP]);
             if (act_cols() || layer_set_open() || ui.ml.on)   /* action pages: enter / back (below); SET layers: OCT-; */
                 break;                                  /* MIDI LEARN: clear / done (below) */
-            if (!ui.home && dg_page(cur_page()))        /* (Fantasma 2.0) EUCLID, MUTATE: DICE / back (below) */
-                break;
+            if (!ui.home && (dg_page(cur_page()) || dice_page(cur_page())))   /* (Fantasma 2.0) EUCLID, MUTATE, DICE: */
+                break;                                  /* their OCT+ and OCT- (below) */
             if ((fm1_in.buttons & both) == both)
                 song.octave = 0;
             else
@@ -1861,6 +1862,11 @@ static void ui_input(void)
             dg_dice(TSEL);
         else
             dg_anchor(TSEL);
+    } else if (oct && !ui.home && dice_page(cur_page()) && !layer_set_open()) {   /* (2.0) DICE: OCT+ rolls, */
+        if (oct & 2u)                                      /* OCT- BEFORE / NOW */
+            dice_roll(di_v[3] != 0);
+        else
+            dice_swap();
     }
     song.grid = (uint8_t)keys_mode();                 /* (seq.c: the keys are the grid's) */
 #if FELUCCA_SLICE

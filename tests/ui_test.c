@@ -2797,7 +2797,8 @@ static int test_page_cycles(void)
     ok = 1;
     for (i = 0; i < NPAGES; i++) {                       /* every page in a family its button reaches, and its LED */
         uint32_t f = PAGES[i].fam;
-        ok &= f != FAM_SEQ || PAGES[i].graph == GR_ROLL || PAGES[i].graph == GR_EVENTS || PAGES[i].graph == GR_AMBI;
+        ok &= f != FAM_SEQ || PAGES[i].graph == GR_ROLL || PAGES[i].graph == GR_EVENTS || PAGES[i].graph == GR_AMBI ||
+              PAGES[i].scope == SC_DICE;                /* (Fantasma 2.0: DICE, DICE 2) */
         ok &= f != FAM_GLO || PAGES[i].graph == GR_SONG;   /* (1.2: GLO's only page) */
         ok &= f != FAM_TRK || PAGES[i].graph == GR_TRK || str_eq(PAGES[i].title, "CLOCK") ||
               PAGES[i].scope == SC_AMBI;                /* HOME's: MIXER CLOCK (Fantasma 2.0: AMBI, AMBI 2) */
@@ -7211,11 +7212,15 @@ static int test_seq_tools(void)
     press(B_SEQ); frames(320);
     ok &= cur_page()->graph == GR_AMBI && str_eq(cur_page()->title, "AMBIENT");   /* (Fantasma's) */
     press(B_SEQ); frames(320);
+    ok &= str_eq(cur_page()->title, "DICE");                                       /* (Fantasma 2.0's) */
+    press(B_SEQ); frames(320);
+    ok &= str_eq(cur_page()->title, "DICE 2");
+    press(B_SEQ); frames(320);
     ok &= str_eq(cur_page()->title, "STEP");
     press(B_SEQ); frames(320);
     press(B_SEQ); frames(320);
     ok &= cur_page()->graph == GR_EVENTS;
-    bad += check("1.2: a tap on STEP: DETAIL (1.5.1), AUTOMATION, then STEP again (four SEQ pages with Fantasma's AMBIENT; the hint until the layer "
+    bad += check("1.2: a tap on STEP: DETAIL (1.5.1), AUTOMATION, then STEP again (six SEQ pages with Fantasma's AMBIENT, DICE, DICE 2; the hint until the layer "
                  "was opened)", ok);
     go_title("ENV"); frame();
     press(B_SEQ); frames(320);
@@ -7567,6 +7572,10 @@ static int test_layer_lock(void)
     ok &= str_eq(cur_page()->title, "AUTOMATION") && !ui.lock && !ui.layer;
     press(B_SEQ); frames(400);
     ok &= str_eq(cur_page()->title, "AMBIENT") && !ui.lock && !ui.layer;
+    press(B_SEQ); frames(400);
+    ok &= str_eq(cur_page()->title, "DICE") && !ui.lock && !ui.layer;   /* (Fantasma 2.0) */
+    press(B_SEQ); frames(400);
+    ok &= str_eq(cur_page()->title, "DICE 2") && !ui.lock && !ui.layer;
     press(B_SEQ);
     btn_down(B_SEQ); frames(500);
     ok &= ui.layer == LAYER_SEQ && !ui.lock;

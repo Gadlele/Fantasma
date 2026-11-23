@@ -56,6 +56,8 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"DETAIL", "[PRESETS]STEP[K1]CHANCE+FILL"},   /* (1.5.5: the conditions past 100 %; Fantasma: no comma or slash, whose tails touch the battery) */
     {"AUTOMATION", "[K1]ROW[OCT+]DO[EDIT]DELETE"},
     {"AMBIENT", "[OCT+]RANDOMIZE[OCT-]STOP"},
+    {"DICE", "[OCT+]ROLL[OCT-]BEFORE NOW"},       /* (Fantasma 2.0, dice.c) */
+    {"DICE 2", "[K1]EVERY N BARS[OCT+]ROLL"},
     {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]CLOCK"},
     {"CLOCK", "[SELECT]TEMPO[GLO]HOLD: TAP"},
     {"AMBI", "[K1]SCENE[K2]TONE[HOME]AMBI 2"},   /* (Fantasma 2.0: the ambience layer) */

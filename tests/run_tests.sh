@@ -320,6 +320,8 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "the DRUMS' generator (2.0): EUCLID live, DICE and back, MUTATE on the loops, LEN per track, the ambient kits" "$OUT/drum_gen_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/chfx_test" tests/chfx_test.c -lm
     run "each channel its delay and reverb (2.0): BUS / CHAN, the lanes, tails to silence, never running away, the project" "$OUT/chfx_test"
+    $CC -O1 -w -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/dice_test" tests/dice_test.c -lm
+    run "SEQ > DICE (2.0): WHO and WHAT alone, KEY NEW for all, BEFORE / NOW, EVOLVE" "$OUT/dice_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/ratchet_test" tests/ratchet_test.c -lm
     run "RATCH: x1..x4 in a step (notes, chords, drum hits), gates, chance, swing, projects, user presets, AUTOMATION RATCH rows" "$OUT/ratchet_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/step15_test" tests/step15_test.c -lm

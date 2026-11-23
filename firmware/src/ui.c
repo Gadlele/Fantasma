@@ -539,6 +539,11 @@ static void dg_write(track_t *t);
 static void dg_dice(track_t *t);
 static void dg_anchor(track_t *t);
 static void dg_poll(void);
+static int dice_page(const page_t *pg);              /* (Fantasma 2.0) SEQ > DICE (dice.c) */
+static void dice_roll(int key);
+static void dice_swap(void);
+static void dice_poll(void);
+static int16_t di_v[];
 static uint32_t home_id(const track_t *t, uint32_t k)
 {
     const engine_t *e = ENGINES[t->eng_req % NENGINES];

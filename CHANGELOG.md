@@ -47,6 +47,11 @@ fixes, a new **X** may change how things are saved.
   BELLS; DRUMS a room). **BUS** keeps one delay and one reverb for all, as in 1.x: every project before 2.0 loads so
   and sounds as it did. The AMBI layer sends to the reverb its TO names (AMBI 2). DRIVE and MOD per channel are FX's
   DIST and the INSERT (SOFT HARD FOLD FUZZ CRUSH, PHASR FLANG CHOR), as before.
+- **SEQ › DICE**, a page of its own: **WHO** (all four channels, one, or a few: DRN+PAD, PAD+BEL, NO DRUMS),
+  **WHAT** (ALL, SOUND, NOTES, FX), **AMOUNT**, **KEY** (KEEP, or NEW: one new key for all four); DICE 2's **EVOLVE**
+  rolls by itself every 1..16 bars. OCT+ rolls; OCT- is **BEFORE / NOW**, back and forth. SOUND keeps the generators,
+  the sends and the key; NOTES moves the drone's note, the progression's and the bells' seeds, the drums' EUCLID; FX
+  the sends, the channel's delay and reverb and now and then its INSERT.
 - The ambient machine plays the four channels: a DRONE note at INF, PAD's progression, the bells, and the
   ambience on; OCT- STOP lets them all go.
 
