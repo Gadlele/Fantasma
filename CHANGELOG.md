@@ -9,9 +9,12 @@ fixes, a new **X** may change how things are saved.
   clock), AMBI, AMBI 2, **FX MODE** (DLY and REV: CHAN or BUS), the bus DLY, REVERB and CHORUS. **FX** holds the
   selected channel's effects only: the sends, SLICER, INSERT, INSERT 2, CH DELAY, CH REVERB. **EDIT** the channel's
   sound, as before; **HOME** goes HOME › MIXER.
-- **The channels' reverbs, cleaner**: four times the level inside the reverb (the same level out), so a dying tail
-  fades smoothly instead of turning grainy and stopping short; SHIMMER gives way as the reverb fills, so at a big
-  SIZE it no longer piles up until the lines saturate.
+- **The channels' reverbs, cleaner**: the rasp is gone. SHIMMER's octave was made of 23 ms slices joined with a
+  corner, a 43 Hz roughness on everything it fed (at the DRONE's SHIMMR 20 the reverb's tail was 40 % noise between
+  the notes); now 35 ms slices with soft joins (about 5 %). The two swaying lines move smoothly instead of a sample at
+  a time (no tiny ticks). Four times the level inside the reverb (the same out): a dying tail fades smoothly instead
+  of turning grainy and stopping short. SHIMMER gives way as the reverb fills: at a big SIZE it no longer piles up
+  until the lines saturate.
 - **A CPU counter, always on screen**: at the right of the tabs, **C1** the first core's load and **C2** the second's
   (MENU › SYSTEM › 2ND CORE; `--` when it is off), refreshed twice a second, in the accent from 85 %.
 - **SELECT steps the tabs** of the page shown, by default (MENU › CONTROL › SELECT PAGE): the tempo is GLO › CLOCK,

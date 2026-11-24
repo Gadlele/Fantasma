@@ -121,7 +121,9 @@ static __attribute__((noinline)) void chfx_delays(int32_t *wet, uint32_t n)
 #define CR_HP 6                          /* the input's low cut: a pole at ~55 Hz (half rate) */
 #define CR_APG 19661                     /* the diffusers' gain, Q15 (0.6) */
 #define CR_SH 1024u                      /* SHIMMER's line (half rate) */
-#define CR_SHW 512u                      /* .. its window: the two heads this far apart at most (a power of 2) */
+#define CR_SHW 768u                      /* .. its window: the two heads this far apart at most (< CR_SH): 35 ms a
+                                          * cycle (2.0b; 512, 23 ms: a 43 Hz roughness, the tail rasped) */
+#define CR_SHW_PH (0xFFFFFFFFu / CR_SHW)  /* (a step of the window's phase) */
 static const uint16_t CR_LEN[NPART][4] = {{659, 787, 911, 1061}, {613, 743, 877, 1013}, {571, 701, 839, 977},
                                           {241, 307, 379, 443}};
 static const uint16_t CR_AP[NPART][2] = {{113, 241}, {107, 229}, {101, 233}, {53, 97}};
@@ -209,7 +211,7 @@ static __attribute__((noinline)) void cr_gains(cr_t *r, uint32_t c, int32_t size
  * would leave standing) */
 static inline int32_t mulq15z(int32_t a, int32_t b) { return (a * b + 16384) >> 15; }
 #define CR_SHLO 6000                      /* SHIMMER: the lines' level where it starts to give way, and is gone */
-#define CR_SHHI 14000
+#define CR_SHHI (CR_SHLO + 8192)        /* (a shift, no divide in the loop) */
 static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in, int32_t *wet, int32_t *side, uint32_t n)
 {
     cr_t *r = &cr[c];
@@ -233,7 +235,7 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
         }
         if (shim) {                                     /* SHIMMER: the octave up, back in, no louder than the send; */
             int32_t e = r->env >> 8, sh = r->lvl <= CR_SHLO ? shim :   /* .. and less as the lines fill (at SIZE 127 */
-                       r->lvl >= CR_SHHI ? 0 : shim * (CR_SHHI - r->lvl) / (CR_SHHI - CR_SHLO);   /* it piled up to full) */
+                       r->lvl >= CR_SHHI ? 0 : (shim * (CR_SHHI - r->lvl)) >> 13;   /* it piled up to full) */
             x += clamp(mulq15(r->shy, sh), -e, e);
         }
         r->hp += ((x << 8) - r->hp) >> CR_HP;          /* (Q8, rounded: it settles at 0, no offset left in) */
@@ -247,18 +249,23 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
                 r->apw[k] = 0;
         }
         r->mph += 0x1E000u;                              /* (~0.3 Hz at half rate) */
-        sw = osc_sine(r->mph) >> 12;                     /* +-8 samples: lines 0 and 2 sway */
+        sw = osc_sine(r->mph) >> 4;                      /* +-8 samples (Q8): lines 0 and 2 sway */
         for (k = 0; k < 4u; k++) {
             uint32_t len = CR_LEN[c][k], rd;
             int32_t v;
             if (k == 0u || k == 2u) {                    /* read a little short of the end, swaying */
-                rd = r->w[k] + (uint32_t)(10 + (k ? -sw : sw));   /* (2 .. 18 ahead of the write: the oldest) */
+                int32_t pos = (10 << 8) + (k ? -sw : sw);    /* (2 .. 18 ahead of the write: the oldest; Q8) */
+                uint32_t r2, f = (uint32_t)pos & 255u;
+                rd = r->w[k] + (uint32_t)(pos >> 8);
                 if (rd >= len)
                     rd -= len;
+                r2 = rd + 1u < len ? rd + 1u : 0u;
+                v = r->ln[k][rd] + (((r->ln[k][r2] - r->ln[k][rd]) * (int32_t)f) >> 8);   /* (2.0b: between two
+                                                                         * samples: a whole one a step ticked) */
             } else {
                 rd = r->w[k];
+                v = r->ln[k][rd];
             }
-            v = r->ln[k][rd];
             r->lp[k] += mulq15z(v - r->lp[k], kd);       /* DAMP */
             o[k] = r->lp[k];
         }
@@ -290,13 +297,14 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
             r->lvl = am > r->lvl ? am : r->lvl - (r->lvl >> 15) - (r->lvl > 0);
         }
         if (r->sh) {                                     /* SHIMMER: the tail an octave up, two heads crossfaded */
-            uint32_t d1 = r->shr >> 8, d2 = (d1 + CR_SHW / 2u) & (CR_SHW - 1u);
-            int32_t g1 = (int32_t)(d1 < CR_SHW / 2u ? d1 : CR_SHW - d1), g2 = (int32_t)(CR_SHW / 2u) - g1;
+            uint32_t d1 = r->shr >> 8, d2 = d1 + CR_SHW / 2u >= CR_SHW ? d1 - CR_SHW / 2u : d1 + CR_SHW / 2u;
+            int32_t g1 = (32768 - osc_sine(d1 * CR_SHW_PH + 0x40000000u)) >> 1, g2 = 32768 - g1;   /* raised cosine,
+                                                                         * Q15: 0 where a head wraps, no corner (2.0b) */
             r->sh[r->shw & (CR_SH - 1u)] = (int16_t)clamp(m >> 1, -32767, 32767);   /* (the lines' mean: given to each
                                                                          * of the four, the loop's gain stays below 1) */
-            int32_t sy = (r->sh[(r->shw - d1 - 2u) & (CR_SH - 1u)] * g1 + r->sh[(r->shw - d2 - 2u) & (CR_SH - 1u)] * g2) >> 8;
+            int32_t sy = (r->sh[(r->shw - d1 - 2u) & (CR_SH - 1u)] * g1 + r->sh[(r->shw - d2 - 2u) & (CR_SH - 1u)] * g2) >> 15;
             r->shy += (sy - r->shy) >> 1;                /* (a gentle low-pass: no fizz from the octaves on top) */
-            _Static_assert(CR_SHW / 2u == 256u, "the crossfade's shift");
+            _Static_assert(CR_SHW + 2u < CR_SH, "the heads inside the line");
             r->shw++;
             r->shr = r->shr >= (2u << 8) ? r->shr - (1u << 8) : (CR_SHW - 1u) << 8;   /* the read nears the write by
                                                                                     * one a sample: twice the speed */
