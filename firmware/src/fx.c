@@ -1103,7 +1103,11 @@ static uint32_t mix_split(void)
         all += part_cost[i];
     lo = all;
     for (m = 1; m < (1u << NPART) - 1u; m++) {
-        uint32_t a = 0, w;
+        uint32_t a = 0, w, k;
+        for (k = 0; k < NPART && !(m >> k & 1u && trk[k].engine == ENGI_NIAGARA); k++)
+            ;
+        if (k < NPART)                                  /* (NIAGARA stays here: mix_block) */
+            continue;
         for (i = 0; i < NPART; i++)
             if (m >> i & 1u)
                 a += part_cost[i];
@@ -1140,6 +1144,10 @@ static void mix_block(int32_t *out, uint32_t n)
     perf = perf_begin(n);                               /* the FX hold layer at work (perform.c) */
 #if FELUCCA_CPU2
     uint32_t m = C1_ON() ? C1_SPLIT() & ((1u << NPART) - 1u) : 0u;
+    for (i = 0; i < NPART; i++)                         /* (Fantasma 2.0) NIAGARA (float, eng_niagara.c) on this core
+                                                         * only: the second's FPU state is not set up for it */
+        if (trk[i].engine == ENGI_NIAGARA)
+            m &= ~(1u << i);
     if (m && !C1_RUN(c1_timed, m | n << 8))
         m = 0;
     c1_blocks += m != 0;

@@ -20,7 +20,8 @@ fixes, a new **X** may change how things are saved.
   noise, their filters with drive, the ULTRA LFO and its taps, the PULSE, Drift, Character, Age, Feedback, Wander,
   pitch link, sync, cross-mod, in stereo; Niagara Drift's 16 Presets as its sounds; its values on Fantasma's pages
   (EDIT, LFO, ENV) and saved with the project and a user preset. Niagara Drift's own effects are left out (no room):
-  the channel's play instead. The first DRONE engine stays on the channel's list.
+  the channel's play instead. The first DRONE engine stays on the channel's list. NIAGARA always plays on the first
+  core: the second (MENU › SYSTEM › 2ND CORE ON, then a restart) takes the other channels.
 - **FILT ENV**: ENV's second page, the filter's own envelope (ATK DEC SUS REL): a filter that opens slowly on a note
   that starts at once, or the other way round. At =ENV (KNOB 1 all the way down, every sound's start) it follows ENV,
   so every sound, user preset and project sounds as before; any of its knobs starts it from ENV's values. Saved in the

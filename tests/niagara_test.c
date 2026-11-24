@@ -64,6 +64,10 @@ int main(void)
     trk_note_on(&trk[0], 50, 100);
     nblocks(2.0, &r, &s);
     CHK(r > 1000.0 && s > 500.0);
+#if FELUCCA_CPU2
+    part_cost[0] = 1600; part_cost[1] = part_cost[2] = part_cost[3] = 300;   /* (the split's pick: part 1 alone) */
+    CHK(!(mix_split() & 1u) && mix_split());          /* NIAGARA never handed to the second core (fx.c); the rest are */
+#endif
     trk_note_off(&trk[0], 50);
     nblocks(12.0, 0, 0);
     nblocks(0.5, &r, 0);

@@ -7,7 +7,9 @@
  * block at a time either way), and its scope (DR_SCOPE_N, for its screen) is 4 points. This unit is built apart from felucca.c (tools/build.py), with the FPU as Niagara
  * Drift builds it; Fantasma reaches it through niagara.h only. The Presets are Niagara Drift's sixteen
  * (firmware/src/app/project.c, the same changes from the starting sound), its delay and reverb settings left out. */
+#ifndef BLK
 #define BLK 32u
+#endif
 #define DR_SCOPE_N 4                             /* (the drones' scope is Niagara Drift's screen's: none here) */
 #include "drone.c"
 #include "niagara.h"
