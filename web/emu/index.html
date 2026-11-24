@@ -524,7 +524,7 @@ async function switchOn() {
   go.disabled = true;
   go.textContent = "Starting…";
   try {
-    const ac = new AudioContext({ sampleRate: 44100, latencyHint: "interactive" });
+    const ac = new AudioContext({ sampleRate: 44100, latencyHint: "playback" });   // (Fantasma 2.0: a deeper buffer; the screen is drawn in the audio thread, a redraw ran past a 2.9 ms quantum: crackles)
     const [wasm] = await Promise.all([
       fetch("felucca.wasm").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js")]);
