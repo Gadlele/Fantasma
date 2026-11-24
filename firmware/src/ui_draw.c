@@ -1199,10 +1199,9 @@ static void draw_foot(void)
     {   /* row 2: engine icon + name, sound, page title at the right with its icon before it (MIXER, PHRASES, SONG,
          * AUTOMATION); icons: their ink on the names' capitals */
         uint32_t pi = ui.home || !ti[0] ? ICON_NONE : page_icon(pg);
-        int32_t r = foot_status(0) - 8, tx, ex, need = text_w(&AF_S, pn), ew = text_w(&AF_S, ename);
-        ex = 8 + 16 + 5 + 14 + (ew < 80 ? ew : 80);   /* (where the engine's name ends) */
+        int32_t r = foot_status(0) - 8, tx, ex = 8 + 16 + 5 + 14, need = text_w(&AF_S, pn);   /* (ex: where the name starts) */
         tx = r - text_w(&AF_S, ti) - (pi != ICON_NONE ? 16 : 0);
-        if (!ui.home && pg->graph == GR_EVENTS && tx - 12 - (ex + 10) < need) {
+        if (!ui.home && pg->graph == GR_EVENTS && tx - 12 - ex < need) {
             str_cpy(ti + 4, ti + 10, sizeof ti - 4);    /* #93: "AUTOMATION 6/6" -> "AUTO 6/6" where the sound's name */
             tx = r - text_w(&AF_S, ti) - (pi != ICON_NONE ? 16 : 0);   /* would be cut (MENU > LARGE) */
         }
@@ -1219,12 +1218,7 @@ static void draw_foot(void)
                 x += 6;
             }
         }
-        if (tx - 12 - (x + (ew < 80 ? ew : 80) + 10) < 40)   /* (little room: the sound's name alone) */
-            cv_free_text(x, 19, &AF_S, pn, T_TEXT, T_BG, tx - 12 - x);
-        else {
-            x = cv_text_fit(x, 19, &AF_S, ename, T_THEME, T_BG, 80);
-            cv_free_text(x + 10, 19, &AF_S, pn, T_TEXT, T_BG, tx - 12 - (x + 10));
-        }
+        cv_free_text(x, 19, &AF_S, pn, T_TEXT, T_BG, tx - 12 - x);   /* Fantasma 2.0: the sound's name alone (no engine) */
         if (pi != ICON_NONE) {
             GFX_HOOK_ALIGN(0, 19 + AF_S_CAP_Y, 0, 19 + AF_S_CAP_Y + AF_S_CAP_H, AL_V,
                            "footer icons on the names' line");
