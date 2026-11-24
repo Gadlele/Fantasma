@@ -373,6 +373,10 @@ EXPORT void web_render(uint32_t n)
     }
 }
 
+/* (Fantasma 2.0) the screen's CPU counter, C1: the share of real time the worklet spends running the device, 1/256
+ * (there is no audio ISR here to measure it; C2 is -- : one core) */
+EXPORT void web_cpu(uint32_t q8) { song.cpu_q8 = q8 > 256u ? 256u : q8; }
+
 /* the flash: erased, then the page's saved sectors (web_nor), then boot */
 EXPORT uint8_t *web_nor(void) { return nor; }
 EXPORT uint32_t web_nor_size(void) { return sizeof nor; }

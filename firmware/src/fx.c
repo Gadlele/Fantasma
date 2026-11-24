@@ -1073,6 +1073,19 @@ static void c1_parts(uint32_t arg)                      /* arg: the parts (bit k
             mix_part(&trk[i], n, sm);
 }
 
+/* (Fantasma 2.0) the second core's load for the footer's CPU counter: its time in c1_parts, taken by audio.c at the end
+ * of each half (C1_TICKS: TIMER4, 24 MHz, readable from either core; none on the host) */
+#ifndef C1_TICKS
+#define C1_TICKS() 0u
+#endif
+static volatile uint32_t c1_ticks;
+static void c1_timed(uint32_t arg)
+{
+    uint32_t t0 = C1_TICKS();
+    c1_parts(arg);
+    c1_ticks += C1_TICKS() - t0;
+}
+
 /* which parts go to the second core: the split of the last block's costs that leaves the busier core the least; none
  * when that saves less than handing them over costs (C1_HAND) */
 #define C1_HAND 40u
@@ -1097,6 +1110,18 @@ static uint32_t mix_split(void)
 }
 #endif
 
+/* (Fantasma 2.0) the footer's CPU counter: the second core's load (audio.c), -1 when it is not rendering (2ND CORE OFF,
+ * not answering, the host) */
+static uint32_t cpu2_q8;
+static int32_t cpu2_pct(void)
+{
+#if FELUCCA_CPU2
+    return C1_ON() ? (int32_t)(cpu2_q8 * 100u / 256u) : -1;
+#else
+    return -1;
+#endif
+}
+
 static void mix_block(int32_t *out, uint32_t n)
 {
     uint32_t i;
@@ -1108,7 +1133,7 @@ static void mix_block(int32_t *out, uint32_t n)
     perf = perf_begin(n);                               /* the FX hold layer at work (perform.c) */
 #if FELUCCA_CPU2
     uint32_t m = C1_ON() ? C1_SPLIT() & ((1u << NPART) - 1u) : 0u;
-    if (m && !C1_RUN(c1_parts, m | n << 8))
+    if (m && !C1_RUN(c1_timed, m | n << 8))
         m = 0;
     c1_blocks += m != 0;
     for (i = 0; i < NPART; i++)

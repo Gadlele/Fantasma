@@ -70,6 +70,7 @@
 #include "fm1_cpu1.h"
 #define C1_ON() fm1_cpu1_on                  /* fx.c mix_block: a second core is answering */
 #define C1_RUN(fn, arg) fm1_cpu1_run(fn, arg)
+#define C1_TICKS() fm1_ticks()              /* fx.c c1_timed: the second core's time (the footer's CPU 2) */
 static __attribute__((noinline)) int c1_wait(void) { return fm1_cpu1_wait(); }   /* out of line: its retirement
                                                  * path (chip/fm1_cpu1.h fm1_cpu1_retire) stays out of the audio ISR */
 #define C1_WAIT() c1_wait()

@@ -110,6 +110,7 @@ if (typeof registerProcessor === "function") {
       }
       if (this.frames >= 44100) {                     // the share of real time spent running the device
         msg.load = this.busy / (this.frames / 44.1);
+        if (this.ex.web_cpu) this.ex.web_cpu(Math.round(Math.min(msg.load, 1) * 256));   // (Fantasma 2.0: the screen's C1)
         this.busy = this.frames = 0;
       }
       const transfer = [];

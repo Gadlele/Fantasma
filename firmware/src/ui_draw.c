@@ -911,6 +911,47 @@ static void tab_short(char *o, const char *btn, const char *t, uint32_t n)
 }
 #define TAB_PAD 5
 #define TAB_MARK 12                                    /* the "<" ">" tabs of a window */
+/* (Fantasma 2.0) the CPU counter, always at the right of the tabs' strip: C1 the first core's load (the audio's,
+ * song.cpu_q8), C2 the second's (fx.c cpu2_pct; -- when it is not rendering), 0..99 %, refreshed twice a second so it
+ * reads; 85 % and up in the accent. The tabs keep left of it (TABS_R) */
+#define CPU_W 32
+#define TABS_R (240 - CPU_W)
+static int8_t cpu_shown[2] = {-2, -2};
+static uint32_t cpu_ms, cpu_sig;
+static uint32_t cpu_now(void)                          /* the values shown, taken twice a second; their signature */
+{
+    if (cpu_shown[0] < -1 || fm1_ms - cpu_ms >= 500u) {
+        int32_t c2 = cpu2_pct();
+        cpu_ms = fm1_ms;
+        cpu_shown[0] = (int8_t)clamp((int32_t)(song.cpu_q8 * 100u / 256u), 0, 99);
+        cpu_shown[1] = (int8_t)(c2 < 0 ? -1 : clamp(c2, 0, 99));
+    }
+    return 1u + (uint32_t)(cpu_shown[0] + 2) * 257u + (uint32_t)(cpu_shown[1] + 2) + (uint32_t)ux.theme * 65537u +
+           ux.gen * 7u;
+}
+static void cpu_ink(int32_t x0)                        /* into the canvas begun, its cell from x0 */
+{
+    uint32_t k;
+    for (k = 0; k < 2u; k++) {
+        char v[4], l[3] = {'C', (char)('1' + k), 0};
+        int32_t c = cpu_shown[k], y = (int32_t)k * 11 - AF_T_CAP_Y + 2;
+        if (c < 0) str_cpy(v, "--", sizeof v);
+        else fmt_int(v, c);
+        cv_text(x0 + 2, y, &AF_T, l, T_MID);
+        cv_text(x0 + CPU_W - 2 - text_w(&AF_T, v), y, &AF_T, v, c >= 85 ? T_ACCENT : c < 0 ? T_MID : T_THEME);
+    }
+}
+static void draw_cpu(uint32_t force)                   /* the cell alone, when its values change */
+{
+    uint32_t sig = cpu_now();
+    if (!force && sig == cpu_sig)
+        return;
+    cpu_sig = sig;
+    cv_begin(CPU_W, H_TABS - 2, T_BG);                 /* (the strip's coloured line under it stays) */
+    cpu_ink(0);
+    cv_blit(TABS_R, Y_TABS);
+}
+
 static void draw_tabs(uint32_t force)
 {
     uint32_t fam = ui.home ? FAM_HOME : cur_page()->fam, i, n = 0, open = 0, pass, sig, pad = TAB_PAD, lo, hi;
@@ -963,13 +1004,13 @@ static void draw_tabs(uint32_t force)
             w[i] = text_w(&AF_T, nm[i]) + 2 * (int32_t)pad;
             tot += w[i] + 2;
         }
-        if (tot <= 240)
+        if (tot <= TABS_R)
             break;
     }
     lo = 0;                                                /* still too wide (FM6's EDIT: 12 pages): a window of tabs */
     hi = n - 1u;                                           /* around the open one, a "<" / ">" tab where more lie beyond */
-    if (tot > 240) {
-        int32_t used = w[open] + 2, room = 240 - 3 - 2 * (TAB_MARK + 2);
+    if (tot > TABS_R) {
+        int32_t used = w[open] + 2, room = TABS_R - 3 - 2 * (TAB_MARK + 2);
         lo = hi = open;
         for (;;) {
             int grew = 0;
@@ -1011,6 +1052,8 @@ static void draw_tabs(uint32_t force)
         x += w[i] + 2;
     cv_rrect(x, 0, w[open], H_TABS + 6, -5, col, T_BG);
     cv_text_on(x + (int32_t)pad, 8 - AF_T_CAP_Y, &AF_T, big, T_INK, col);
+    cpu_sig = cpu_now();                                   /* (Fantasma 2.0) the CPU counter, in the same pass */
+    cpu_ink(TABS_R);
     cv_blit(0, Y_TABS);
     ui.head_sig = 0;                                       /* (the header redraws when it comes back) */
 }
@@ -2005,8 +2048,10 @@ static void ui_draw_page(uint32_t counting)
         draw_head();
         head_over_tabs = 0;
     }
-    else
+    else {
         draw_tabs(ui.force);
+        draw_cpu(0);                                    /* (Fantasma 2.0; drawn with the tabs when they are) */
+    }
     felucca_dbg.stage = 4;
     draw_columns();
     felucca_dbg.stage = 5;

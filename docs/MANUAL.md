@@ -127,6 +127,8 @@ ambient machine. All AMBI sounds have REL 64 (half), so they let go as before un
 ![FM-1 controls with Felucca](controls.jpg)
 
 - Tap a page button for its page, again for the next; HOME returns home. Page buttons act when let go
+- Top right, always: **C1** and **C2**, how busy the two cores are (%; C2 `--` with MENU › SYSTEM › 2ND CORE OFF).
+  From 85 % in the accent: notes may start to be cut to keep the sound going
 - The **SELECT** knob steps the tabs of the page shown (Fantasma 2.0: MENU › CONTROL › SELECT is PAGE by default);
   the tempo is GLO › CLOCK's KNOB 1, GLO + SELECT or TAP (SELECT set to BPM gives the knob the tempo back)
 - Hold FX, GLO, SCL, EDIT, REC or SEQ for its quick layer; hold SAVE to undo, HOME for the menu; hold LFO and turn a

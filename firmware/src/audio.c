@@ -144,6 +144,14 @@ void fm1_alnk0_irq(void)                       /* via isr_alnk0 (bsp/chip/fm1_is
             song.cpu_q8 = load / CPU_AVG;
             audio_cpu_rem = load % CPU_AVG;
         }
+#if FELUCCA_CPU2
+        {   /* (Fantasma 2.0) the second core's share of this half, averaged the same way (the footer's CPU 2) */
+            uint32_t t1 = c1_ticks, load;
+            c1_ticks = 0;
+            load = cpu2_q8 * (CPU_AVG - 1u) + (t1 / FM1_TICKS_PER_US * 256u) / (HALF_FRAMES * 1000000u / FS);
+            cpu2_q8 = load / CPU_AVG;
+        }
+#endif
         if (fm1_audio_free_half() != half)
             felucca_dbg.late++;                         /* the DMA moved on while we rendered */
         felucca_dbg.halves++;

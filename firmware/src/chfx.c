@@ -153,6 +153,7 @@ typedef struct {
     int32_t lp[4], hp, shy;              /* the lines' damping, the low cut (Q8), SHIMMER's last out */
     int32_t dc[4];                       /* each line's DC (Q12): the integers' rounding leaves none to build up */
     int32_t env;                         /* SHIMMER: the send's envelope (Q8) */
+    int32_t lvl;                         /* SHIMMER: the lines' level (a peak follower of the mid) */
     int32_t pm, ps;                      /* the last half-rate outputs (mid, side): the way back up */
     uint32_t mph;                        /* the swaying lines' phase */
     int16_t size;                        /* the SIZE the gains are for (-1: none yet) */
@@ -207,6 +208,8 @@ static __attribute__((noinline)) void cr_gains(cr_t *r, uint32_t c, int32_t size
 /* a x b (Q15) rounded to the nearest: a tail fades evenly to the last bit (the lines' DC blockers take what rounding
  * would leave standing) */
 static inline int32_t mulq15z(int32_t a, int32_t b) { return (a * b + 16384) >> 15; }
+#define CR_SHLO 6000                      /* SHIMMER: the lines' level where it starts to give way, and is gone */
+#define CR_SHHI 14000
 static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in, int32_t *wet, int32_t *side, uint32_t n)
 {
     cr_t *r = &cr[c];
@@ -219,7 +222,8 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
     if (r->size != cf.v[c][CF_SIZE])
         cr_gains(r, c, cf.v[c][CF_SIZE]);
     for (i = 0; i + 1u < n; i += 2u) {
-        int32_t x = (in[i] + in[i + 1u]) >> 4, o[4], h[4], m, s, sw, ax = x < 0 ? -x : x;   /* (quiet in the lines: a
+        int32_t x = (in[i] + in[i + 1u]) >> 2, o[4], h[4], m, s, sw, ax = x < 0 ? -x : x;   /* (2.0b: 4x up from >> 4:
+                                                                         * a dying tail kept its grain, ~8 bits left) */   /* (quiet in the lines: a
                                                                          * held chord into a long SIZE builds up ~20 dB) */   /* (loud in the lines: a long tail stays above
                                                                           * the rounding; out a quarter, below) */
         if (r->sh) {                                    /* the send's envelope (Q8): up at once, down over ~3 s */
@@ -227,9 +231,10 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
             if ((ax << 8) > r->env)
                 r->env = ax << 8;
         }
-        if (shim) {                                     /* SHIMMER: the octave up, back in, no louder than the send */
-            int32_t e = r->env >> 8;
-            x += clamp(mulq15(r->shy, shim), -e, e);
+        if (shim) {                                     /* SHIMMER: the octave up, back in, no louder than the send; */
+            int32_t e = r->env >> 8, sh = r->lvl <= CR_SHLO ? shim :   /* .. and less as the lines fill (at SIZE 127 */
+                       r->lvl >= CR_SHHI ? 0 : shim * (CR_SHHI - r->lvl) / (CR_SHHI - CR_SHLO);   /* it piled up to full) */
+            x += clamp(mulq15(r->shy, sh), -e, e);
         }
         r->hp += ((x << 8) - r->hp) >> CR_HP;          /* (Q8, rounded: it settles at 0, no offset left in) */
         x -= (r->hp + 128) >> 8;
@@ -276,6 +281,14 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
         }
         m = (o[0] + o[1] + o[2] + o[3]) >> 1;            /* left o0 + o2, right o1 + o3 */
         s = (o[0] + o[2] - o[1] - o[3]) >> 1;
+        {   /* the lines' level for SHIMMER (the loudest of the four): up at once, down over ~1.5 s */
+            int32_t am = 0, a;
+            for (k = 0; k < 4u; k++) {
+                a = o[k] < 0 ? -o[k] : o[k];
+                am = a > am ? a : am;
+            }
+            r->lvl = am > r->lvl ? am : r->lvl - (r->lvl >> 15) - (r->lvl > 0);
+        }
         if (r->sh) {                                     /* SHIMMER: the tail an octave up, two heads crossfaded */
             uint32_t d1 = r->shr >> 8, d2 = (d1 + CR_SHW / 2u) & (CR_SHW - 1u);
             int32_t g1 = (int32_t)(d1 < CR_SHW / 2u ? d1 : CR_SHW - d1), g2 = (int32_t)(CR_SHW / 2u) - g1;
@@ -288,10 +301,10 @@ static __attribute__((noinline)) void chfx_reverb(uint32_t c, const int32_t *in,
             r->shr = r->shr >= (2u << 8) ? r->shr - (1u << 8) : (CR_SHW - 1u) << 8;   /* the read nears the write by
                                                                                     * one a sample: twice the speed */
         }
-        wet[i] += (r->pm + m) * 5;               /* back to the rate: between the two, then this one */
-        side[i] += (r->ps + s) * 5;
-        wet[i + 1u] += m * 10;
-        side[i + 1u] += s * 10;
+        wet[i] += ((r->pm + m) * 5) >> 2;        /* back to the rate: between the two, then this one (the */
+        side[i] += ((r->ps + s) * 5) >> 2;       /* lines 4x up: out a quarter, the level as before) */
+        wet[i + 1u] += (m * 5) >> 1;
+        side[i + 1u] += (s * 5) >> 1;
         r->pm = m;
         r->ps = s;
     }
