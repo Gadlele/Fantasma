@@ -31,6 +31,10 @@ static uint8_t *fav_bit(uint32_t engine, uint32_t preset, uint8_t *mask)   /* th
         *mask = (uint8_t)(1u << (preset % 8u));
         return &favorites.factory[13][28u + preset / 8u];
     }
+    if (engine == ENGI_NIAGARA && preset < 16u) {   /* .. NIAGARA's after them (bytes 30, 31) */
+        *mask = (uint8_t)(1u << (preset % 8u));
+        return &favorites.factory[13][30u + preset / 8u];
+    }
 #if FELUCCA_ADPCM
     if (engine == ENGI_ADPCM && preset < 8u) {
         *mask = (uint8_t)(1u << preset);

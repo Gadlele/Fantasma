@@ -55,6 +55,7 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #include "eng_drone.c"          /* DRONE (Fantasma 2.0): DRONE's engine, after Niagara Drift's drones, engine 14 */
 #include "eng_golana.c"         /* GOLANA (Fantasma 2.0): PAD's engine, Golana's made smaller, engine 15 */
 #include "eng_chime.c"          /* CHIME (Fantasma 2.0): BELLS' engine, ring and two-operator FM, engine 16 */
+#include "eng_niagara.c"        /* NIAGARA (Fantasma 2.0): DRONE's engine, Niagara Drift's drones (niagara/), engine 18 */
 #if FELUCCA_ADPCM
 #include "eng_adpcm.c"           /* ADPCM: BRR waves and an FIR echo, its DSP ported from snes_spc (adpcm_dsp.c, LGPL-2.1+) */
 #endif
@@ -92,7 +93,10 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_CHIME,                  /* 16 (ENGI_CHIME, Fantasma 2.0) */
 #if FELUCCA_ADPCM
     &ENG_ADPCM,                  /* 17 (ENGI_ADPCM, Felucca's 14; FELUCCA_ADPCM=0 builds without it) */
+#else
+    &ENG_ADPCM_GONE,             /* 17: reserved (ADPCM not built: never selectable, eng_ok) */
 #endif
+    &ENG_NIAGARA,                /* 18 (ENGI_NIAGARA, Fantasma 2.0) */
 };
 
 /* a track's engine number as an index (the audio paths: a compare, cheaper than % NENGINES; a bad number: 0) */
@@ -153,6 +157,7 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
     10,                          /* DRUM */
     14, 15, 16,                  /* DRONE, GOLANA, CHIME (Fantasma 2.0): after the engines the EDIT layer's white keys pick
                                   * (ui_layer.c LY_ENG_KEYS) */
+    18,                          /* NIAGARA (Fantasma 2.0) */
 #if FELUCCA_ADPCM
     17,                          /* ADPCM (1.8): last, so the EDIT layer's white keys keep the 13 above (ui_layer.c LY_ENG_KEYS) */
 #endif
@@ -160,7 +165,7 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
 
 /* the engines one can pick (engine 1 only with FELUCCA_FM4), in ENGINE_ORDER: eng_ok(e), the n-th of them
  * eng_vis(n), e's place among them eng_rank(e), the next / previous one eng_step(e, dir) (wraps) */
-static int eng_ok(uint32_t e) { return e < NENGINES && (FELUCCA_FM4 || e != ENGI_DIGITAL); }
+static int eng_ok(uint32_t e) { return e < NENGINES && (FELUCCA_FM4 || e != ENGI_DIGITAL) && (FELUCCA_ADPCM || e != ENGI_ADPCM); }
 static uint32_t eng_vis(uint32_t n) { return ENGINE_ORDER[n % NENG_SHOWN]; }
 static uint32_t eng_rank(uint32_t e)
 {
@@ -188,7 +193,8 @@ static int eng_allowed(uint32_t ti, uint32_t e)
 #ifdef FANTASMA_PAD_ALL                           /* (tests/ui_test.c browses every sound on DRONE and PAD) */
         return !(FELUCCA_BELL && e == ENGI_BELL) && !(FELUCCA_AMBI && e == ENGI_AMBI) && e != ENGI_NOISE;
 #else
-        return e == (ti ? ENGI_GOLANA : ENGI_DRONE);   /* DRONE: DRONE; PAD: GOLANA */
+        return ti ? e == ENGI_GOLANA : e == ENGI_NIAGARA || e == ENGI_DRONE;   /* DRONE: NIAGARA (and 2.0's first
+                                                         * DRONE); PAD: GOLANA */
 #endif
     }
     if (ti == 2u)
@@ -263,7 +269,7 @@ static const struct {
 
 /* the parts at power-on (engine, preset, PATTERNS[n - 1] in the sequencer, 0 = empty): Fantasma 2.0's four channels,
  * DRONE, PAD, BELLS, DRUMS (ROLE_NAME): DRONE's first, GOLANA's SOFT PAD, CHIME's GLASS, DRUM's first kit; the steps empty */
-static const uint8_t TRK_DEF[NPART][3] = {{ENGI_DRONE, 0, 0}, {ENGI_GOLANA, 0, 0}, {ENGI_CHIME, 0, 0}, {ENGI_DRUM, 0, 0}};
+static const uint8_t TRK_DEF[NPART][3] = {{ENGI_NIAGARA, 0, 0}, {ENGI_GOLANA, 0, 0}, {ENGI_CHIME, 0, 0}, {ENGI_DRUM, 0, 0}};
 /* the part each track plays, as the screen names it (HOME's footer, the tracks' rows) */
 static const char *const ROLE_NAME[NPART] = {"DRONE", "PAD", "BELLS", "DRUMS"};
 static uint32_t trk_def_engine(uint32_t i) { return TRK_DEF[i % NPART][0]; }

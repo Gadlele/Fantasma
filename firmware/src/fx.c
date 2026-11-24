@@ -883,7 +883,9 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
 {
     int32_t *d = SPREAD_BUF(t);
     uint32_t i;
-    int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN], s = (t->p[P_SPRD] + 1) >> 1;
+    int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN];
+    int32_t s = t->engine == ENGI_NIAGARA ? 64 : (t->p[P_SPRD] + 1) >> 1;   /* (2.0: NIAGARA's left and right as they
+                                                         * are: its own WIDE sets the width) */
     int32_t pa = clamp(pan - s, -64, 63), pb = clamp(pan + s, -64, 63);
     int32_t gla = 4096 - (pa > 0 ? pa * 64 : 0), gra = 4096 + (pa < 0 ? pa * 64 : 0);
     int32_t glb = 4096 - (pb > 0 ? pb * 64 : 0), grb = 4096 + (pb < 0 ? pb * 64 : 0);
@@ -934,7 +936,11 @@ static const uint16_t ENG_VCOST[NENGINES] = {163, FELUCCA_FM4 ? 181 : 0, 162, 67
                                              120,      /* CHIME (Fantasma 2.0; an estimate: two or three sines, as BELL's) */
 #if FELUCCA_ADPCM
                                              168,      /* ADPCM (ORGAN, 1693 instructions / sample at 8 notes) */
+#else
+                                             0,        /* (17: reserved) */
 #endif
+                                             1600,     /* NIAGARA (Fantasma 2.0): two drones, its LFOs, in float (host: ~0.8 x a
+                                                        * whole Fantasma of four channels): the part alone on a core */
 };
 #endif
 
@@ -951,7 +957,8 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
     for (i = 0; i < n; i++)
         chd[pi][i] = chv[pi][i] = 0;                    /* (this part's own sends: either core) */
     mod_begin(t);                                       /* the matrix's per-block values into t->p (mod.c) */
-    T_SPREAD(t) = t->p[P_SPRD] > 0 && (trk_vmode(t) == V_POLY || trk_vmode(t) == V_UNISON);   /* (SPREAD, mix_spread) */
+    T_SPREAD(t) = (t->p[P_SPRD] > 0 && (trk_vmode(t) == V_POLY || trk_vmode(t) == V_UNISON)) ||
+                  t->engine == ENGI_NIAGARA;            /* (SPREAD, mix_spread; 2.0: NIAGARA's stereo, always) */
 #if FELUCCA_CPU2
     nr = track_render(t, b, n);
     part_cost[(uint32_t)(t - trk) % NTRK] = (uint16_t)(nr * ENG_VCOST[t->engine % NENGINES] + (nr || t->tail ? 60u : 0u));

@@ -232,7 +232,10 @@ static const uint8_t MIDI_CC_ENG[NENGINES] = {
     0x34,                                             /* CHIME INDEX (E2), FDBK (E3) (Fantasma 2.0) */
 #if FELUCCA_ADPCM
     0x00,                                             /* ADPCM - (no filter) */
+#else
+    0x00,                                             /* (17: reserved) */
 #endif
+    0x00,                                             /* NIAGARA (Fantasma 2.0: its filters are its own values, not E's) */
 };
 /* a CC sets parameter id of track t as a knob would: 0..127 over its range */
 static void midi_cc_set(track_t *t, uint32_t id, uint32_t value)

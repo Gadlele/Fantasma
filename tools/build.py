@@ -222,11 +222,20 @@ def build_app():
               FW / "src" / "felucca.c", "-o", OUT / "felucca.ll") if size else
              ("cc", *flags, "-c", FW / "src" / "felucca.c", "-o", OUT / "felucca.o"))
     (OUT / "fm1_cpu1.o").unlink(missing_ok=True)
-    tc_all(("cc", "-c", hal_file("crt0.S"), "-o", OUT / "crt0.o"),
+    # (Fantasma 2.0) NIAGARA: Niagara Drift's drones (firmware/src/niagara), a unit of their own, in float on the AC79's
+    # single-precision FPU as Niagara Drift builds them (its tools/build.py FPU); at -Oz, and only what Fantasma reaches
+    # (niagara.h's nia_*: ld -r --gc-sections), for the app's flash (Niagara Drift: -O2, its whole UI beside)
+    nia = ("cc", "-Oz", "-ffunction-sections", "-fno-builtin", "-Wall", "-Wno-unused-function",
+           "-mcpu=r3", "-mfprev1", "-ffp-contract=off", "-I" + str(FW / "src" / "niagara"), "-c",
+           FW / "src" / "niagara" / "niagara.c", "-o", OUT / "niagara.o")
+    tc_all(nia,
+           ("cc", "-c", hal_file("crt0.S"), "-o", OUT / "crt0.o"),
            ("cc", "-c", hal_file("fm1_vec.S"), "-o", OUT / "fm1_vec.o"),
            ("cc", "-c", hal_file("fm1_isr.S"), "-o", OUT / "fm1_isr.o"),
            *([("cc", "-c", hal_file("fm1_cpu1.S"), "-o", OUT / "fm1_cpu1.o")] if CPU2 else []),
            cmain)
+    tc("pi32v2/bin/ld", "-r", "--gc-sections", *[a for f in ("init", "set", "get", "pitch", "render", "range", "text",
+       "npresets", "preset_name", "preset") for a in ("-u", "nia_" + f)], OUT / "niagara.o", "-o", OUT / "niagara_gc.o")
     if size:
         subprocess.run([sys.executable, SRC / "tools" / "size_fns.py", OUT / "felucca.ll", OUT / "felucca_size.ll"],
                        check=True)
@@ -234,7 +243,7 @@ def build_app():
            OUT / "felucca_size.ll", "-o", OUT / "felucca.o")
     elf = OUT / "felucca.elf"
     tc("pi32v2/bin/ld", "-T", FW / "app.ld", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
-       *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", "-o", elf)
+       *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", OUT / "niagara_gc.o", "-o", elf)
     for sect in ("text.bin", "data.bin", "ramtext.bin", "c1text.bin"):   # (c1text.bin: before the BSP, its own section)
         (OUT / sect).unlink(missing_ok=True)
     *_, syms, dis, rt = tc_all(("common/bin/objcopy", "-O", "binary", "-j", ".text", elf, OUT / "text.bin"),

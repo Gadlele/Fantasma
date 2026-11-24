@@ -8,15 +8,16 @@
  * RAM  : .data/.bss (72 KiB): what the audio and key-scan interrupts touch, small variables
  * POOL : big zero-initialised buffers (FX lines, canvases, the parts' engine memory, the main loop's work
  *        buffers), section .pool. The same SRAM: the RAM / POOL boundary only splits the budget (1.5: 96 / 336
- *        KiB -> 72 / 360 KiB); tools/build.py reads both lengths from here
+ *        KiB -> 72 / 360 KiB; Fantasma 2.0: 1568 bytes more to the RAM, for NIAGARA's drones: 73.5 / 358.5 KiB);
+ *        tools/build.py reads both lengths from here
  * STACKS with 256-byte guard bands; NOINIT survives resets and UBOOT entry.
  * 0x01C7FD50.. is reserved: boot_info, boot-state mailbox, vector table. */
 MEMORY
 {
     XIP    (rx)  : ORIGIN = 0x02000120, LENGTH = 0x8DFBC
     RAMTEXT (rwx): ORIGIN = 0x01C00000, LENGTH = 0x6000
-    RAM    (rwx) : ORIGIN = 0x01C08000, LENGTH = 72K
-    POOL   (rw)  : ORIGIN = 0x01C1A000, LENGTH = 0x5A000
+    RAM    (rwx) : ORIGIN = 0x01C08000, LENGTH = 0x12620
+    POOL   (rw)  : ORIGIN = 0x01C1A620, LENGTH = 0x599E0
     NOINIT (rw)  : ORIGIN = 0x01C7C000, LENGTH = 0x3D50
 }
 SECTIONS

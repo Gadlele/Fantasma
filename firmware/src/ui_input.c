@@ -92,7 +92,8 @@ static int mom_turn(uint32_t k, int32_t s)
         d = &TP[MIX_ID[k & 3u]];
     } else {
         if (act_cols() || lock_held() || !(pg->scope == SC_TRACK || pg->scope == SC_ENGINE || pg->scope == SC_GLOBAL ||
-                                          pg->scope == SC_AMBI || pg->scope == SC_CHFX || pg->scope == SC_DICE) ||
+                                          pg->scope == SC_AMBI || pg->scope == SC_CHFX || pg->scope == SC_DICE ||
+                                          pg->scope == SC_NIA) ||
             pg->graph == GR_EVENTS || pg->graph == GR_SONG || pg->graph == GR_BROWSE || pg->graph == GR_USER ||
             pg->graph == GR_PATS || pg->graph == GR_AMBI || (pg->graph == GR_SLICES && k < 2u) || (pg->graph == GR_MOD && k == 0u))
             return 0;
@@ -1114,7 +1115,8 @@ static void edit_param(uint32_t slot, int32_t steps)
         return;
     }
     *vp = (int16_t)v;
-    if (pg->scope != SC_GLOBAL && pg->scope != SC_AMBI && pg->scope != SC_CHFX && pg->scope != SC_DICE) {
+    if (pg->scope != SC_GLOBAL && pg->scope != SC_AMBI && pg->scope != SC_CHFX && pg->scope != SC_DICE &&
+        pg->scope != SC_NIA) {
         motion_capture(TSEL, (uint32_t)(vp - TSEL->p), *vp);
         ml_knob(TSEL, (uint32_t)(vp - TSEL->p));        /* (MIDI LEARN: picked) */
     }
@@ -1594,6 +1596,7 @@ static void ui_input(void)
     fm6_poll();                                         /* FM6: PTCH turned -> its patch */
     dg_poll();                                          /* (Fantasma 2.0) the DRUMS' MUTATE, on its loops */
     chfx_poll();                                        /* (Fantasma 2.0) the channels' delays: a mode change */
+    nia_poll();                                         /* (Fantasma 2.0) NIAGARA: what changed, the key's pitch */
     dice_poll();                                        /* (Fantasma 2.0) DICE's EVOLVE */
 #if !FELUCCA_FM4
     for (k = 0; k < NTRK; k++)                          /* a DIGITAL sound any other way (the paths convert it */

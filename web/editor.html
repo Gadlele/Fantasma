@@ -1688,7 +1688,7 @@ function makeMockDevice(opt = {}) {
     E("MIDI", ["USB", "TRS"], 0), E("SYNC", NDASH, 0), E("ROUT", ["CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16", "TRACK"], 0), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), E("NAME", NDASH, 0), E("LOAD", NGO, 0), E("SAVE", NGO, 0),
     E("ENG", ["ANALOG", "-", "PHASE", "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL",
-      "GRAIN", "PHYS", "DRUM", "NOISE", "FM6", "BELL", "DRONE", "GOLANA", "CHIME"], 0), E("SET", NGO, 0),
+      "GRAIN", "PHYS", "DRUM", "NOISE", "FM6", "BELL", "DRONE", "GOLANA", "CHIME", "-", "NIAGARA"], 0), E("SET", NGO, 0),
     E("CLRSQ", NGO, 0), E("INIT", NGO, 0),
     E("TYPE", ["ROOM", "SPRING", "HALL", "AMBI"], 3),       /* G_RTYPE (id 24, was G_DRCH): the reverb's model (HALL: 1.2) */
     D("-", F.INT, 0, 0, 0), D("-", F.INT, 0, 0, 0),   /* G_DRLVL, G_DRREV: inert since 1.0 */
@@ -1855,6 +1855,12 @@ function makeMockDevice(opt = {}) {
         P("RAINDROP", [1, 2, 25, 0, 0, 30, 2, 5], [1, 70, 0, 80], 0, 7), P("STARLIGHT", [2, 6, 30, 10, 0, 20, 2, 101], [20, 100, 0, 110], 0, 7),
         P("DARK METAL", [0, 1, 80, 0, 0, 15, 0, 55], [15, 105, 0, 110], 0, 8), P("SHIMMER", [1, 2, 15, 30, 0, 20, 1, 38], [30, 110, 0, 115], 0, 7),
         P("TINE", [1, 0, 40, 0, 0, 20, 1, 70], [1, 85, 0, 85], 0, 7), P("RING MOD", [0, 3, 100, 0, 0, 20, 1, 3], [5, 95, 0, 100], 0, 7)] },
+    /* (Fantasma 2.0) 17: a reserved number (ADPCM, not built); 18: NIAGARA, Niagara Drift's drones on DRONE (eng_niagara.c:
+       its eight EDIT values; the other 62 and the Presets' own values live on its NIAGARA pages, not in this mock) */
+    { name: "-", titles: ["-", "-"], edit: [D("-", 0, 0, 127, 0, null, ""), D("-", 0, 0, 127, 0, null, ""), D("-", 0, 0, 127, 0, null, ""), D("-", 0, 0, 127, 0, null, ""), D("-", 0, 0, 127, 0, null, ""), D("-", 0, 0, 127, 0, null, ""), D("-", 0, 0, 127, 0, null, ""), D("-", 0, 0, 127, 0, null, "")],
+      presets: [] },
+    { name: "NIAGARA", titles: ["DRONE I", "DRONE I 2"], edit: [D("WAVE", 0, 0, 100, 67, null, ""), D("WIDTH", 0, 0, 100, 30, null, ""), D("MIX", 0, 0, 100, 30, null, ""), D("LEVEL", 0, 0, 100, 84, null, ""), D("INTVL", 8, 0, 16, 5, ["-OCT", "-5TH", "-5TH J", "-4TH", "-4TH J", "UNISON", "+m3", "+m3 J", "+M3", "+M3 J", "+4TH", "+4TH J", "+5TH", "+5TH J", "+OCT", "+OCT+5", "+OCT+5 J"], ""), D("DETUN", 0, 0, 100, 12, null, ""), D("PARTN", 8, 0, 1, 1, ["OFF", "ON"], ""), D("SUB", 8, 1, 6, 1, ["-", "-1 OCT", "-2 OCT", "1/3", "1/5", "-3 OCT"], "")],
+      presets: [P("NIAGARA", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("EMBERS", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("VESPERS", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("DREAMHOUSE", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("ABYSS", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("SEANCE", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("SONAR", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("SIBYL", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("HOWL", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("CISTERN", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("PISTON", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("ASHRAM", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("TELEGRAPH", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("TAPE", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("FALLING", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0), P("BARE", [0, 0, 0, 0, 0, 0, 0, 0], [20, 70, 127, 110], 1, 0)] },
   ];
   const FM6_E = ENG.findIndex((e) => e.name === "FM6"), FM6_OWN = FM6.FACTORY_PK.length, DRUM_E = ENG.findIndex((e) => e.name === "DRUM");
   /* factory PATTERNS[] (engines.c; the device loads them from SAVE > PHRASES, presets only suggest one): absolute
@@ -2007,8 +2013,8 @@ function makeMockDevice(opt = {}) {
     st.bank[slot] = snapshot(name);
     clearSteps(); st.p[29] = 16;
   });
-  /* the power-on sounds (engines.c TRK_DEF; Fantasma 2.0): DRONE's DRONE, GOLANA SOFT PAD, CHIME GLASS, a DRUM kit */
-  [[1, ENG.findIndex((e) => e.name === "GOLANA"), 0], [2, ENG.findIndex((e) => e.name === "CHIME"), 0], [3, ENG.findIndex((e) => e.name === "DRUM"), 0], [0, ENG.findIndex((e) => e.name === "DRONE"), 0]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); });
+  /* the power-on sounds (engines.c TRK_DEF; Fantasma 2.0): NIAGARA's NIAGARA, GOLANA SOFT PAD, CHIME GLASS, a DRUM kit */
+  [[1, ENG.findIndex((e) => e.name === "GOLANA"), 0], [2, ENG.findIndex((e) => e.name === "CHIME"), 0], [3, ENG.findIndex((e) => e.name === "DRUM"), 0], [0, ENG.findIndex((e) => e.name === "NIAGARA"), 0]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); });
   /* the device powers on with its sequencers empty (TRK_DEF suggests no pattern); the mock starts as a little demo
      to look at: track 1 with the ACID pattern (as SAVE > PHRASES would load it), the pad left, the bells right; track 4
      (the kit) empty, as on the device */
@@ -2491,7 +2497,7 @@ async function readDevicePreferences(rq, info, names, previous = null) {
    and 4, once TRANH and PERC: PIANO 0), else the last with it (DRUM KIT 1..3, once HAND CYM H+CYM: 66 10 77 at 6 5 8;
    EDITOR_PROTOCOL.md). -> the original's index */
 function aliasOf(names, i) {
-  if (!names || names[i] == null) return i;
+  if (!names || names[i] == null || names[i] === "-") return i;   /* ("-": a reserved number each, never an alias) */
   const k = names[0] === names[i] ? 0 : names.lastIndexOf(names[i]);
   return k >= 0 ? k : i;
 }
@@ -2513,7 +2519,7 @@ function enumShown(d) {
    the engine numbers. engineOrder(names): the indices of names in that order, "-" (a reserved number) left out; a name
    the list does not know (another firmware) follows in index order */
 const ENGINE_ORDER = ["ANALOG", "FM6", "DIGITAL", "PHASE", "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN", "PHYS", "NOISE",
-  "BELL", "SLICE", "DRUM", "DRONE", "GOLANA", "CHIME", "ADPCM"];
+  "BELL", "SLICE", "DRUM", "DRONE", "GOLANA", "CHIME", "NIAGARA", "ADPCM"];
 function engineOrder(names) {
   const rank = (n) => { const k = ENGINE_ORDER.indexOf(n); return k < 0 ? ENGINE_ORDER.length : k; };
   return (names || []).map((n, i) => i).filter((i) => names[i] !== "-")

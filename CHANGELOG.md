@@ -15,6 +15,12 @@ fixes, a new **X** may change how things are saved.
   a time (no tiny ticks). Four times the level inside the reverb (the same out): a dying tail fades smoothly instead
   of turning grainy and stopping short. SHIMMER gives way as the reverb fills: at a big SIZE it no longer piles up
   until the lines saturate.
+- **NIAGARA on DRONE**: [Niagara Drift](https://github.com/evanyerburgh/niagara-drift)'s drones (Evan Yerburgh, GPL-3.0),
+  their own code, as the DRONE channel's engine, played with the keys and the channel's ENV: two drones, partner, sub,
+  noise, their filters with drive, the ULTRA LFO and its taps, the PULSE, Drift, Character, Age, Feedback, Wander,
+  pitch link, sync, cross-mod, in stereo; Niagara Drift's 16 Presets as its sounds; its values on Fantasma's pages
+  (EDIT, LFO, ENV) and saved with the project and a user preset. Niagara Drift's own effects are left out (no room):
+  the channel's play instead. The first DRONE engine stays on the channel's list.
 - **FILT ENV**: ENV's second page, the filter's own envelope (ATK DEC SUS REL): a filter that opens slowly on a note
   that starts at once, or the other way round. At =ENV (KNOB 1 all the way down, every sound's start) it follows ENV,
   so every sound, user preset and project sounds as before; any of its knobs starts it from ENV's values. Saved in the

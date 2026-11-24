@@ -46,7 +46,7 @@
 #define FELUCCA_ADPCM 0          /* the ADPCM engine (eng_adpcm.c), engine 17 (Felucca's 14): not built by default (FELUCCA_ADPCM=1 builds
                                   * it): on the FM-1 it costs about three ANALOG voices a voice (eng_adpcm.c, the figures) */
 #endif
-#define NENGINES (17 + FELUCCA_ADPCM)   /* engine 13 is SLICE or, in Fantasma's default build, BELL; 14 DRONE, 15 GOLANA,
+#define NENGINES 19u              /* engine 13 is SLICE or, in Fantasma's default build, BELL; 14 DRONE, 15 GOLANA,
                                         * 16 CHIME (Fantasma 2.0); then ADPCM (17; Felucca's 14): the other engines keep their
                                         * numbers */
 #define ENGI_DRONE 14u           /* (Fantasma 2.0) DRONE's engine (eng_drone.c) */
@@ -74,9 +74,10 @@
 #define DG_AMT P_FM4_LEVEL
 #define DG_MODE P_FM3_ATK
 #define DG_FEEL P_FM4_SUS
-#define ENGI_ADPCM 17u
+#define ENGI_ADPCM 17u          /* (without FELUCCA_ADPCM: reserved, never selectable: eng_ok) */
+#define ENGI_NIAGARA 18u        /* (Fantasma 2.0) DRONE's engine: Niagara Drift's drones (eng_niagara.c, niagara/) */
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
-#define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
+#define NENG_SHOWN (NENGINES - !FELUCCA_FM4 - !FELUCCA_ADPCM)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 

@@ -18,7 +18,7 @@ int main(void)
     CHK(str_eq(ROLE_NAME[0], "DRONE") && str_eq(ROLE_NAME[1], "PAD") && str_eq(ROLE_NAME[2], "BELLS") &&
         str_eq(ROLE_NAME[3], "DRUMS"));
     for (e = 0; e < NENGINES; e++) {                          /* each channel its one engine */
-        CHK(eng_allowed(0, e) == (e == ENGI_DRONE));
+        CHK(eng_allowed(0, e) == (e == ENGI_DRONE || e == ENGI_NIAGARA));   /* (2.0: NIAGARA, and the first DRONE) */
         CHK(eng_allowed(1, e) == (e == ENGI_GOLANA));
         CHK(eng_allowed(2, e) == (e == ENGI_CHIME));
         CHK(eng_allowed(3, e) == (e == ENGI_DRUM));
@@ -99,7 +99,7 @@ int main(void)
         apply_preset_to(t, 0);
         song.sel = 0;
     }
-    CHK(TRK_DEF[0][0] == ENGI_DRONE && TRK_DEF[0][1] == 0u && TRK_DEF[1][0] == ENGI_GOLANA && TRK_DEF[1][1] == 0u &&
+    CHK(TRK_DEF[0][0] == ENGI_NIAGARA && TRK_DEF[0][1] == 0u && TRK_DEF[1][0] == ENGI_GOLANA && TRK_DEF[1][1] == 0u &&
         TRK_DEF[2][0] == ENGI_CHIME && TRK_DEF[3][0] == ENGI_DRUM);   /* the power-on sounds (main.c; the tests' own differ) */
     for (ti = 0; ti < 4u; ti++)                               /* (each channel on its own engine, as the power-on) */
         if (!eng_allowed(ti, trk[ti].eng_req)) {
@@ -110,7 +110,8 @@ int main(void)
     for (ti = 0; ti < 4u; ti++) {                             /* PRESETS: each channel's own list, exactly */
         song.sel = (uint8_t)ti;
         CHK(preset_pos(&total) <= total);
-        CHK(total == ENGINES[ti == 0u ? ENGI_DRONE : ti == 1u ? ENGI_GOLANA : ti == 2u ? ENGI_CHIME : ENGI_DRUM]->npresets);
+        CHK(total == (ti == 0u ? ENGINES[ENGI_NIAGARA]->npresets + ENGINES[ENGI_DRONE]->npresets :
+                      ENGINES[ti == 1u ? ENGI_GOLANA : ti == 2u ? ENGI_CHIME : ENGI_DRUM]->npresets));
         for (n = 0; n < total; n++) {
             uint32_t kk, ee = preset_at(n, &kk);
             CHK(eng_allowed(ti, ee) && part_preset_ok(ti, ee, kk));
@@ -119,7 +120,8 @@ int main(void)
     song.sel = 0;
     for (n = 0; n < 30u; n++) {                               /* the ambient machine */
         ambient_random();
-        CHK(trk[0].eng_req == ENGI_DRONE && part_preset_ok(0, ENGI_DRONE, trk[0].preset) && trk[0].p[P_REL] == 127 && noise_inf(&trk[0]));
+        CHK((trk[0].eng_req == ENGI_DRONE || trk[0].eng_req == ENGI_NIAGARA) && part_preset_ok(0, trk[0].eng_req, trk[0].preset) &&
+            trk[0].p[P_REL] == 127 && noise_inf(&trk[0]));
         CHK(trk[1].eng_req == ENGI_GOLANA && part_preset_ok(1, ENGI_GOLANA, trk[1].preset) && trk[1].p[P_VOICE] == V_POLY &&
             trk[1].p[P_PDEN] > 0);
         CHK(trk[2].eng_req == ENGI_CHIME && trk[2].p[P_E4] > 0);

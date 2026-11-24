@@ -435,8 +435,20 @@ static uint32_t layer_btn(void);
 /* FM operator pages belong to DIGITAL; they never appear on other instruments (without FELUCCA_FM4: never). SLICES:
  * a SLICE track's (ui_slice.c); LANES / LANES 2 a DRUM track's (its lane levels); FILTER an ANALOG track's; OPERATOR, OP ENV, OPERATOR 2 an FM6
  * track's (its patch's operators, ui_fm6op.c) */
+/* (Fantasma 2.0) a NIAGARA track: its own pages; the track's LFO, its routes, the filter's and the voices' pages
+ * move nothing it plays (its LFO, filters and voice are Niagara Drift's) */
+static int nia_page_hidden(uint32_t i)
+{
+    const page_t *p = &PAGES[i];
+    return p->graph == GR_LFO || p->graph == GR_MOD || (p->scope == SC_TRACK && (p->id[0] == P_LD_PIT ||
+           p->id[0] == P_FATK || p->id[0] == P_ED_FLT || p->id[0] == P_VOICE || p->id[0] == P_ALLOC || p->id[0] == P_SPRD));
+}
 static int page_visible(uint32_t i)
 {
+    if (PAGES[i].scope == SC_NIA)                     /* (Fantasma 2.0) NIAGARA's own */
+        return eng_idx(TSEL->eng_req) == ENGI_NIAGARA;
+    if (eng_idx(TSEL->eng_req) == ENGI_NIAGARA && nia_page_hidden(i))
+        return 0;
     if (PAGES[i].scope == SC_TRACK && PAGES[i].id[0] >= P_LN0 && PAGES[i].id[0] <= P_LN7)
         return TSEL->eng_req % NENGINES == ENGI_DRUM;
     if (PAGES[i].fam == FAM_EDIT && PAGES[i].id[0] == P_PDEN)   /* GEN (Fantasma): the Pad's chord generator */
@@ -467,9 +479,12 @@ static int page_visible(uint32_t i)
              PAGES[i].id[0] <= P_FM4_LEVEL) || (FELUCCA_FM4 && TSEL->eng_req % NENGINES == ENGI_DIGITAL);
 }
 
-static uint32_t page_first(uint32_t fam)
+static uint32_t page_first(uint32_t fam)         /* the family's first page that shows (else its first) */
 {
     uint32_t i;
+    for (i = 0; i < NPAGES; i++)
+        if (PAGES[i].fam == fam && page_visible(i))
+            return i;
     for (i = 0; i < NPAGES; i++)
         if (PAGES[i].fam == fam)
             return i;
@@ -1452,6 +1467,8 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         t->p[P_SPRD] = (int16_t)(e->presets[pi].sprd - 1);
     if (e->presets[pi].glide)
         t->p[P_GLIDE] = (int16_t)(e->presets[pi].glide - 1);
+    if (t->eng_req % NENGINES == ENGI_NIAGARA)        /* (Fantasma 2.0) NIAGARA: Niagara Drift's Preset */
+        nia_preset_load(t, pi);
     if (t->eng_req % NENGINES == ENGI_DRONE)          /* (Fantasma 2.0) DRONE: its FILTER page's values */
         dr_filter_load(t, pi);
     if (t->eng_req % NENGINES == ENGI_GOLANA)         /* .. GOLANA: its FILTER and TONE pages, its LFO and voice */
@@ -1533,6 +1550,9 @@ static void clean_engine_of(track_t *t)
         t->p[P_SUS] = TP[P_SUS].max;
         t->p[P_REL] = CLEAN_REL;
     }
+    if (ei == ENGI_NIAGARA)                           /* (Fantasma 2.0) Niagara Drift's starting sound (its eight:
+                                                         * the EDIT defaults above; no sends) */
+        nia_defaults();
     if (ei == ENGI_DRONE)                             /* (Fantasma 2.0) its FILTER at the defaults */
         dr_filter_load(t, 0xFFu);
     if (ei == ENGI_GOLANA)                            /* .. its FILTER and TONE */

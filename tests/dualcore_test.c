@@ -133,6 +133,10 @@ int main(void)
             for (k = 0; k < NPART; k++) {
                 sc[n].eng[k] = (uint8_t)e;
                 sc[n].pre[k] = (uint8_t)((g * NPART + k) % ENGINES[e]->npresets);
+                if (e == ENGI_NIAGARA && k) {            /* (Fantasma 2.0: NIAGARA, one, on part 0 only; the others play) */
+                    sc[n].eng[k] = (uint8_t)(k == 1u ? ENGI_FM6 : k == 2u ? ENGI_DRUM : 0u);
+                    sc[n].pre[k] = (uint8_t)g;
+                }
             }
             sc[n++].morph = 0;
         }

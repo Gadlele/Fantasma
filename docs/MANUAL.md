@@ -299,13 +299,31 @@ Drum kits and incoming MIDI keep their own note mapping.
 Press **SCL** again for the **CHORD** page: CHRD picks the chord keys (OFF, the scale's triads or
 sevenths, or a fixed shape) and VOIC the voicing.
 
-**Channels** (Fantasma 2.0): the four tracks are four channels, each with one engine: **DRONE** (track 1: the DRONE
-engine, below; REL at its top is **INF**, a note that never stops and comes back if cut), **PAD** (track 2: the GOLANA
+**Channels** (Fantasma 2.0): the four tracks are four channels, each with one engine: **DRONE** (track 1: the NIAGARA
+engine, Niagara Drift's drones, below, or the first DRONE engine; REL at its top is **INF**, a note that never stops and comes back if cut), **PAD** (track 2: the GOLANA
 engine, below, with the chord progression: DENS, BARS, CHORDS, SEED), **BELLS** (track 3: the CHIME engine, below, and the bells generator) and
 **DRUMS** (track 4: DRUM). PRESETS and the ENG knob stay on the channel's own sounds; another engine's key in EDIT says
 NOT FOR THIS PART. HOME's footer shows the selected channel. HOME's four knobs: DRONE and PAD the sound's first knob,
 **ATK**, **REL**, **REV**; BELLS **DENS**, **EVOLVE**, **SCL**, **REV**; DRUMS the kit's own four. At power-on: DRONE is
-DRONE's DRONE, PAD GOLANA's SOFT PAD, BELLS CHIME's GLASS, DRUMS a kit, the steps empty.
+DRONE NIAGARA's NIAGARA, PAD GOLANA's SOFT PAD, BELLS CHIME's GLASS, DRUMS a kit, the steps empty.
+
+**The NIAGARA engine** (Fantasma 2.0): [Niagara Drift](https://github.com/evanyerburgh/niagara-drift)'s drones by Evan
+Yerburgh, its own code (v0.3.1), on the DRONE channel. Two drones, each a main oscillator blending SINE > TRI > SAW >
+SQR, a partner at an interval, a sub, a noise and a 12 dB filter with drive; the ULTRA LFO with its two waves and each
+drone's taps; the PULSE (a slow breath or a chop); Drift, Character, Age, Feedback, Wander; pitch link, hard sync,
+cross-mod; stereo (drone I left, II right). Its 16 sounds are Niagara Drift's Presets: NIAGARA, EMBERS, VESPERS,
+DREAMHOUSE, ABYSS, SEANCE, SONAR, SIBYL, HOWL, CISTERN, PISTON, ASHRAM, TELEGRAPH, TAPE, FALLING, BARE.
+- **Played** as a channel: a key sets drone I's pitch (drone II at its interval from it: LINK's **II**), Niagara's own
+  GLIDE takes it there; the channel's **ENV** is its volume (REL at the top: INF, it never stops). MONO.
+- **Its pages**, in Fantasma's families: EDIT: **DRONE I** (WAVE WIDTH MIX LEVEL), **DRONE I 2** (INTVL DETUN PARTN
+  SUB), **FILTER I** (CUT RES MODE DRIVE), **NOISE I** (NOISE COLOR SUBWV), the same four for drone II, **LINK** (II
+  from I, LINK, SYNC, XMOD), **LINK 2** (XAMT, WIDE, TUNE, OUT), **CHARACTER** (DRIFT CHAR AGE FDBK), **WANDER**; LFO:
+  **ULTRA LFO** (RATE WAVE1 WAVE2 MOVE), **ULTRA 2**, **LFO I**, **LFO II** (each drone's taps and depths), **LFO TO**;
+  ENV: **ENV**, **PULSE** (ON RATE DEPTH SHAPE), **PULSE 2** (SWING GLIDE MORPH). The track's own LFO, ENV DEST and VOICE
+  pages hide (they move nothing it plays). FX is the channel's, as for the others.
+- **Not here**: Niagara Drift's own delay, drive and reverb (about 247 KB of RAM Fantasma has no room for): the channel's
+  INSERT, SLICER, CH DELAY and CH REVERB (with shimmer) play instead; a sound's delay and reverb mixes become its sends.
+  Its gesture keys, scenes and MIDI clock are Niagara Drift's own instrument's, not here.
 
 **The DRONE engine** (Fantasma 2.0, after [Niagara Drift](https://github.com/evanyerburgh/niagara-drift)'s drones by
 Evan Yerburgh): a drone that breathes and drifts, and that you play. EDIT 1 (OSC): **WAVE** blends SINE > TRI > SAW >

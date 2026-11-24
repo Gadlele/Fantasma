@@ -75,7 +75,7 @@ static const page_t *ly_page(uint32_t l) { return l == LAYER_SCL ? &LY_SCL : l =
 #define LY_OPEN 2u                     /* ui.ly_t0: the map opened (no tap any more) */
 #define LY_COMBO 4u                    /* .. by a combo */
 #define LY_DEAD 8u                     /* .. pressed where there is no layer: does nothing */
-#define LY_ENG_KEYS ((uint32_t)(NENG_SHOWN - FELUCCA_ADPCM - 3u))   /* EDIT: white keys for the engines before DRONE, GOLANA, CHIME
+#define LY_ENG_KEYS ((uint32_t)(NENG_SHOWN - FELUCCA_ADPCM - 4u))   /* EDIT: white keys for the engines before DRONE, GOLANA, CHIME, NIAGARA
                                         * and ADPCM (Fantasma 2.0: DRONE and PAD's only engines; 1.8: ADPCM last
                                         * in engines.c ENGINE_ORDER, picked with PRESETS' ENG knob), so INIT and CLEAN INIT
                                         * stay where they were: 13 engines from F3, INIT E5 (14 and F5 with FELUCCA_FM4) */

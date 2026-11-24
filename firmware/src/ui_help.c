@@ -64,6 +64,24 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"CLOCK", "[SELECT]TEMPO[GLO]HOLD: TAP"},
     {"AMBI", "[K1]SCENE[K2]TONE[GLO]AMBI 2"},   /* (Fantasma 2.0: the ambience layer) */
     {"AMBI 2", "[K1]ON[K3]REVERB[K4]TO"},
+    /* (Fantasma 2.0) NIAGARA's pages (Niagara Drift's drones) */
+    {"FILTER I", "[K1]CUT[K3]LP BP HP[EDIT]NOISE I"},
+    {"NOISE I", "[K1]NOISE[K3]SUB WAVE[EDIT]DRONE II"},
+    {"DRONE II", "[K1]SINE TO SQUARE[EDIT]DRONE II 2"},
+    {"DRONE II 2", "[K1]PARTNER[EDIT]FILTER II"},
+    {"FILTER II", "[K1]CUT[K3]LP BP HP[EDIT]NOISE II"},
+    {"NOISE II", "[K1]NOISE[K3]SUB WAVE[EDIT]LINK"},
+    {"LINK", "[K1]II FROM I[EDIT]LINK 2"},
+    {"LINK 2", "[K2]STEREO[K3]TUNING[EDIT]NEXT"},
+    {"CHARACTER", "[K1]DRIFT[K3]AGE[EDIT]WANDER"},
+    {"WANDER", "[K1]II WANDERS[EDIT]DRONE I"},
+    {"ULTRA LFO", "[K1]RATE[K2]WAVE I[LFO]ULTRA 2"},
+    {"ULTRA 2", "[K1]SPEED MOD[LFO]LFO I"},
+    {"LFO I", "[K1]OSC[K3]FILTER[LFO]LFO II"},
+    {"LFO II", "[K1]OSC[K3]FILTER[LFO]LFO TO"},
+    {"LFO TO", "[K1-4]WHAT EACH MOVES[LFO]ULTRA"},
+    {"PULSE", "[K1]ON[K2]RATE[ENV]PULSE 2"},
+    {"PULSE 2", "[K2]GLIDE[ENV]ENV"},
 };
 #define H_HOME "[PRESETS]SOUND[HOME]HOLD: MENU"
 #define H_LEVELS "[K1-4]T1-T4 LEVEL[HOME]MIXER"

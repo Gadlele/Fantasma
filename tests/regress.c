@@ -88,6 +88,8 @@ static void blk(void)
 {
     int32_t *o = last_out;
     uint32_t i, k;
+    if (!(fpos & 511u))
+        nia_poll();                               /* (Fantasma 2.0: the UI pass's NIAGARA values and pitch, ~12 ms) */
     mix_block(o, CTL);
     for (i = 0; i < 2u * CTL; i++) {
         int32_t x = o[i], a = x < 0 ? -x : x;

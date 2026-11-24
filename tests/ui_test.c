@@ -202,6 +202,7 @@ static void ui_power_on(void)
 #if FELUCCA_AMBI
     al_init();                                    /* (Fantasma 2.0) the ambience layer, as main.c felucca_init */
 #endif
+    nia_boot();                                   /* (Fantasma 2.0) NIAGARA's drones, as main.c felucca_init */
     {   /* (Fantasma 2.0) DICE as at power-on (dice.c: EVOLVE OFF, nothing rolled) */
         uint32_t k;
         for (k = 0; k < DI_N; k++)
@@ -4296,7 +4297,7 @@ static int test_quick_layers(void)
     bad += check("  every engine one can pick has its white key from F3 (NENG_SHOWN, not a fixed count; never DIGITAL)",
                  ok && a == eng_count_for(song.sel) - (FELUCCA_ADPCM && eng_allowed(song.sel, ENGI_ADPCM)) -
                            eng_allowed(song.sel, ENGI_DRONE) - eng_allowed(song.sel, ENGI_GOLANA) -
-                           eng_allowed(song.sel, ENGI_CHIME));   /* (ADPCM, DRONE, GOLANA:
+                           eng_allowed(song.sel, ENGI_CHIME) - eng_allowed(song.sel, ENGI_NIAGARA));   /* (ADPCM, DRONE, GOLANA, NIAGARA:
                                                                                                     * no key) */
     set_engine_of(TSEL, 0);
     lay_combo(B_EDIT, white(eng_rank(2))); key_up(white(eng_rank(2))); frame();
@@ -5280,7 +5281,8 @@ static int test_fm4_retired(void)
         if (e < NENGINES)
             seen |= 1u << e;
     }
-    bad += check("PRESETS: the list holds every engine's presets but DIGITAL's", seen == all && NENG_SHOWN == NENGINES - 1u);
+    all &= ~(FELUCCA_ADPCM ? 0u : 1u << ENGI_ADPCM);     /* (Fantasma 2.0: 17 reserved without ADPCM) */
+    bad += check("PRESETS: the list holds every engine's presets but DIGITAL's", seen == all && NENG_SHOWN == NENGINES - 1u - !FELUCCA_ADPCM);
     go_page(GR_BROWSE);
     set_engine_of(TSEL, 0);
     for (i = 0, seen = 0; i < eng_count_for(song.sel); i++) {
@@ -5290,10 +5292,11 @@ static int test_fm4_retired(void)
     bad += check("PRESETS KNOB 2: the engines in order, DIGITAL skipped, back to the first (Pad: no bells, no noises)",
                  seen == (all & ~(1u << ENGI_NOISE) & ~(FELUCCA_BELL ? 1u << ENGI_BELL : 0u) & ~(FELUCCA_AMBI ? 1u << ENGI_AMBI : 0u)) &&
                  TSEL->eng_req == 0u && eng_step(0, 1) == ENGI_FM6 && eng_step(ENGI_FM6, 1) == 2u &&
-                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_CHIME));
+                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_NIAGARA));
     {   /* the display order (engines.c ENGINE_ORDER): every engine one can pick once; the PRESETS list follows it */
         static const char *const ORDER[] = {"ANALOG", "FM6", "PHASE", FELUCCA_LOFI ? "LOFI" : "AMBI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
                                             "PHYS", "NOISE", FELUCCA_SLICE ? "SLICE" : "BELL", "DRUM", "DRONE", "GOLANA", "CHIME",
+                                            "NIAGARA",
 #if FELUCCA_ADPCM
                                             "ADPCM",
 #endif
@@ -6108,11 +6111,11 @@ static int test_roles(void)
     ok = home_id(&trk[0], 1) == ENGINES[ENGI_DRUM]->knob[1];
     bad += check("  DRONE on a kit: the kit's four", ok);
     /* the parts at power-on (TRK_DEF, main.c; Fantasma 2.0): DRONE's DRONE, ANALOG's WARM PAD, the bells, a kit */
-    ok = TRK_DEF[0][0] == ENGI_DRONE && str_eq(ENGINES[ENGI_DRONE]->presets[TRK_DEF[0][1]].name, "DRONE") &&
+    ok = TRK_DEF[0][0] == ENGI_NIAGARA && str_eq(ENGINES[ENGI_NIAGARA]->presets[TRK_DEF[0][1]].name, "NIAGARA") &&
          TRK_DEF[1][0] == ENGI_GOLANA && str_eq(ENGINES[ENGI_GOLANA]->presets[TRK_DEF[1][1]].name, "SOFT PAD") &&
          TRK_DEF[2][0] == ENGI_CHIME && TRK_DEF[3][0] == ENGI_DRUM &&
          TRK_DEF[3][2] == 0 && str_eq(PATTERNS[13].name, "DRONE") && trk[3].step[0].time == ST_REST;
-    bad += check("  power-on parts: DRONE's DRONE, GOLANA's SOFT PAD, CHIME's GLASS, a kit, its steps empty", ok);
+    bad += check("  power-on parts: DRONE's NIAGARA, GOLANA's SOFT PAD, CHIME's GLASS, a kit, its steps empty", ok);
     {   /* the DRUMS track starts with empty steps (the DRONE pattern is still in SAVE > PHRASES for whoever wants it) */
         track_t *t = &trk[3];
         uint32_t i;

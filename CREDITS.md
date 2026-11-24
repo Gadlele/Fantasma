@@ -21,6 +21,7 @@ thanks the work below; each keeps its own licence (see [LICENSE](LICENSE), [LICE
   [X0X](https://github.com/charlesvestal/fm1-x0x) by [charlesvestal](https://github.com/charlesvestal) (in felucca-bsp); the parts' split,
   measurements and hardening after [Jangada](https://github.com/zednaked/jangada) by [zednaked](https://github.com/zednaked) (GPL-3.0)
 - AFTERTOUCH's key pressure: after [fm1-base](https://github.com/charlesvestal/fm1-base) by [charlesvestal](https://github.com/charlesvestal) ([MPL-2.0](LICENSES/MPL-2.0-felucca-bsp.txt); `firmware/src/keytouch.{c,h}`)
+- NIAGARA engine: [Niagara Drift](https://github.com/evanyerburgh/niagara-drift) by Evan Yerburgh (GPL-3.0), its drones' code and Presets (`firmware/src/niagara/`)
 - Browser emulator: after [X0X](https://github.com/charlesvestal/fm1-x0x) by [charlesvestal](https://github.com/charlesvestal) (GPL-3.0), a Felucca fork whose browser build showed the way
 - Package format and boot files: [JieLi AC79 SDK](https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK) ([Apache-2.0](LICENSES/Apache-2.0.txt); three of its files are in every package, none in this tree)
 - Contributions: [keremimo](https://github.com/keremimo) (white-key scales, #2), [ChanceTheMaker](https://github.com/ChanceTheMaker)

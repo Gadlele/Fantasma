@@ -88,7 +88,10 @@ static const char *const N_ENGNAME[] = {"ANALOG", FELUCCA_FM4 ? "DIGITAL" : "-",
                                              "DRONE", "GOLANA", "CHIME",
 #if FELUCCA_ADPCM
                                              "ADPCM",
+#else
+                                             "-",
 #endif
+                                             "NIAGARA",
 };
 
 static const char *const N_BARS[] = {"RND", "1", "2", "3", "4", "5", "6", "7", "8"};   /* the Pad GEN page: bars a chord (RND: 1 to 6 at random) */
@@ -478,7 +481,7 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
 /* ------------------------------------------------------------ pages --- */
 enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE, FAM_ARP, FAM_SEQ, FAM_TRK,
        FAM_COUNT };
-enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_AMBI, SC_CHFX, SC_DICE };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit);
+enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_AMBI, SC_CHFX, SC_DICE, SC_NIA };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit);
                                                                       * SC_AMBI (Fantasma 2.0): the ambience layer's (al.v) */
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
        GR_SLCR, GR_MOD, GR_PATS, GR_SONG, GR_TOOLS, GR_CHORD, GR_SLICES, GR_EVENTS,
@@ -565,6 +568,26 @@ static const page_t PAGES[] = {
     /* HOME's page (1.2): HOME tapped on HOME the MIXER (up to 1.1.5 GLO's; LEVEL PAN REV MUTE), again HOME (ui.c
      * home_tap). 1.2's CLOCK after it (up to 1.1.5 GLO > GLOBAL) is GLO's again since Fantasma 2.0, with AMBI */
     {"MIXER", FAM_TRK, SC_TRK, GR_TRK, {0, 1, 2, 3}},
+    /* (Fantasma 2.0) NIAGARA's own (eng_niagara.c, Niagara Drift's values: nia_v), on a NIAGARA track only (ui.c
+     * page_visible, which hides the pages it has no use for); each in its family's round after the family's others.
+     * EDIT 1 / EDIT 2 are its DRONE I and DRONE I 2 (the engine's eight) */
+    {"FILTER I", FAM_EDIT, SC_NIA, GR_NONE, {NK_CUT1, NK_RES1, NK_MODE1, NK_DRV1}},
+    {"NOISE I", FAM_EDIT, SC_NIA, GR_NONE, {NK_NOISE1, NK_COLOR1, NK_SUBW1, 0xFF}},
+    {"DRONE II", FAM_EDIT, SC_NIA, GR_NONE, {NK_WAVE2, NK_WIDTH2, NK_MIX2, NK_LEVEL2}},
+    {"DRONE II 2", FAM_EDIT, SC_NIA, GR_NONE, {NK_IV2, NK_DET2, NK_PART2, NK_SUB2}},
+    {"FILTER II", FAM_EDIT, SC_NIA, GR_NONE, {NK_CUT2, NK_RES2, NK_MODE2, NK_DRV2}},
+    {"NOISE II", FAM_EDIT, SC_NIA, GR_NONE, {NK_NOISE2, NK_COLOR2, NK_SUBW2, 0xFF}},
+    {"LINK", FAM_EDIT, SC_NIA, GR_NONE, {NK_IIOFS, NK_PLINK, NK_SYNC, NK_XMOD}},
+    {"LINK 2", FAM_EDIT, SC_NIA, GR_NONE, {NK_XAMT, NK_STEREO, NK_TUNING, NK_IIOUT}},
+    {"CHARACTER", FAM_EDIT, SC_NIA, GR_NONE, {NK_DRIFT, NK_CHAR, NK_AGE, NK_FDBK}},
+    {"WANDER", FAM_EDIT, SC_NIA, GR_NONE, {NK_WANDER, NK_WSCALE, 0xFF, 0xFF}},
+    {"ULTRA LFO", FAM_LFO, SC_NIA, GR_NONE, {NK_LRATE, NK_W1, NK_W2, NK_MOVE}},
+    {"ULTRA 2", FAM_LFO, SC_NIA, GR_NONE, {NK_RMOD, NK_RSRC, NK_LOCK, 0xFF}},
+    {"LFO I", FAM_LFO, SC_NIA, GR_NONE, {NK_OLFO1, NK_ODEP1, NK_FLFO1, NK_FDEP1}},
+    {"LFO II", FAM_LFO, SC_NIA, GR_NONE, {NK_OLFO2, NK_ODEP2, NK_FLFO2, NK_FDEP2}},
+    {"LFO TO", FAM_LFO, SC_NIA, GR_NONE, {NK_ODST1, NK_FDST1, NK_ODST2, NK_FDST2}},
+    {"PULSE", FAM_ENV, SC_NIA, GR_NONE, {NK_PULSE, NK_PRATE, NK_PDEPTH, NK_PSHAPE}},
+    {"PULSE 2", FAM_ENV, SC_NIA, GR_NONE, {NK_PSWING, NK_GLIDE, NK_MORPH, 0xFF}},
 };
 #define NPAGES (sizeof(PAGES) / sizeof(PAGES[0]))
 static uint8_t mod_ui_slot;      /* the MOD page: the matrix slot (0..3) KNOB 2..4 edit */
@@ -591,6 +614,10 @@ static const param_desc_t *page_desc(const page_t *pg, uint32_t slot, int16_t **
     if (pg->scope == SC_DICE) {                       /* (Fantasma 2.0) the dice (dice.c) */
         *valp = dice_val(id);
         return dice_pdesc(id);
+    }
+    if (pg->scope == SC_NIA) {                        /* (Fantasma 2.0) NIAGARA's values (eng_niagara.c) */
+        *valp = &nia_v[id % NK_N];
+        return &NIA_P[id % NK_N];
     }
     if (pg->scope == SC_CHFX) {                       /* (Fantasma 2.0) the channel's delay and reverb (chfx.c) */
         *valp = chfx_val(id);

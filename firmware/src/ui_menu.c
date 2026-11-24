@@ -57,6 +57,10 @@ static const menu_credit_t MENU_CREDITS[] = {
     {"Shay Green, ported by ugotworms / LGPL-2.1+", MC_TEXT},
     {"", MC_TEXT},
 #endif
+    {"NIAGARA DRIFT", MC_TITLE},
+    {"Evan Yerburgh: DRONE's engine, its drones / GPL-3.0", MC_TEXT},
+    {"https://github.com/evanyerburgh/niagara-drift", MC_URL},
+    {"", MC_TEXT},
     {"DAISYSP", MC_TITLE},
     {"Electrosmith, Emilie Gillet", MC_TEXT},
     {"MIT", MC_TEXT},

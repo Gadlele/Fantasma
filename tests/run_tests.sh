@@ -205,6 +205,15 @@ mkdir -p "$OUT"
 # the hardware layer: firmware/hal, then felucca-bsp (firmware/bsp: chip/, boards/fm1/), as tools/build.py
 HALI="-Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src"   # (src: uac_fir.h, which bsp/chip/usb.c includes)
 CC="${CC:-cc} -O1 -Wall -Wno-unused-function $HALI"
+# (Fantasma 2.0) NIAGARA's drones (firmware/src/niagara: Niagara Drift's, a unit of their own, as on the FM-1): built
+# once, linked with every test (NIA_O)
+NIA_O="$OUT/niagara_host.o"
+${CC%% *} -O2 -ffp-contract=off -w -Ifirmware/src/niagara -c firmware/src/niagara/niagara.c -o "$NIA_O"
+CC="$CC $NIA_O"
+# Fantasma builds without SLICE (no BREAK in build/gen's samples): the SLICE tests and the engine memory's, with SLICE
+# built in, take a samples table that has it (-I"$OUT/gen_slice" ahead of build/gen)
+mkdir -p "$OUT/gen_slice"
+FELUCCA_SLICE=1 python3 tools/gen_samples.py "$OUT/gen_slice/felucca_samples.h" >/dev/null
 fail=0
 run() { echo "== $1"; shift; "$@" || fail=1; }
 
@@ -324,6 +333,8 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "SEQ > DICE (2.0): WHO and WHAT alone, KEY NEW for all, BEFORE / NOW, EVOLVE" "$OUT/dice_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/fenv_test" tests/fenv_test.c -lm
     run "ENV > FILT ENV (2.0): = ENV as before, its own on the filter, the page, a user preset, a project" "$OUT/fenv_test"
+    $CC -O1 -w -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/niagara_test" tests/niagara_test.c -lm
+    run "NIAGARA (2.0): Niagara Drift's drones on DRONE: its ranges, a key in stereo, its Presets, pages, project, user preset" "$OUT/niagara_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/ratchet_test" tests/ratchet_test.c -lm
     run "RATCH: x1..x4 in a step (notes, chords, drum hits), gates, chance, swing, projects, user presets, AUTOMATION RATCH rows" "$OUT/ratchet_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/step15_test" tests/step15_test.c -lm
@@ -412,7 +423,7 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "FM6 effective patch: editor/project/slot updates, engine switches, generation alias (core on/off)" "$OUT/fm6_eff_test"
     $CC -O1 -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/fm6_eff_test_c1" tests/fm6_eff_test.c -lm
     run "FM6 effective patch: build without second core" "$OUT/fm6_eff_test_c1"
-    run "SysEx dispatch: editor/OTA ownership across interrupt arrivals" python3 tests/sysex_dispatch_test.py
+    run "SysEx dispatch: editor/OTA ownership across interrupt arrivals" env CC="$CC" python3 tests/sysex_dispatch_test.py
     $CC -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/editor_test_c1" tests/editor_test.c -lm
     run "editor, a FELUCCA_CPU2=0 build: MENU settings without 2ND CORE (ids 0..31)" "$OUT/editor_test_c1"
     $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/robust_test" tests/robust_test.c -lm
@@ -464,7 +475,7 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "second core: 4 parts of every preset, mixes: bit for bit on one core and on two, every split" \
         "$OUT/dualcore_test"
     if [ -n "$TSAN" ]; then                     # TSAN=1: the same under ThreadSanitizer (~6 min): shared state
-        TSAN_CC="cc -O1 -g -w -Ibuild/gen -Ifirmware/src -fsanitize=thread -pthread"
+        TSAN_CC="cc -O1 -g -w -Ibuild/gen -Ifirmware/src -fsanitize=thread -pthread $NIA_O"
         $TSAN_CC -o "$OUT/dualcore_tsan" tests/dualcore_test.c -lm
         run "second core under ThreadSanitizer: 4 parts of every preset, mixes" \
             env TSAN_OPTIONS=halt_on_error=1 "$OUT/dualcore_tsan"
@@ -475,7 +486,7 @@ if [ -f build/gen/felucca_tables.h ]; then
     $CC -O2 -w '-DFE_TABLES_H="felucca_tables.h"' -Ibuild/gen -o "$OUT/fe_host" firmware/engines/tests/fe_host.c
     "$OUT/fe_host" > "$OUT/fe_renders.txt" || fail=1
     run "Felucca-Engines with Felucca's tables: the engines' golden renders" diff -u firmware/engines/tests/golden.txt "$OUT/fe_renders.txt"
-    $CC -O2 -w -DFELUCCA_SLICE=1 -DFELUCCA_LOFI=1 -Ibuild/gen -Ifirmware/src -o "$OUT/union_test" tests/union_test.c -lm
+    $CC -O2 -w -DFELUCCA_SLICE=1 -DFELUCCA_LOFI=1 -I"$OUT/gen_slice" -Ibuild/gen -Ifirmware/src -o "$OUT/union_test" tests/union_test.c -lm
     run "engine memory (1.5): every switch (SLICE and LOFI built in, the engines whose state it checks) between the engines with per-part state sounds as in 1.4 (720 sequences)" \
         "$OUT/union_test" tests/union_golden.txt
     $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/descdump" tests/descdump.c -lm
@@ -518,15 +529,15 @@ if [ -f build/gen/felucca_tables.h ]; then
     mkdir -p build/fm6_demo
     run "FM6: algorithms, envelopes, retrigger, DC, clipping, macros, patch formats, voices, cost, demos" "$OUT/fm6_test" build/fm6_demo
     # SLICE is in the standard build (firmware/src/core.h): its test always runs (after #22 by andreahaku)
-    if grep -q '^#define SLC_BREAK_BPM ' build/gen/felucca_samples.h; then
+    if grep -q '^#define SLC_BREAK_BPM ' "$OUT/gen_slice/felucca_samples.h"; then
         mkdir -p build/slice_demo
         python3 tests/slice_loop.py build/slice_demo/loop
         python3 tools/fm1_sample_upload.py build LOOP build/slice_demo/loop build/slice_demo/loop.wav:60 >/dev/null
-        $CC -O2 -w -DFELUCCA_SLICE=1 -Ibuild/gen -Ifirmware/src -o "$OUT/slice_test" tests/slice_test.c -lm
+        $CC -O2 -w -DFELUCCA_SLICE=1 -I"$OUT/gen_slice" -Ibuild/gen -Ifirmware/src -o "$OUT/slice_test" tests/slice_test.c -lm
         run "SLICE: tables, onsets, reverse, keys, modes, MAN slices and their store, demos" "$OUT/slice_test" \
             build/slice_demo/loop build/slice_demo
     else
-        echo "== SLICE: build/ was made with FELUCCA_SLICE=0 (no BREAK); run ./build.sh without it first"
+        echo "== SLICE: tools/gen_samples.py made no BREAK with FELUCCA_SLICE=1"
         fail=1
     fi
     # SAMPLE's PIANO (1.5: as 1.1.5), SLICE's PIANO (its middle C zone), 1.2's PIANO HD in a user slot
@@ -559,10 +570,10 @@ elif ! san_ok; then
 else
     mkdir -p "$OUT/asan"
     A="$OUT/asan"
-    SCC="${CC%% *} $SAN $HALI -Ibuild/gen -Ifirmware/src"
+    SCC="${CC%% *} $SAN $HALI -Ibuild/gen -Ifirmware/src $NIA_O"
     export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0}"
     # This regression uses strict ASan/UBSan, without the broad DSP exclusions.
-    STRICT_CC="${CC%% *} -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -w $HALI -Ibuild/gen -Ifirmware/src"
+    STRICT_CC="${CC%% *} -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -w $HALI -Ibuild/gen -Ifirmware/src $NIA_O"
     $STRICT_CC -o "$A/signed_audio_scaling_test_strict" tests/signed_audio_scaling_test.c -lm
     run "Strict ASan/UBSan (no exclusions): signed_audio_scaling_test" "$A/signed_audio_scaling_test_strict"
     $STRICT_CC -o "$A/phys_signed_test_strict" tests/phys_signed_test.c -lm
@@ -608,7 +619,7 @@ elif ! command -v node >/dev/null 2>&1 || [ ! -f build/gen/felucca_tables.h ]; t
     echo "== skip the browser emulator (needs node and build/gen)"
 else
     run "browser emulator: the firmware to WebAssembly (web/emu/build.sh -> build/emu)" sh web/emu/build.sh
-    cc -O2 -ffp-contract=off -w $HALI -Ibuild/gen -Ifirmware/src -o "$OUT/emu_native" web/emu/native_check.c -lm
+    cc -O2 -ffp-contract=off -w $HALI -Ibuild/gen -Ifirmware/src -o "$OUT/emu_native" web/emu/native_check.c "$NIA_O" -lm
     run "browser emulator: the same song from the native build" "$OUT/emu_native" "$OUT/emu_native.f32"
     run "browser emulator: boot, keys, MIDI, screen, LEDs, PLAY, a save kept across instances, = native, cost" \
         node web/emu/emu_test.mjs build/emu/felucca.wasm "$OUT/emu_native.f32"

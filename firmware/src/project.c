@@ -136,6 +136,8 @@ typedef struct {
     uint8_t mch[NTRK];                         /* 1.5.5: MIDI IN TRACK's channels, as song.mch (PROJ_MIDI_OFF) */
     int16_t ambi[AL_N];                        /* Fantasma 2.0: the ambience layer's values (ambi_layer.c; PROJ_F2_OFF) */
     int16_t chfx[CF_N];                        /* Fantasma 2.0: each channel's delay and reverb, the two modes (chfx.c) */
+    int16_t nia[NK_N];                         /* Fantasma 2.0: NIAGARA's values (eng_niagara.c; the NIAGARA block, in
+                                                * track 1's FM6 place when track 1 plays NIAGARA) */
     char name[PROJ_NAME_LEN];                  /* the project's name: upper-case ASCII 32..126, 0-padded; "" = none */
     uint32_t sum;
 } project_t;
@@ -409,7 +411,7 @@ static int proj_from_v4(project_t *q, const project_v4_t *v4, int n)
         v4->sum != proj_hash(v4, sizeof *v4 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0); nia_defaults_to(q->nia);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     memcpy(q->g, v4->g, sizeof q->g);
@@ -432,7 +434,7 @@ static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
         v3->sum != proj_hash(v3, sizeof *v3 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0); nia_defaults_to(q->nia);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     memcpy(q->g, v3->g, sizeof q->g);
@@ -454,7 +456,7 @@ static int proj_from_v2(project_t *q, const project_v2_t *v2, int n)
         v2->sum != proj_hash(v2, sizeof *v2 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0); nia_defaults_to(q->nia);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     proj_g_from_v2(q->g, v2->g);
@@ -474,7 +476,7 @@ static int proj_from_v1(project_t *q, const project_v1_t *v1, int n)
         v1->sum != proj_hash(v1, sizeof *v1 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0); nia_defaults_to(q->nia);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     proj_g_from_v2(q->g, v1->g);
@@ -603,7 +605,7 @@ static int proj_import_old(project_t *q, const void *b, int n)
              (bytes == sizeof *v6 && v->magic == PROJ_MAGIC_V6 && chain_from_v9(&c6, &v6->chain))) &&
             v->size == bytes && ((const uint32_t *)b)[bytes / 4u - 1u] == proj_hash(b, bytes - 4u)) {
             memset(q, 0, sizeof *q);
-    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0); nia_defaults_to(q->nia);
             q->magic = PROJ_MAGIC; q->size = sizeof *q;
             memcpy(q->g, v->g, sizeof q->g);
             proj_rtype_room(q->g);
@@ -716,6 +718,9 @@ static int proj_pack(project_store_t *out, const project_t *q)
     memcpy(b + pos, &q->motion, sizeof q->motion);
     proj_midi_pack(b, q);
     memcpy(b + PROJ_FM6_OFF, q->fm6, sizeof q->fm6);
+    if (q->t[0].engine == ENGI_NIAGARA)                 /* (Fantasma 2.0: track 1 on NIAGARA plays no FM6: the NIAGARA
+                                                         * block in its patch's place) */
+        nia_pack(b + PROJ_FM6_OFF, q->nia);
     memset(b + PROJ_F2_OFF, 0, FM6_PACKED);             /* (Fantasma 2.0: the FANTASMA 2 block, in track 4's patch) */
     b[PROJ_F2_OFF] = 0xF2u; b[PROJ_F2_OFF + 1u] = 0xA2u; b[PROJ_F2_OFF + 2u] = PROJ_F2_VER; b[PROJ_F2_OFF + 3u] = AL_N;
     for (i = 0; i < AL_N; i++) {
@@ -783,7 +788,7 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
         size != st || sum != proj_hash(b, st - 4u) ||
         np < 8u || np > P_COUNT || 68u + NTRK * (np + 2u + NSTEP * 9u) + chn + mot > end)
         return 0;
-    memset(q, 0, sizeof *q); q->magic = PROJ_MAGIC; q->size = sizeof *q; al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
+    memset(q, 0, sizeof *q); q->magic = PROJ_MAGIC; q->size = sizeof *q; al_defaults(q->ambi); chfx_defaults(q->chfx, 0); nia_defaults_to(q->nia);
     memcpy(q->g, b + 8, sizeof q->g); q->sel = b[62]; q->parts = b[63]; q->phys = b[64];
     if (v7 && (q->g[G_RTYPE] < 0 || q->g[G_RTYPE] > 1))   /* a FUN7 may still hold the old drum channel there */
         proj_rtype_room(q->g);
@@ -835,6 +840,9 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
         const uint8_t *f = b + end + t * FM6_PACKED;
         if (v7) {
             memcpy(q->fm6[t], FM6_INIT, FM6_PACKED);
+        } else if (v10 && t == 0u && f[0] == 0xF2u && f[1] == 0xA4u) {   /* (Fantasma 2.0: the NIAGARA block) */
+            memcpy(q->fm6[t], FM6_INIT, FM6_PACKED);
+            nia_unpack(f, q->nia);
         } else if (v10 && t == 3u && f[0] == 0xF2u && f[1] == 0xA2u) {   /* (Fantasma 2.0: the FANTASMA 2 block) */
             memcpy(q->fm6[t], FM6_INIT, FM6_PACKED);
             for (i = 0; i < AL_N && i < f[3]; i++)
@@ -961,8 +969,8 @@ static void project_capture(project_t *p)
         p->t[i].engine = trk[i].eng_req;
         p->t[i].preset = trk[i].preset;
         memcpy(p->t[i].step, trk[i].step, sizeof trk[i].step);
-        if (i == 3u)                                    /* (Fantasma 2.0: DRUMS, no FM6; its patch's place holds the
-                                                         * FANTASMA 2 block: proj_pack) */
+        if (i == 3u || (i == 0u && trk[0].eng_req == ENGI_NIAGARA))   /* (Fantasma 2.0: DRUMS, no FM6; its patch's place
+                                                         * holds the FANTASMA 2 block: proj_pack; NIAGARA's, its block) */
             memcpy(p->fm6[i], FM6_INIT, FM6_PACKED);
         else
             fm6_pack(fm6_patch[i], p->fm6[i]);
@@ -971,6 +979,7 @@ static void project_capture(project_t *p)
     memcpy(p->mch, song.mch, sizeof p->mch);
     memcpy(p->ambi, al.v, sizeof p->ambi);          /* (Fantasma 2.0: the ambience layer) */
     chfx_get(p->chfx);                              /* (Fantasma 2.0: the channels' delays and reverbs) */
+    memcpy(p->nia, nia_v, sizeof p->nia);           /* (Fantasma 2.0: NIAGARA's values) */
     motion_unguard(f);
     memcpy(p->name, proj_name, str_len(proj_name));
     p->sum = proj_sum(p);
@@ -1182,6 +1191,9 @@ static int project_restore_runtime(const project_t *input)
             v[k] = (int16_t)param_fit(chfx_desc(k), p->chfx[k]);
         chfx_put(v);
     }
+    for (k = 0; k < NK_N; k++)                          /* (Fantasma 2.0) NIAGARA's values (nia_poll sends them all) */
+        nia_v[k] = (int16_t)param_fit(&NIA_P[k], p->nia[k]);
+    nia_fresh = 1;
     midi_route = MIDI_ROUTE_AGAIN;                      /* (events_block: what the channels no longer hear let go) */
     for (k = 0; k < NTRK; k++) {
         track_t *t = &trk[k];
@@ -1244,7 +1256,7 @@ static int project_new(void)
     project_t *q = &proj_scratch;
     uint32_t i, k;
     memset(q, 0, sizeof *q);
-    al_defaults(q->ambi); chfx_defaults(q->chfx, 0);
+    al_defaults(q->ambi); chfx_defaults(q->chfx, 0); nia_defaults_to(q->nia);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
     q->parts = NPART;

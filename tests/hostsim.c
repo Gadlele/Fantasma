@@ -84,6 +84,7 @@ static void host_tracks_init(void)                /* as felucca_init: defaults, 
             trk[k].step[i].time = ST_REST;
     }
     song.master_q12 = 4096;
+    nia_boot();                                   /* (Fantasma 2.0) NIAGARA's drones from their start, as felucca_init */
 }
 
 /* the factory preset as ui.c apply_preset_to sets it (sound, sends; not the steps, not the track's own:
@@ -116,6 +117,8 @@ static void host_preset_values(track_t *t, uint32_t e, uint32_t pi, const preset
     if (p->glide)
         t->p[P_GLIDE] = (int16_t)(p->glide - 1);
     fm6_track_loaded(t);                          /* FM6: the preset's patch (ui.c apply_preset_to) */
+    if (e == ENGI_NIAGARA)                        /* (Fantasma 2.0) Niagara Drift's Preset (ui.c apply_preset_to) */
+        nia_preset_load(t, pi);
 }
 static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
 {

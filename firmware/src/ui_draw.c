@@ -1272,6 +1272,7 @@ static void draw_columns(void)
             const param_desc_t *d = home_param(c, &vp);
             param_format(d, *vp, val, &unit);
             rel_inf(vp, val, &unit);
+            nia_card_of(vp, d, val, &unit);              /* (Fantasma 2.0) NIAGARA's */
             card_mot_of(vp);
             card_span_of(d);
             if (home_levels())                         /* 1.5: T1..T4 LEVEL, the track's cushion, muted: DIM */
@@ -1634,6 +1635,7 @@ static void draw_columns(void)
         }
         param_format(d, *vp, val, &unit);
         rel_inf(vp, val, &unit);
+        nia_card_of(vp, d, val, &unit);                 /* (Fantasma 2.0) NIAGARA's, as Niagara Drift shows them */
         card_mot_of(vp);                                /* (a global: never) */
         card_span_of(d);
         if (vp >= &TSEL->p[P_FATK] && vp <= &TSEL->p[P_FREL] && TSEL->p[P_FATK] < 0) {   /* (Fantasma 2.0) FILT ENV

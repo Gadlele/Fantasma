@@ -43,7 +43,7 @@ OPTIONAL = {"digital_render": 12, "digital_render_legacy": 333, "digital_render_
             "lofi_render": 123, "slice_render": 453, "slc_rev": 120,   # (Fantasma builds AMBI and BELL in their places)
             "uac_tap48": 642,           # (absent from a FELUCCA_UAC_48K=0 or FELUCCA_UAC=0 build; 507 until felucca-bsp
                                         # 14610bd (#16) put each multiply-accumulate out of line, a call a tap)
-            "mix_part": 1754,
+            "mix_part": 1934,           # (Fantasma 2.0: 1754 before NIAGARA, its stereo on the channel's SPREAD)
             "adp_render": 2577, "adp_block": 102, "adp_post": 309}   # (ADPCM: built only with FELUCCA_ADPCM=1)           # (bsp/chip/libc.c: the word-wise memset / memcpy, longer loops, faster; FELUCCA_CPU2=1, the default since 1.6.1: out of line, either core may run it)
 # a FELUCCA_CPU2=0 build (no mix_part: inlined into the audio ISR, as 1.6) has the one-core ISR, checked against this
 ONE_CORE = {"fm1_alnk0_irq": 13782}

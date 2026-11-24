@@ -414,8 +414,13 @@ class Builder:
 
 
 def slice_on():
-    """the SLICE engine is built (src/core.h: on unless FELUCCA_SLICE=0)"""
-    return os.environ.get("FELUCCA_SLICE", "1") != "0"
+    """the SLICE engine is built: FELUCCA_SLICE in the environment, else src/core.h's default (Fantasma: 0, its BREAK
+    then left out of SMP_DATA: 22 KB of flash no engine reads)"""
+    v = os.environ.get("FELUCCA_SLICE")
+    if v is None:
+        m = re.search(r"^#define FELUCCA_SLICE (\d)", (SRC / "firmware" / "src" / "core.h").read_text(), re.M)
+        v = m.group(1) if m else "1"
+    return v != "0"
 
 
 def input_key(have_cc0):

@@ -59,6 +59,7 @@ static void felucca_init(void)
     fm6_init();                               /* every track's FM6 patch: the init voice */
 #if FELUCCA_AMBI
     al_init();                                /* (Fantasma 2.0) the ambience layer: its defaults, off */
+    nia_boot();                               /* (Fantasma 2.0) NIAGARA: Niagara Drift's drones, their starting sound */
 #endif
     {   /* (Fantasma 2.0) each channel its delay and reverb (chfx.c): CHAN, the channels' own values */
         int16_t v[CF_N];
