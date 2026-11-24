@@ -34,8 +34,8 @@ int main(void)
     for (i = 0; i < NPAGES; i++)
         if (PAGES[i].scope == SC_AMBI && str_eq(PAGES[i].title, "AMBI 2"))
             pg = i;
-    ok = pg < NPAGES && PAGES[pg].fam == FAM_TRK && page_desc(&PAGES[pg], 0, &vp) == &AL_P[AL_ON] && vp == &al.v[AL_ON];
-    bad += check("ambi: HOME's AMBI 2 page, its first knob AMBI (ON / OFF)", ok);
+    ok = pg < NPAGES && PAGES[pg].fam == FAM_GLO && page_desc(&PAGES[pg], 0, &vp) == &AL_P[AL_ON] && vp == &al.v[AL_ON];
+    bad += check("ambi: GLO's AMBI 2 page (Fantasma 2.0), its first knob AMBI (ON / OFF)", ok);
     al.v[AL_ON] = 1;
     {
         int32_t early = peak_ms(100), full = peak_ms(2000);

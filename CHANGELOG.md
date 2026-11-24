@@ -5,6 +5,12 @@ fixes, a new **X** may change how things are saved.
 
 ## 2.0 — in progress
 
+- **The pages, arranged by what they touch**: **GLO** holds everything global, in a round: SONG, CLOCK (BPM, swing,
+  clock), AMBI, AMBI 2, **FX MODE** (DLY and REV: CHAN or BUS), the bus DLY, REVERB and CHORUS. **FX** holds the
+  selected channel's effects only: the sends, SLICER, INSERT, INSERT 2, CH DELAY, CH REVERB. **EDIT** the channel's
+  sound, as before; **HOME** goes HOME › MIXER.
+- **SELECT steps the tabs** of the page shown, by default (MENU › CONTROL › SELECT PAGE): the tempo is GLO › CLOCK,
+  GLO + SELECT or TAP. SELECT BPM gives the knob the tempo back.
 - **Felucca 1.8.3 underneath** (Fantasma 1.x was Felucca 1.5.1): the second core (MENU › SYSTEM › 2ND CORE, beta,
   off by default), AFTERTOUCH from the keys' pressure, a custom palette, MIDI IN per track, step conditions,
   recording while playing and Felucca's other fixes since 1.5.1. Fantasma's sounds, AMBI, BELL, the generators,

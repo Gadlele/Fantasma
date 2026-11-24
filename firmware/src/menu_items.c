@@ -293,6 +293,7 @@ static void menu_put(uint32_t row, uint32_t v)
         ui.force = 1;
         break;
     case MI_SELECT:                                    /* (1.5.5 PAGE bit 4; 1.5.6 MODW VEL bit 6 too: ui.c sel_mode) */
+        v = v < 2u ? v ^ 1u : v;                       /* (Fantasma 2.0: stored PAGE 0, BPM 1: ui.c sel_mode) */
         ui_prefs2 = (uint8_t)((ui_prefs2 & ~((PREF_SEL_PAGE | PREF_SEL_HI) >> 16)) | (v & 1u) << 4 | (v & 2u) << 5);
         break;
     case MI_LEDS:                                      /* (INV LO / INV HI: INV and its level, ui.c ui_leds_inv) */

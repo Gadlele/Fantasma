@@ -1956,6 +1956,7 @@ static void roll_frames(const char *dir)
         state(); song.playing = 0; pal(p);
         song.g[G_BPM] = 129; song.g[G_TUNE] = 19;
         go_title("CLOCK"); page_over = &ROLL_PG;
+        ui_prefs2 |= 0x10u;                       /* (SELECT the tempo: Fantasma 2.0's default steps the pages) */
         snprintf(name, sizeof name, "%s/roll", UI_PALETTES[p].name);
         cur_name = name;
         draw(-1);
@@ -1985,6 +1986,7 @@ static void roll_frames(const char *dir)
         }
     }
     page_over = 0;
+    ui_prefs2 &= ~0x10u;
 }
 /* the host cost of a roll frame: the header and the cards (draw_head, draw_columns) while both strips roll,
  * against the same calls on an idle frame (nothing drawn) and a full redraw of the four cards and the header */

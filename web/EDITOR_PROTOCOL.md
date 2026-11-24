@@ -485,7 +485,7 @@ grid lives in the steps themselves, so every engine has it:
   Neither setting affects this SysEx protocol or MIDI clock. The
   id, `G_COUNT` (27) and the project format are unchanged; it is saved and loaded with the project like
   the other globals. The editor shows it under GLOBAL > MIDI. 1.2: the GLO > GLOBAL and GLO > SYSTEM pages are
-  gone; BPM, SWG and CLK (ids 0..2) are HOME > CLOCK's, TUNE (id 3) and ROUT (id 14) are edited in the MENU (AUDIO >
+  gone; BPM, SWG and CLK (ids 0..2) are GLO > CLOCK's (Fantasma 2.0), TUNE (id 3) and ROUT (id 14) are edited in the MENU (AUDIO >
   TUNE, MIDI > MIDI IN; also MENU settings 22 and 21, below). Their ids, ranges, names and storage (the project) are
   unchanged. `G_MIDI`, `G_SYNC`, `G_INFO` (12, 13, 15) are on no page any more (MIDI's value was never read: the
   SYSTEM page's card showed the USB state; SYNC a placeholder; CPU a reading): the device's MENU > SYSTEM > INFO shows
@@ -1233,7 +1233,7 @@ opens, and a second footer row under a quick layer's map. OFF (the default) show
 SELECT (id 25, 1.5.5, Discussion #188; CONTROL now shows HOLD, KNOB ACCEL, FX LATCH, BPM LOCK, SCALE LEDS, STEP
 PREVIEW, CHORD ENTRY and SELECT, index 5..8, 16, 19, 20, 25): what the SELECT knob does. BPM (the default, as before)
 sets the tempo (BPM LOCK as it says); PAGE steps the pages of the family shown, as a tap of its button does (right) or
-back (left), round; HOME, MIXER and CLOCK are one round. With PAGE the tempo is GLO + SELECT, HOME > CLOCK's KNOB 1 and
+back (left), round; HOME and MIXER are one round (Fantasma 2.0: PAGE the default). With PAGE the tempo is GLO + SELECT, GLO > CLOCK's KNOB 1 and
 GLO's TAP; BPM LOCK does nothing then. A bit of the settings record (MENU's 1.2 flags byte, bit 4; older firmware keeps
 it and ignores it). Applied at once.
 

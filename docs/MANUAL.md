@@ -127,6 +127,8 @@ ambient machine. All AMBI sounds have REL 64 (half), so they let go as before un
 ![FM-1 controls with Felucca](controls.jpg)
 
 - Tap a page button for its page, again for the next; HOME returns home. Page buttons act when let go
+- The **SELECT** knob steps the tabs of the page shown (Fantasma 2.0: MENU › CONTROL › SELECT is PAGE by default);
+  the tempo is GLO › CLOCK's KNOB 1, GLO + SELECT or TAP (SELECT set to BPM gives the knob the tempo back)
 - Hold FX, GLO, SCL, EDIT, REC or SEQ for its quick layer; hold SAVE to undo, HOME for the menu; hold LFO and turn a
   knob for a MOMENTARY change
 - Double-tap a layer's button to keep its layer open without holding; tap it again to close
@@ -138,19 +140,20 @@ The pages by button:
 
 | Button | Taps go round | Held |
 |---|---|---|
-| HOME | HOME, MIXER, CLOCK (BPM, swing, clock source) | the menu |
+| HOME | HOME, MIXER | the menu |
 | SEQ | STEP (the piano roll, or the drum grid), DETAIL, AUTOMATION | SEQ TOOLS, on every page |
-| GLO | SONG | the GLO layer (mutes, solos, levels, TAP tempo, D4: MIDI LEARN) |
+| GLO | SONG, CLOCK (BPM, swing, clock source), AMBI, AMBI 2, FX MODE (DLY and REV: CHAN or BUS), DLY, REVERB, CHORUS: everything global | the GLO layer (mutes, solos, levels, TAP tempo, D4: MIDI LEARN) |
 | SAVE | USER, PRESETS, PHRASES (the pattern loader), PROJECT, TOOLS | UNDO |
 | LFO | LFO, LFO 2, LFO DEST, MOD | MOMENTARY (with a knob) |
 | EDIT | EDIT 1, EDIT 2, VOICE, VOICE 2, VOICE 3 (FM6 adds OPERATOR, OP ENV, OPERATOR 2; DRUM LANES; SLICE SLICES; ANALOG FILTER) | the EDIT layer (the engines; on DRUM the black keys mute lanes) |
-| FX, SCL, ENV, ARP | their pages (FX: INSERT and INSERT 2 after the SLICER) | FX and SCL: their layers |
+| FX | the selected channel's effects only: FX (the sends), SLICER, INSERT, INSERT 2, CH DELAY, CH REVERB | the FX layer |
+| SCL, ENV, ARP | their pages | SCL: its layer |
 | REC | arms the track | the REC layer (CLEAR, CLICK, COUNT-IN, CLICK LEVEL) |
 
 ## Menu
 
 Hold **HOME** for the menu, in five tabs: **DISPLAY** (COLOR, STYLE, LARGE, ANIM, LEDS, SCREEN OFF, SCOPE, HOME),
-**CONTROL** (HOLD, KNOB ACCEL, FX LATCH, BPM LOCK, SCALE LEDS, STEP PREVIEW, CHORD ENTRY), **AUDIO** (SPEAKER EQ,
+**CONTROL** (HOLD, KNOB ACCEL, FX LATCH, BPM LOCK, SCALE LEDS, STEP PREVIEW, CHORD ENTRY, SELECT: PAGE, BPM, MODW, VEL), **AUDIO** (SPEAKER EQ,
 USB LEVEL, CLICK, CLICK LEVEL, COUNT-IN, TUNE), **MIDI** (MIDI IN, LEARN CLEAR) and **SYSTEM** (USB SERIAL,
 RESTORE LAST, HELP, HARDWARE CALIBRATION, INFO, ABOUT).
 ALGORITHM moves between the tabs and PRESETS through the rows of one; any of KNOB 1–4, or OCT+ / OCT−,
@@ -186,7 +189,7 @@ way as from the menu, in the same tabs.
 - **FX LATCH:** ON, FX + an effect key turns the effect on until pressed again, the knob macros stay
   where you leave them, and FX + OCT− turns everything off
 - **BPM LOCK:** ON, SELECT no longer changes the tempo; hold GLO and turn SELECT, tap F4 in the GLO
-  layer or use HOME > CLOCK instead
+  layer or use GLO > CLOCK instead
 - **SCALE LEDS:** OFF or ON: the keys show the selected track's scale all the time (the root a little
   brighter); not on DRUM or SLICE tracks
 - **STEP PREVIEW:** OFF (default) or ON: on SEQ > STEP with the transport stopped, moving the cursor plays the step
@@ -265,7 +268,7 @@ PIANO HD); 1.5 brings the full piano back.
 
 **SLICER** (FX page, every track): a tempo-synced 16-step gate or stutter, with 16 patterns.
 
-**Reverb** (FX > REVERB, TYPE): **HALL** (since 1.4, the default on a fresh start: eight delay lines feeding each
+**Reverb** (GLO > REVERB, TYPE): **HALL** (since 1.4, the default on a fresh start: eight delay lines feeding each
 other with slowly drifting taps, stereo, SIZE the decay up to about 4.5 s, DAMP how fast the highs die), **ROOM** (the
 default up to 1.1.5) and **SPRING**. A project plays the TYPE it was saved with.
 
@@ -348,15 +351,16 @@ DUST KIT, TAPE KIT, DUB KIT, WOOD KIT, CLICK KIT.
 
 **Each channel its effects** (Fantasma 2.0). FX › **CH DELAY** and **CH REVERB** edit the selected channel's:
 - **CH DELAY**: **TIME** (the note values of the delay: 1/4 .. 4BAR, dotted), **FDBK**, **TONE** (how dark the
-  repeats get), and **DLY** (the project's: **CHAN** each track its own delay, **BUS** one for all, as in 1.x). Each
+  repeats get). GLO › **FX MODE**'s **DLY** is the project's: **CHAN** each track its own delay, **BUS** one for all
+  (GLO › DLY), as in 1.x. Each
   channel's delay holds 1.5 s; it runs at a quarter of the rate, so its repeats are dark, as a tape's, with a slow
   wow.
 - **CH REVERB**: **SIZE** (0.3 s to a minute; 127 holds the sound), **DAMP**, **SHIMMR** (the tail an octave up, fed
-  back in: it rises and shines; DRONE, PAD and BELLS), and **REV** (**CHAN** each its own reverb, **BUS** the one of
-  FX › REVERB, ROOM SPRING HALL AMBI). DRUMS' reverb is a room, at most ~10 s, no shimmer.
+  back in: it rises and shines; DRONE, PAD and BELLS). GLO › FX MODE's **REV**: **CHAN** each its own reverb, **BUS**
+  the one of GLO › REVERB, ROOM SPRING HALL AMBI. DRUMS' reverb is a room, at most ~10 s, no shimmer.
 - Each track's sends are FX's DLY and REV, as always; its **drive** is DIST and its **modulation** the INSERT
   (PHASR, FLANG, CHOR; or another drive: SOFT HARD FOLD FUZZ CRUSH).
-- At power-on both are CHAN; a project of Fantasma 1.x loads as BUS and sounds as it did. HOME › AMBI 2's **TO** says
+- At power-on both are CHAN; a project of Fantasma 1.x loads as BUS and sounds as it did. GLO › AMBI 2's **TO** says
   which channel's reverb the ambience goes to (CHAN).
 
 **DICE** (Fantasma 2.0, SEQ › DICE, after AMBIENT): roll the dice on the channels you pick.
@@ -373,7 +377,7 @@ DUST KIT, TAPE KIT, DUB KIT, WOOD KIT, CLICK KIT.
   stopped too; KEY kept).
 - Not saved with the project: what the dice made is.
 
-**AMBI** (Fantasma 2.0): no longer a track. HOME › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
+**AMBI** (Fantasma 2.0): no longer a track. GLO › **AMBI** (SCENE, TONE, MOTION, INTENS) and **AMBI 2** (AMBI ON / OFF,
 LEVEL, REVERB) play an ambience under the four channels: the 13 AMBI scenes plus THUNDER, BREATH, NIGHT, EMBERS and
 TAPE END. It fades in and out over about a second and is saved with the project.
 

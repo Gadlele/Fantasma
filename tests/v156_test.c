@@ -351,9 +351,10 @@ static int select_play(void)
     uint32_t mo, pk;
     ui_power_on();
     ok = menu_n(MI_SELECT) == 4u && str_eq(menu_vname(MI_SELECT, 0), "BPM") && str_eq(menu_vname(MI_SELECT, 1), "PAGE") &&
-         str_eq(menu_vname(MI_SELECT, 2), "MODW") && str_eq(menu_vname(MI_SELECT, 3), "VEL") && menu_get(MI_SELECT) == 0u;
-    menu_put(MI_SELECT, 1);
-    ok &= ui_prefs2 == 0x10u && sel_mode() == SEL_PAGE;     /* (PAGE: 1.5.5's bit) */
+         str_eq(menu_vname(MI_SELECT, 2), "MODW") && str_eq(menu_vname(MI_SELECT, 3), "VEL") && menu_get(MI_SELECT) == 1u;
+    ok &= ui_prefs2 == 0u && sel_mode() == SEL_PAGE;         /* (Fantasma 2.0: PAGE the default, bit 4 clear) */
+    menu_put(MI_SELECT, 0);
+    ok &= ui_prefs2 == 0x10u && sel_mode() == SEL_BPM;      /* (BPM: bit 4) */
     menu_put(MI_SELECT, 2);
     ok &= ui_prefs2 == 0x40u && sel_mode() == SEL_MODW;
     menu_put(MI_SELECT, 3);
@@ -365,9 +366,9 @@ static int select_play(void)
         menu_put(MI_SELECT, 0);
         ok &= settings_import(&p, (int)sizeof p) == 1 && menu_get(MI_SELECT) == 3u;
         p.favorites.factory[15][24] = 0;
-        ok &= settings_import(&p, (int)sizeof p) == 1 && menu_get(MI_SELECT) == 0u;
+        ok &= settings_import(&p, (int)sizeof p) == 1 && menu_get(MI_SELECT) == 1u;
     }
-    bad += check("SELECT (#84): BPM PAGE MODW VEL; PAGE bit 4 as 1.5.5, MODW / VEL bit 6 too; saved, older settings BPM", ok);
+    bad += check("SELECT (#84): BPM PAGE MODW VEL; bit 4 BPM (Fantasma 2.0), MODW / VEL bit 6 too; saved, 0 PAGE", ok);
 
     menu_put(MI_SELECT, SEL_MODW);
     go_home(); frame();

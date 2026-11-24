@@ -104,8 +104,13 @@ int main(int argc, char **argv)
         song.sel = 2;
         for (pg = 0; pg < NPAGES && !str_eq(PAGES[pg].title, "CH REVERB"); pg++)
             ;
-        CHK(pg < NPAGES && PAGES[pg].scope == SC_CHFX && str_eq(page_desc(&PAGES[pg], 0, &vp)->label, "SIZE") &&
-            vp == &cf.v[2][CF_SIZE] && str_eq(page_desc(&PAGES[pg], 3, &vp)->label, "REV") && vp == &cf.mode[1]);
+        CHK(pg < NPAGES && PAGES[pg].scope == SC_CHFX && PAGES[pg].fam == FAM_FX &&
+            str_eq(page_desc(&PAGES[pg], 0, &vp)->label, "SIZE") && vp == &cf.v[2][CF_SIZE] && PAGES[pg].id[3] == 0xFFu);
+        for (pg = 0; pg < NPAGES && !str_eq(PAGES[pg].title, "FX MODE"); pg++)   /* the modes: GLO's (the project's) */
+            ;
+        CHK(pg < NPAGES && PAGES[pg].scope == SC_CHFX && PAGES[pg].fam == FAM_GLO &&
+            str_eq(page_desc(&PAGES[pg], 0, &vp)->label, "DLY") && vp == &cf.mode[0] &&
+            str_eq(page_desc(&PAGES[pg], 1, &vp)->label, "REV") && vp == &cf.mode[1] && PAGES[pg].id[2] == 0xFFu);
         song.sel = 0;
     }
     /* the project keeps them; a FUN10 of Fantasma 1.x (no block): BUS */

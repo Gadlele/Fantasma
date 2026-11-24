@@ -23,12 +23,13 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"FX", "[K1-4]SENDS[FX]HOLD: PERFORM"},
     {"SLICER", "[K1]ON[K2]PATTERN[FX]INSERT"},
     {"INSERT", "[K1]TYPE[FX]DRY / WET"},
-    {"INSERT 2", "[K1]DRY / WET[FX]DLY"},
-    {"DLY", "[K1-4]ALL TRACKS[FX]REVERB"},
-    {"REVERB", "[K1]ROOM SPRING HALL[FX]CHORUS"},
-    {"CHORUS", "[K1-4]ALL TRACKS[FX]CH DELAY"},
-    {"CH DELAY", "[K1]TIME[K4]CHAN BUS[FX]CH REVERB"},   /* (Fantasma 2.0, chfx.c) */
-    {"CH REVERB", "[K3]SHIMMER[K4]CHAN BUS[FX]FX"},
+    {"INSERT 2", "[K1]DRY / WET[FX]CH DELAY"},
+    {"DLY", "[K1-4]ALL TRACKS[GLO]REVERB"},   /* (Fantasma 2.0: the project's, GLO's) */
+    {"REVERB", "[K1]ROOM SPRING HALL[GLO]CHORUS"},
+    {"CHORUS", "[K1-4]ALL TRACKS[GLO]SONG"},
+    {"CH DELAY", "[K1]TIME[FX]CH REVERB"},       /* (Fantasma 2.0, chfx.c) */
+    {"CH REVERB", "[K3]SHIMMER[FX]FX"},
+    {"FX MODE", "[K1]DELAY[K2]REVERB[GLO]DLY"},
     {"SCL", "[K2]SCALE[K3]QUANTIZE[SCL]CHORDS"},
     {"CHORD", "[K1]CHORD[KEYS]ONE FINGER[SCL]SCL"},
     {"EDIT 1", H_EDIT},
@@ -58,9 +59,9 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"AMBIENT", "[OCT+]RANDOMIZE[OCT-]STOP"},
     {"DICE", "[OCT+]ROLL[OCT-]BEFORE NOW"},       /* (Fantasma 2.0, dice.c) */
     {"DICE 2", "[K1]EVERY N BARS[OCT+]ROLL"},
-    {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]CLOCK"},
+    {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]HOME"},
     {"CLOCK", "[SELECT]TEMPO[GLO]HOLD: TAP"},
-    {"AMBI", "[K1]SCENE[K2]TONE[HOME]AMBI 2"},   /* (Fantasma 2.0: the ambience layer) */
+    {"AMBI", "[K1]SCENE[K2]TONE[GLO]AMBI 2"},   /* (Fantasma 2.0: the ambience layer) */
     {"AMBI 2", "[K1]ON[K3]REVERB[K4]TO"},
 };
 #define H_HOME "[PRESETS]SOUND[HOME]HOLD: MENU"

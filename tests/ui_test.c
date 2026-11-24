@@ -172,6 +172,7 @@ static const uint8_t TEST_TRK[NPART][3] = {{0, 4, 0}, {ENGI_FM6, 4, 0}, {FELUCCA
  * on PHASE, an engine both have */
 static void felucca_parts(void);
 /* main.c felucca_init */
+static int test_sel_bpm;
 static void ui_power_on(void)
 {
     uint32_t i;
@@ -189,6 +190,8 @@ static void ui_power_on(void)
     proj_name[0] = 0;
     proj_cur = PROJ_NO_SLOT;
     memset(&favorites, 0, sizeof favorites);
+    if (test_sel_bpm)
+        ui_prefs2 |= 0x10u;                       /* (Fantasma 2.0: SELECT steps the pages by default; these tests the tempo's) */
     ml_off();                                     /* (MIDI LEARN off, nothing learned) */
     memset(&undo, 0, sizeof undo);
     fop_op = fop_stg = 0;                         /* (FM6's operator pages: OP 1, stage 1, as at power-on) */
@@ -199,6 +202,12 @@ static void ui_power_on(void)
 #if FELUCCA_AMBI
     al_init();                                    /* (Fantasma 2.0) the ambience layer, as main.c felucca_init */
 #endif
+    {   /* (Fantasma 2.0) DICE as at power-on (dice.c: EVOLVE OFF, nothing rolled) */
+        uint32_t k;
+        for (k = 0; k < DI_N; k++)
+            di_v[k] = DI_P[k].def;
+        memset(&di, 0, sizeof di);
+    }
     {   /* (Fantasma 2.0) the channels' delays and reverbs (chfx.c): BUS here, as the tests were made with (main.c: CHAN) */
         int16_t v[CF_N];
         chfx_init();
@@ -2799,9 +2808,9 @@ static int test_page_cycles(void)
         uint32_t f = PAGES[i].fam;
         ok &= f != FAM_SEQ || PAGES[i].graph == GR_ROLL || PAGES[i].graph == GR_EVENTS || PAGES[i].graph == GR_AMBI ||
               PAGES[i].scope == SC_DICE;                /* (Fantasma 2.0: DICE, DICE 2) */
-        ok &= f != FAM_GLO || PAGES[i].graph == GR_SONG;   /* (1.2: GLO's only page) */
-        ok &= f != FAM_TRK || PAGES[i].graph == GR_TRK || str_eq(PAGES[i].title, "CLOCK") ||
-              PAGES[i].scope == SC_AMBI;                /* HOME's: MIXER CLOCK (Fantasma 2.0: AMBI, AMBI 2) */
+        ok &= f != FAM_GLO || PAGES[i].graph == GR_SONG || PAGES[i].scope == SC_GLOBAL || PAGES[i].scope == SC_AMBI ||
+              PAGES[i].scope == SC_CHFX;                /* (Fantasma 2.0: GLO the whole: SONG CLOCK AMBI FX MODE DLY REVERB CHORUS) */
+        ok &= f != FAM_TRK || PAGES[i].graph == GR_TRK;  /* HOME's: the MIXER */
         ok &= PAGES[i].graph != GR_TRK || f == FAM_TRK;
         ui_power_on(); ui.home = 0; ui.page = (uint8_t)i; page_entered();
         ok &= FAM_BTN[cur_fam()] == (f == FAM_TRK ? B_HOME : f == FAM_GLO ? B_GLO : f == FAM_SEQ ? B_SEQ :
@@ -2809,8 +2818,8 @@ static int test_page_cycles(void)
     }
     for (i = 0; i < NPAGES; i++)
         ok &= !str_eq(PAGES[i].title, "PATTERN") && !str_eq(PAGES[i].title, "CHANCE") && !str_eq(PAGES[i].title, "AUTO LIST");
-    bad += check("1.2: SEQ has STEP and AUTOMATION only; SONG is GLO's only page, PHRASES SAVE's, MIXER and CLOCK HOME's "
-                 "(their LED HOME)", ok);
+    bad += check("1.2: SEQ has STEP and AUTOMATION only; GLO the global pages (Fantasma 2.0), PHRASES SAVE's, MIXER HOME's "
+                 "(its LED HOME)", ok);
     {   /* 1.2: GLOBAL and SYSTEM are gone; their knobs: BPM SWG CLK on HOME > CLOCK, TUNE and ROUT on no page (the MENU's),
          * MIDI SYNC CPU on none (INFO shows the USB state and the CPU) */
         uint32_t k, clock = 0;
@@ -2823,10 +2832,10 @@ static int test_page_cycles(void)
             if (str_eq(PAGES[i].title, "CLOCK"))
                 clock = i + 1u;
         }
-        ok &= clock && PAGES[clock - 1u].fam == FAM_TRK && PAGES[clock - 1u].scope == SC_GLOBAL &&
+        ok &= clock && PAGES[clock - 1u].fam == FAM_GLO && PAGES[clock - 1u].scope == SC_GLOBAL &&
               PAGES[clock - 1u].id[0] == G_BPM && PAGES[clock - 1u].id[1] == G_SWING && PAGES[clock - 1u].id[2] == G_CLOCK &&
               PAGES[clock - 1u].id[3] == 0xFFu;
-        bad += check("1.2: no GLOBAL, no SYSTEM page; HOME > CLOCK has BPM SWG CLK (three knobs), TUNE and ROUT on no page", ok);
+        bad += check("1.2: no GLOBAL, no SYSTEM page; GLO > CLOCK has BPM SWG CLK (three knobs), TUNE and ROUT on no page", ok);
     }
     /* remembered pages: one that left its family, or out of range, gives the family's first (1.2: GLO's whatever it was,
      * GLOBAL and SYSTEM too, now SONG; HOME's never remembered: from HOME the MIXER) */
@@ -2840,16 +2849,17 @@ static int test_page_cycles(void)
     open_family(FAM_SEQ); ok &= cur_page()->graph == GR_ROLL;
     open_family(FAM_ENV); ok &= str_eq(cur_page()->title, "ENV");
     open_family(FAM_SAVE); ok &= str_eq(cur_page()->title, "USER");
-    open_family(FAM_GLO); open_family(FAM_GLO);          /* SONG again (its only page) */
-    ok &= str_eq(cur_page()->title, "SONG");
-    go_home(); open_family(FAM_GLO); ok &= str_eq(cur_page()->title, "SONG");
-    for (i = 0; i < 256u; i++) {                         /* any remembered index (the old GLOBAL 25, SYSTEM 27, ..) */
+    open_family(FAM_GLO); open_family(FAM_GLO);          /* (Fantasma 2.0) the next: CLOCK */
+    ok &= str_eq(cur_page()->title, "CLOCK");
+    go_home(); open_family(FAM_GLO); ok &= str_eq(cur_page()->title, "CLOCK");   /* (remembered) */
+    for (i = 0; i < 256u; i++) {                         /* any remembered index: a GLO page its own, else SONG */
         go_home(); ui.fam_last[FAM_GLO] = (uint8_t)i; open_family(FAM_GLO);
-        ok &= str_eq(cur_page()->title, "SONG") && ui.fam_last[FAM_GLO] == ui.page;
+        ok &= (i && i < NPAGES && PAGES[i].fam == FAM_GLO && page_visible(i) ? ui.page == i : str_eq(cur_page()->title, "SONG")) &&
+              ui.fam_last[FAM_GLO] == ui.page;
         go_home(); ui.fam_last[FAM_TRK] = (uint8_t)i; press(B_HOME);
         ok &= cur_page()->graph == GR_TRK && !ui.home;
     }
-    bad += check("1.2: a remembered page no longer in its family (or none) lands on the family's first; GLO always SONG, "
+    bad += check("1.2: a remembered page no longer in its family (or none) lands on the family's first (GLO: SONG), "
                  "HOME always the MIXER first", ok);
 
     /* AUTOMATION: + ADD CHANCE / RATCH, the knobs, EDIT: the step's fields only */
@@ -2959,46 +2969,37 @@ static int test_product_ux(void)
     int16_t len = TSEL->p[P_SLEN], send = TSEL->p[P_REV];
     turn(EN_K3, 1);
     bad += check("MIXER K3 edits reverb, never sequence length", TSEL->p[P_SLEN] == len && TSEL->p[P_REV] == send + 1);
+    press(B_HOME);                                      /* (Fantasma 2.0: HOME > MIXER > HOME; CLOCK and AMBI on GLO) */
+    ok = ui.home && !ui.menu;
     press(B_HOME);
-    ok = !ui.home && !ui.menu && str_eq(cur_page()->title, "CLOCK") && cur_fam() == FAM_TRK && FAM_BTN[cur_fam()] == B_HOME;
-    {   /* (CLOCK: HOME's LED lit, as on MIXER; GLO's not) */
-        uint8_t pos0[sizeof led_pos];
-        ui_leds();                                      /* (its positions made once, then ours) */
-        memcpy(pos0, led_pos, sizeof pos0);
-        memset(led_pos, 0xFF, sizeof led_pos);
-        led_pos[panel.btn[B_HOME]] = 0u << 3 | 1u;
-        led_pos[panel.btn[B_GLO]] = 0u << 3 | 2u;
-        frame(); ui_leds();
-        ok &= led_of(fm1_led, panel.btn[B_HOME]) && !led_of(fm1_led, panel.btn[B_GLO]);
-        memcpy(led_pos, pos0, sizeof pos0);
-    }
+    ok &= cur_page()->graph == GR_TRK;
+    go_title("ENV"); press(B_HOME);
+    ok &= ui.home;
+    go_title("CLOCK"); press(B_HOME);
+    ok &= ui.home;
+    go_title("CLOCK");
+    ok &= cur_page()->fam == FAM_GLO && FAM_BTN[cur_fam()] == B_GLO;
     {   /* CLOCK's knobs: BPM SWG CLK as GLO > GLOBAL's were; KNOB 4 nothing */
         int16_t bpm = song.g[G_BPM], swg = song.g[G_SWING], clk = song.g[G_CLOCK], tune = song.g[G_TUNE];
         turn(EN_K1, 1); turn(EN_K2, 1); turn(EN_K3, 1); turn(EN_K4, 5);
         ok &= song.g[G_BPM] == bpm + 1 && song.g[G_SWING] == swg + 1 && song.g[G_CLOCK] != clk && song.g[G_TUNE] == tune;
         song.g[G_CLOCK] = clk;
     }
-    press(B_HOME);                                      /* (Fantasma 2.0: CLOCK > AMBI > AMBI 2 > HOME) */
-    ok &= !ui.home && str_eq(cur_page()->title, "AMBI");
-    press(B_HOME);
-    ok &= !ui.home && str_eq(cur_page()->title, "AMBI 2");
-    press(B_HOME);
-    ok &= ui.home && !ui.menu;
-    press(B_HOME);
-    ok &= cur_page()->graph == GR_TRK;
-    go_title("ENV"); press(B_HOME);
-    ok &= ui.home;
-    go_title("AMBI 2"); press(B_HOME);
-    ok &= ui.home;
-    bad += check("1.2: HOME cycles HOME > MIXER > CLOCK > (Fantasma 2.0) AMBI > AMBI 2 > HOME (CLOCK: BPM SWG CLK, HOME's LED); from any other page HOME", ok);
+    bad += check("1.2: HOME cycles HOME > MIXER > HOME (Fantasma 2.0: CLOCK on GLO, BPM SWG CLK); from any other page HOME", ok);
     hold(B_HOME);
     bad += check("1.2: HOME held still opens the menu", ui.menu == 1);
     ui_power_on();
     frames(320);                                       /* (taps further apart than a double tap: #83) */
     press(B_GLO); frames(320); ok = cur_page()->fam == FAM_GLO && str_eq(cur_page()->title, "SONG");
-    press(B_GLO); frames(320); ok &= str_eq(cur_page()->title, "SONG") && cur_page()->fam == FAM_GLO && !ui.home;
-    go_title("CLOCK"); press(B_GLO); frames(320); ok &= str_eq(cur_page()->title, "SONG");
-    bad += check("1.2: GLO opens SONG directly, again SONG (no GLOBAL, no SYSTEM, no MIXER)", ok);
+    {   /* (Fantasma 2.0) GLO's taps: the global pages in a round */
+        static const char *const GC[] = {"CLOCK", "AMBI", "AMBI 2", "FX MODE", "DLY", "REVERB", "CHORUS", "SONG"};
+        for (i = 0; i < NELEM(GC); i++) {
+            press(B_GLO); frames(320);
+            ok &= str_eq(cur_page()->title, GC[i]) && cur_page()->fam == FAM_GLO && !ui.home;
+        }
+    }
+    go_title("ENV"); press(B_GLO); frames(320); ok &= str_eq(cur_page()->title, "SONG");
+    bad += check("1.2: GLO opens SONG, then CLOCK AMBI AMBI 2 FX MODE DLY REVERB CHORUS SONG (Fantasma 2.0: every global page)", ok);
     go_home(); btn_down(B_SEQ); frames(500);
     ok = ui.layer == LAYER_SEQ && ui.home;
     btn_up(B_SEQ); frame();
@@ -3331,11 +3332,11 @@ static int test_layer(void)
     key_up(white(14)); btn_up(B_FX); frame();
     bad += check("FX + G4 / A4: OCT UP / OCT DN held, silent, no MIDI; KNOB 4 turns; B4 FLANGER, D5 REV THROW, F5 nothing; FX let go: K4 0",
                  ok && !perf_held && !ui.layer && !perf_k[3] && mo_w == mo);
-    /* REVERB > TYPE (FX family, global): ROOM / SPRING / HALL on KNOB 1 (HALL at power-on since 1.2), kept by a
+    /* REVERB > TYPE (GLO family since Fantasma 2.0, global): ROOM / SPRING / HALL on KNOB 1 (HALL at power-on since 1.2), kept by a
      * project */
     ui_power_on();
     go_title("REVERB");
-    ok = cur_page()->fam == FAM_FX && cur_page()->id[0] == G_RTYPE && cur_page()->id[1] == G_RSIZE &&
+    ok = cur_page()->fam == FAM_GLO && cur_page()->id[0] == G_RTYPE && cur_page()->id[1] == G_RSIZE &&
          cur_page()->id[2] == G_RDAMP && song.g[G_RTYPE] == 2 && str_eq(GP[G_RTYPE].names[2], "HALL");
     turn(EN_K1, -2);
     ok &= song.g[G_RTYPE] == 0 && str_eq(GP[G_RTYPE].names[song.g[G_RTYPE]], "ROOM");
@@ -3366,7 +3367,7 @@ static int test_layer(void)
         bad += check("  fresh start: reverb AMBI SIZE 100 DAMP 0; every Echoes sound REV 100 %, DLY 50 %", ok);
     }
     go_title("CHORUS");
-    bad += check("  CHORUS page: CRT CDP", cur_page()->fam == FAM_FX && cur_page()->id[0] == G_CRATE &&
+    bad += check("  CHORUS page: CRT CDP", cur_page()->fam == FAM_GLO && cur_page()->id[0] == G_CRATE &&
                  cur_page()->id[1] == G_CDEPTH && cur_page()->id[2] == 0xFFu);
     /* chording: a key held before FX stays a note, its note-off arrives */
     ui_power_on();
@@ -6199,9 +6200,9 @@ static int test_momentary(void)
     btn_up(B_LFO); frame();
     bad += check("  OCT+ with LFO held keeps them (no octave shift), LFO let go then changes nothing",
                  ok && TSEL->p[id0] != v0 && ui.home);
-    /* an FX page (a global) and an engine page */
-    open_family(FAM_FX); frame();
-    for (k = 0; k < NPAGES && cur_page()->id[0] != G_RSIZE && cur_page()->id[1] != G_RSIZE; k++) { open_family(FAM_FX); frame(); }
+    /* a GLO page (a global FX: Fantasma 2.0) and an engine page */
+    open_family(FAM_GLO); frame();
+    for (k = 0; k < NPAGES && cur_page()->id[0] != G_RSIZE && cur_page()->id[1] != G_RSIZE; k++) { open_family(FAM_GLO); frame(); }
     g0 = song.g[G_RSIZE];
     btn_down(B_LFO); frame();
     turn(cur_page()->id[0] == G_RSIZE ? EN_K1 : EN_K2, 9);
@@ -7587,7 +7588,7 @@ static int test_layer_lock(void)
     btn_down(B_GLO); frames(500);
     ok &= ui.layer == LAYER_GLO && !ui.lock;
     btn_up(B_GLO); frame();
-    ok &= !ui.layer && !ui.lock && str_eq(cur_page()->title, "SONG");
+    ok &= !ui.layer && !ui.lock && str_eq(cur_page()->title, "CLOCK");   /* (Fantasma 2.0: GLO's next) */
     press(B_SCL);
     lay_combo(B_SCL, white(2));
     key_up(white(2)); btn_up(B_SCL); frame(); frames(400);
@@ -8576,12 +8577,12 @@ static int test_bpm_lock(void)
     ok &= text_w(&AF_S, "BPM LOCKED") <= 236 - 106;                   /* (fits the header's message zone) */
     bad += check("#58 BPM LOCK ON: SELECT leaves the tempo on HOME and the pages, \"BPM LOCKED\" once per turn burst", ok);
 
-    /* ON: HOME > CLOCK's BPM knob (up to 1.1.5 GLO > GLOBAL's) */
-    go_home(); press(B_HOME); press(B_HOME); frame();   /* (HOME > MIXER > CLOCK) */
+    /* ON: GLO > CLOCK's BPM knob (up to 1.1.5 GLO > GLOBAL's; 1.2 HOME > CLOCK; Fantasma 2.0 GLO again) */
+    go_title("CLOCK"); frame();
     b0 = song.g[G_BPM];
     turn(EN_K1, 1);
     ok = str_eq(cur_page()->title, "CLOCK") && cur_page()->id[0] == G_BPM && song.g[G_BPM] == b0 + 1;
-    bad += check("#58 BPM LOCK ON: HOME > CLOCK KNOB 1 still sets the tempo", ok);
+    bad += check("#58 BPM LOCK ON: GLO > CLOCK KNOB 1 still sets the tempo", ok);
 
     /* ON: GLO + SELECT (a quick turn: a combo, no GLO page), OCT- puts it back, F4 TAP */
     go_title("ENV"); frame();
@@ -8623,6 +8624,7 @@ static int test_bpm_lock(void)
         frame();
         b0 = song.g[G_BPM];
         go_home(); frame();
+        ui_prefs2 |= 0x10u;                                           /* (SELECT the tempo's: the settings' byte is another test's) */
         turn(EN_SELECT, 1);
         ok &= song.g[G_BPM] == b0 + 1;
         bad += check("#58 BPM LOCK saved with the settings; settings from before it: OFF (idempotent)", ok);
@@ -10004,12 +10006,10 @@ static int test_home_tracks(void)
     ok &= trk[3].p[id] != v0;
     bad += check("1.3 HOME > TRACKS: K1..K4 edit the selected track (HOME's four), ALGORITHM moves the selected row", ok);
     press(B_HOME); ok = !ui.home && cur_page()->graph == GR_TRK;
-    press(B_HOME); ok &= !ui.home && str_eq(cur_page()->title, "CLOCK");
-    press(B_HOME); press(B_HOME);                       /* (Fantasma 2.0: AMBI, AMBI 2) */
-    press(B_HOME); ok &= ui.home;
+    press(B_HOME); ok &= ui.home;                       /* (Fantasma 2.0: CLOCK and AMBI on GLO) */
     frame();
     ok &= tr_px(3 + 22, tr_y(3) + 1) == T_THEME;
-    bad += check("1.3 HOME > TRACKS: HOME tapped still goes HOME > MIXER > CLOCK > AMBI > AMBI 2 > HOME (the rows back)", ok);
+    bad += check("1.3 HOME > TRACKS: HOME tapped still goes HOME > MIXER > HOME (the rows back)", ok);
 
     ui_prefs |= PREF_LARGE;                             /* MENU > LARGE: the cards as on a list page, the rows */
     ui.force = 1; frame();
@@ -10398,7 +10398,9 @@ int main(void)
     bad += test_product_ux();
     bad += test_page_cycles();
     bad += test_mono_screens();
+    test_sel_bpm = 1;
     bad += test_roll();
+    test_sel_bpm = 0;
     bad += test_soak_cards();
     bad += test_panel();
     bad += test_layer();
@@ -10420,7 +10422,9 @@ int main(void)
     bad += test_usb_level();
     bad += test_click_menu();
     bad += test_usb_serial();
+    test_sel_bpm = 1;
     bad += test_bpm_lock();
+    test_sel_bpm = 0;
     bad += test_large();
     bad += test_browse_no_pattern();
     bad += test_name();

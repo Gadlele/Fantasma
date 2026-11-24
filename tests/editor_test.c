@@ -914,7 +914,7 @@ static int menu_protocol(void)
         {"T1 CHANNEL", TCH_NAMES}, {"T2 CHANNEL", TCH_NAMES}, {"T3 CHANNEL", TCH_NAMES}, {"T4 CHANNEL", TCH_NAMES},   /* (1.5.5) */
         {"AUTO SELECT", "OFF,ON"}, {"SCREEN WAKE", "+MIDI,PANEL"},                                   /* (1.5.5) */
         {"2ND CORE", "OFF,ON (BETA)"}};                                                           /* (1.6.1; OFF the default) */
-    static const int32_t DEF[33] = {-1, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 0};   /* (COLOR: the default palette) */
+    static const int32_t DEF[33] = {-1, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 2, 3, 0, 0, 0};   /* (COLOR: the default palette; Fantasma 2.0: SELECT PAGE) */
     static const uint8_t TAB[33] = {0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 4, 2, 2, 2, 4, 1, 0, 0, 1, 1, 3, 2, 0, 4, 1, 3, 3, 3, 3, 3, 3, 4};   /* DISPLAY CONTROL AUDIO
                                                                                                          * MIDI SYSTEM (1.2) */
     static const char *const TABN[5] = {"DISPLAY", "CONTROL", "AUDIO", "MIDI", "SYSTEM"};
@@ -1002,7 +1002,7 @@ static int menu_protocol(void)
                                                          * project's, rc 0: in the music, no settings record) */
     ok &= menu_set(23, 1) == 3 && ui_home_view == HV_TRACKS && ui_prefs2 == 7u && ui_scr == 1u;   /* (1.3: its own byte) */
     ok &= menu_set(24, 1) == 3 && ui_prefs2 == 15u && help_on();                                  /* (1.5: HELP, bit 3) */
-    ok &= menu_set(25, 1) == 3 && ui_prefs2 == 31u;                                               /* (1.5.5: SELECT, bit 4) */
+    ok &= menu_set(25, 0) == 3 && ui_prefs2 == 31u;                                               /* (1.5.5: SELECT, bit 4; Fantasma 2.0: BPM) */
     ok &= menu_set(26, 9) == 0 && mch_get(0) == 9u && song.mch[0] == 9u && menu_set(27, MCH_OMNI) == 0 &&   /* (1.5.5: */
           mch_get(1) == MCH_OMNI && menu_set(28, MCH_OFF) == 0 && mch_get(2) == MCH_OFF && menu_set(29, 0) == 0 &&   /* the */
           mch_get(3) == 0u && song.mch[3] == 13u;           /* project's T1..T4 CHANNEL, rc 0, as MIDI IN) */
@@ -1017,7 +1017,7 @@ static int menu_protocol(void)
     ok &= menu_set(32, 1) == 1 && ui_prefs2 == 0x3Fu;   /* (no 2ND CORE in a FELUCCA_CPU2=0 build: an unknown id, nothing set) */
 #endif
     for (i = 0; i < MENU_N; i++) {                         /* MENU_DESC reads them back */
-        static const int32_t SET[33] = {2, 1, 1, 1, 1, 3, 1, 1, 1, 2, 1, 0, 2, 0, 2, 1, 1, 2, 1, 1, 1, 2, -13, 1, 1, 1, 9, 16, 17, 0, 1, 1, 1};
+        static const int32_t SET[33] = {2, 1, 1, 1, 1, 3, 1, 1, 1, 2, 1, 0, 2, 0, 2, 1, 1, 2, 1, 1, 1, 2, -13, 1, 1, 0, 9, 16, 17, 0, 1, 1, 1};
         menu_desc(i, &it);
         ok &= it.value == SET[i];
     }

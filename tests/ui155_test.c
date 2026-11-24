@@ -129,29 +129,34 @@ static int select_page(void)
     uint32_t i;
     ui_power_on();
     memcpy(before, favorites.factory[15], 32);
-    ok = menu_get(MI_SELECT) == 0u && str_eq(MI_NAME[MI_SELECT], "SELECT") && MI_TAB[MI_SELECT] == MTAB_CONTROL &&
+    ok = menu_get(MI_SELECT) == 1u && str_eq(MI_NAME[MI_SELECT], "SELECT") && MI_TAB[MI_SELECT] == MTAB_CONTROL &&
          MI_SELECT < MI_VALUES && str_eq(menu_vname(MI_SELECT, 0), "BPM") && str_eq(menu_vname(MI_SELECT, 1), "PAGE") &&
          mtab_rows(MTAB_CONTROL) <= MTAB_ROWS;
     go_title("ENV"); frame();
     b0 = song.g[G_BPM];
-    turn(EN_SELECT, 2);
-    ok &= song.g[G_BPM] == b0 + 2 && title_is("ENV");
-    bad += check("SELECT (#188): MENU > CONTROL > SELECT, BPM by default: SELECT sets the tempo as before", ok);
+    turn(EN_SELECT, 1);
+    ok &= song.g[G_BPM] == b0 && title_is("ENV DEST");
+    bad += check("SELECT (#188): MENU > CONTROL > SELECT, PAGE by default (Fantasma 2.0): SELECT steps the tabs", ok);
 
-    menu_put(MI_SELECT, 1);
-    ok = menu_get(MI_SELECT) == 1u && favorites.factory[15][24] == (uint8_t)(before[24] | 0x10u);
+    menu_put(MI_SELECT, 0);
+    ok = menu_get(MI_SELECT) == 0u && favorites.factory[15][24] == (uint8_t)(before[24] | 0x10u);
     for (i = 0; i < 32u; i++)
         ok &= i == 24u || favorites.factory[15][i] == before[i];
-    {   /* saved with the settings; settings from before it read BPM */
+    go_title("ENV"); frame();
+    b0 = song.g[G_BPM];
+    turn(EN_SELECT, 2);
+    ok &= song.g[G_BPM] == b0 + 2 && title_is("ENV");
+    {   /* saved with the settings; settings from before it (bit 4 clear) read PAGE */
         persist_t p;
         settings_export(&p);
         ui_prefs2 = 0;
-        ok &= settings_import(&p, (int)sizeof p) == 1 && menu_get(MI_SELECT) == 1u;
-        p.favorites.factory[15][24] &= (uint8_t)~0x10u;
         ok &= settings_import(&p, (int)sizeof p) == 1 && menu_get(MI_SELECT) == 0u;
+        p.favorites.factory[15][24] &= (uint8_t)~0x10u;
+        ok &= settings_import(&p, (int)sizeof p) == 1 && menu_get(MI_SELECT) == 1u;
         menu_put(MI_SELECT, 1);
     }
-    bad += check("  PAGE: a bit of its own (MENU's 1.2 flags, bit 4), kept with the settings; 0 (older settings) = BPM", ok);
+    ok &= menu_get(MI_SELECT) == 1u && !(ui_prefs2 & 0x10u);
+    bad += check("  BPM: a bit of its own (MENU's 1.2 flags, bit 4: Fantasma 2.0 BPM), kept with the settings; 0 = PAGE", ok);
 
     b0 = song.g[G_BPM];
     go_title("ENV"); frame();
@@ -173,27 +178,29 @@ static int select_page(void)
     turn(EN_SELECT, 1);
     ok = title_is("MIXER");
     turn(EN_SELECT, 1);
-    ok &= title_is("CLOCK");
-    turn(EN_SELECT, 2);                                 /* (Fantasma 2.0: AMBI, AMBI 2) */
-    ok &= title_is("AMBI 2");
+    ok &= ui.home;                                      /* (Fantasma 2.0: HOME > MIXER > HOME) */
+    turn(EN_SELECT, -1);
+    ok &= title_is("MIXER");
+    go_title("SONG"); frame();
     turn(EN_SELECT, 1);
-    ok &= ui.home;
-    turn(EN_SELECT, -3);
+    ok &= title_is("CLOCK");                            /* (GLO: the global pages) */
+    turn(EN_SELECT, 2);
+    ok &= title_is("AMBI 2");
+    turn(EN_SELECT, -4);
+    ok &= title_is("CHORUS");                           /* (round) */
+    turn(EN_SELECT, 2);
     ok &= title_is("CLOCK");
     b0 = song.g[G_BPM];
     turn(EN_K1, 1);
     ok &= song.g[G_BPM] == b0 + 1;                      /* CLOCK's KNOB 1: the tempo */
-    bad += check("  PAGE: HOME -> MIXER -> CLOCK -> HOME (as HOME's taps), back too; CLOCK's KNOB 1 still the tempo", ok);
+    bad += check("  PAGE: HOME -> MIXER -> HOME; GLO's round SONG CLOCK AMBI .. CHORUS, back too; CLOCK's KNOB 1 the tempo", ok);
 
     go_title("EDIT 1"); frame();
     for (i = 0; i < 12u && ok; i++) {                   /* EDIT's pages: only the ones the engine shows */
         turn(EN_SELECT, 1);
         ok &= !ui.home && cur_page()->fam == FAM_EDIT && page_visible(ui.page);
     }
-    go_title("SONG"); frame();
-    turn(EN_SELECT, 1);
-    ok &= title_is("SONG");                             /* (GLO: one page) */
-    bad += check("  PAGE: EDIT's round is the engine's pages; a family of one page stays", ok);
+    bad += check("  PAGE: EDIT's round is the engine's pages", ok);
 
     go_title("ENV"); frame();
     b0 = song.g[G_BPM];

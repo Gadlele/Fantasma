@@ -491,11 +491,9 @@ static const page_t PAGES[] = {
     {"SLICER", FAM_FX, SC_TRACK, GR_SLCR, {P_SLCR, P_SLPAT, P_SLRATE, P_SLDEPTH}},
     {"INSERT", FAM_FX, SC_TRACK, GR_INS, {P_ITYPE, P_IA, P_IB, P_IC}},   /* 1.5: the track's INSERT (fx.c) */
     {"INSERT 2", FAM_FX, SC_TRACK, GR_INS, {P_IMIX, 0xFF, 0xFF, 0xFF}},  /* .. its dry / wet */
-    {"DLY", FAM_FX, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},
-    {"REVERB", FAM_FX, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* TYPE: ROOM / SPRING / HALL / AMBI */
-    {"CHORUS", FAM_FX, SC_GLOBAL, GR_NONE, {G_CRATE, G_CDEPTH, 0xFF, 0xFF}},
-    {"CH DELAY", FAM_FX, SC_CHFX, GR_NONE, {0, 1, 2, 6}},      /* (Fantasma 2.0) the channel's own (chfx.c): TIME FDBK TONE, DLY mode */
-    {"CH REVERB", FAM_FX, SC_CHFX, GR_NONE, {3, 4, 5, 7}},     /* .. SIZE DAMP SHIMMR, REV mode */
+    /* (Fantasma 2.0) FX holds the channel's own effects only; the project's (the buses, their modes) are GLO's */
+    {"CH DELAY", FAM_FX, SC_CHFX, GR_NONE, {0, 1, 2, 0xFF}},   /* the channel's own (chfx.c): TIME FDBK TONE */
+    {"CH REVERB", FAM_FX, SC_CHFX, GR_NONE, {3, 4, 5, 0xFF}},  /* .. SIZE DAMP SHIMMR */
     {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_TRANS}},
     {"CHORD", FAM_SCL, SC_TRACK, GR_CHORD, {P_CHRD, P_VOIC, 0xFF, 0xFF}},   /* SCL again: the chord keys (chord.c) */
     {"EDIT 1", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E0, P_E1, P_E2, P_E3}},
@@ -523,7 +521,17 @@ static const page_t PAGES[] = {
     {"VOICE 2", FAM_EDIT, SC_TRACK, GR_NONE, {P_ALLOC, P_DETUNE, P_PAN, P_MUTE}},
     {"VOICE 3", FAM_EDIT, SC_TRACK, GR_NONE, {P_SPRD, P_ATSNS, P_ATDST, P_ATAMT}},   /* #148: SPREAD; 1.8: AFTERTOUCH */
     /* 1.2 (Discussion #153): a family's pages go round in this order, a tap of its button each (ui.c open_family) */
-    {"SONG", FAM_GLO, SC_GLOBAL, GR_SONG, {0xFF, 0xFF, 0xFF, 0xFF}},        /* GLO's only page (1.2; up to 1.1.5 SEQ's) */
+    {"SONG", FAM_GLO, SC_GLOBAL, GR_SONG, {0xFF, 0xFF, 0xFF, 0xFF}},        /* GLO's first page (1.2; up to 1.1.5 SEQ's) */
+    /* (Fantasma 2.0) GLO: what is the whole project's, not a channel's: the tempo, the ambience, the effects of all */
+    {"CLOCK", FAM_GLO, SC_GLOBAL, GR_NONE, {G_BPM, G_SWING, G_CLOCK, 0xFF}},
+#if FELUCCA_AMBI
+    {"AMBI", FAM_GLO, SC_AMBI, GR_NONE, {AL_SCENE, AL_TONE, AL_MOTION, AL_INTENS}},   /* the ambience layer (ambi_layer.c) */
+    {"AMBI 2", FAM_GLO, SC_AMBI, GR_NONE, {AL_ON, AL_LEVEL, AL_REV, AL_TO}},
+#endif
+    {"FX MODE", FAM_GLO, SC_CHFX, GR_NONE, {6, 7, 0xFF, 0xFF}},   /* DLY REV: CHAN each channel its own, BUS the ones below */
+    {"DLY", FAM_GLO, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},   /* the bus delay (BUS) */
+    {"REVERB", FAM_GLO, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* the bus reverb (BUS): ROOM SPRING HALL AMBI */
+    {"CHORUS", FAM_GLO, SC_GLOBAL, GR_NONE, {G_CRATE, G_CDEPTH, 0xFF, 0xFF}},     /* the chorus, every track's CHO send */
     /* SAVE's taps (1.5, #173): USER (SAVE from another page: the quick save, SAVE OCT+ OCT+), PRESETS (the engines and
      * sounds one tap on; up to 1.4.1 the last), PHRASES, PROJECT, TOOLS */
     {"USER", FAM_SAVE, SC_GLOBAL, GR_USER, {0xFF, 0xFF, 0xFF, 0xFF}},       /* user presets: SLOT LOAD ERASE SAVE */
@@ -542,15 +550,9 @@ static const page_t PAGES[] = {
     {"AMBIENT", FAM_SEQ, SC_GLOBAL, GR_AMBI, {0xFF, 0xFF, 0xFF, 0xFF}},      /* Fantasma: OCT+ draws the Pad and Echoes anew (ui.c ambient_random) */
     {"DICE", FAM_SEQ, SC_DICE, GR_NONE, {0, 1, 2, 3}},          /* (Fantasma 2.0, dice.c) WHO WHAT AMOUNT KEY; OCT+ roll, OCT- BEFORE / NOW */
     {"DICE 2", FAM_SEQ, SC_DICE, GR_NONE, {4, 0xFF, 0xFF, 0xFF}},   /* .. EVOLVE */
-    /* HOME's pages (1.2): HOME tapped on HOME the MIXER (up to 1.1.5 GLO's; LEVEL PAN REV MUTE), again CLOCK (up to 1.1.5
-     * GLO > GLOBAL; its TUNE is MENU > AUDIO's now), again HOME (ui.c home_tap) */
+    /* HOME's page (1.2): HOME tapped on HOME the MIXER (up to 1.1.5 GLO's; LEVEL PAN REV MUTE), again HOME (ui.c
+     * home_tap). 1.2's CLOCK after it (up to 1.1.5 GLO > GLOBAL) is GLO's again since Fantasma 2.0, with AMBI */
     {"MIXER", FAM_TRK, SC_TRK, GR_TRK, {0, 1, 2, 3}},
-    {"CLOCK", FAM_TRK, SC_GLOBAL, GR_NONE, {G_BPM, G_SWING, G_CLOCK, 0xFF}},
-#if FELUCCA_AMBI
-    /* Fantasma 2.0: the ambience layer (ambi_layer.c), HOME's taps after CLOCK */
-    {"AMBI", FAM_TRK, SC_AMBI, GR_NONE, {AL_SCENE, AL_TONE, AL_MOTION, AL_INTENS}},
-    {"AMBI 2", FAM_TRK, SC_AMBI, GR_NONE, {AL_ON, AL_LEVEL, AL_REV, AL_TO}},
-#endif
 };
 #define NPAGES (sizeof(PAGES) / sizeof(PAGES[0]))
 static uint8_t mod_ui_slot;      /* the MOD page: the matrix slot (0..3) KNOB 2..4 edit */
