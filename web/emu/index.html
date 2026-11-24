@@ -256,7 +256,6 @@ function build(name) {
                              width: `${b.width / L.w * 100}%`, height: `${b.height / L.h * 100}%` });
     d.setAttribute("role", role);
     d.setAttribute("aria-label", c.name);
-    d.title = c.name;
     d.tabIndex = 0;
     d.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
     d.addEventListener("contextmenu", (e) => e.preventDefault());

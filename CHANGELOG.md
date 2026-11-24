@@ -15,6 +15,11 @@ fixes, a new **X** may change how things are saved.
   a time (no tiny ticks). Four times the level inside the reverb (the same out): a dying tail fades smoothly instead
   of turning grainy and stopping short. SHIMMER gives way as the reverb fills: at a big SIZE it no longer piles up
   until the lines saturate.
+- **FILT ENV**: ENV's second page, the filter's own envelope (ATK DEC SUS REL): a filter that opens slowly on a note
+  that starts at once, or the other way round. At =ENV (KNOB 1 all the way down, every sound's start) it follows ENV,
+  so every sound, user preset and project sounds as before; any of its knobs starts it from ENV's values. Saved in the
+  sound and the project; a project now holds 116 knob movements (122 before).
+- No more "HOLD [..] QUICK" after a tap of a layer's button.
 - **A CPU counter, always on screen**: at the right of the tabs, **C1** the first core's load and **C2** the second's
   (MENU › SYSTEM › 2ND CORE; `--` when it is off), refreshed twice a second, in the accent from 85 %.
 - **SELECT steps the tabs** of the page shown, by default (MENU › CONTROL › SELECT PAGE): the tempo is GLO › CLOCK,

@@ -787,6 +787,7 @@ function fmtValue(d, v) {
     case F.PCT: return [String(d.max === 100 ? v : Math.trunc((v * 100 + 63) / 127)), "%"];   /* 0..100 (SWG): the value */
     case F.BIPCT: return [sign(Math.trunc(v * 100 / (v > 0 ? 63 : 64))), "%"];   /* (1.5.5: +100 at the top, as the device) */
     case F.TIME: {
+      if (v < 0) return ["=ENV", ""];                 // (Fantasma 2.0: FILT ENV's ATK at = ENV)
       const ms10 = Math.round(10 * Math.pow(10000, (v & 127) / 127));
       if (ms10 < 100) return [(ms10 / 10).toFixed(1), "ms"];
       if (ms10 < 10000) return [String(Math.round(ms10 / 10)), "ms"];
@@ -1888,8 +1889,9 @@ function makeMockDevice(opt = {}) {
     D("DENS", F.INT, 0, 100, 0), E("BARS", ["RND", "1", "2", "3", "4", "5", "6", "7", "8"], 2),
     D("CHORDS", F.INT, 1, 8, 4), D("SEED", F.INT, 0, 127, 0),   /* Fantasma: the Pad's chord progression (103..106) */
     E("AT", ["OFF", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], 0), E("ATDST", MDST, 0),   /* 1.8: AFTERTOUCH (107..109) */
-    D("ATAMT", F.BIPCT, -64, 63, 0));
-  const P_COUNT = 118, G_COUNT = 27, NSTEP = 64, P_E0 = 110, G_ENGSEL = 20, P_SLCR = 45;
+    D("ATAMT", F.BIPCT, -64, 63, 0),
+    D("ATK", F.TIME, -1, 127, -1), D("DEC", F.TIME, 0, 127, 70), D("SUS", F.PCT, 0, 127, 90), D("REL", F.TIME, 0, 127, 60));   /* Fantasma 2.0: FILT ENV (110..113; ATK -1: = ENV) */
+  const P_COUNT = 122, G_COUNT = 27, NSTEP = 64, P_E0 = 114, G_ENGSEL = 20, P_SLCR = 45;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const enumOrig = (d, v) => d.fmt === F.ENUM && d.names ? aliasOf(d.names, v - d.min) + d.min : v;   /* params.c enum_orig */
   /* four tracks (firmware v3), four synth parts (1.0); engine / preset / p / step below are the selected track's */

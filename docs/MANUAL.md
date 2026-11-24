@@ -127,6 +127,9 @@ ambient machine. All AMBI sounds have REL 64 (half), so they let go as before un
 ![FM-1 controls with Felucca](controls.jpg)
 
 - Tap a page button for its page, again for the next; HOME returns home. Page buttons act when let go
+- **FILT ENV** (ENV's second page, Fantasma 2.0): the filter's own envelope, ATK DEC SUS REL. At **=ENV** (KNOB 1 all the
+  way down, every sound's start) the filter follows ENV, as always; turn any of its knobs and it starts from ENV's values
+  and goes its own way. How far it opens the filter is ENV DEST's FLT; ENV DEST's PIT and SHP follow ENV
 - Top right, always: **C1** and **C2**, how busy the two cores are (%; C2 `--` with MENU › SYSTEM › 2ND CORE OFF).
   From 85 % in the accent: notes may start to be cut to keep the sound going
 - The **SELECT** knob steps the tabs of the page shown (Fantasma 2.0: MENU › CONTROL › SELECT is PAGE by default);
@@ -149,7 +152,8 @@ The pages by button:
 | LFO | LFO, LFO 2, LFO DEST, MOD | MOMENTARY (with a knob) |
 | EDIT | EDIT 1, EDIT 2, VOICE, VOICE 2, VOICE 3 (FM6 adds OPERATOR, OP ENV, OPERATOR 2; DRUM LANES; SLICE SLICES; ANALOG FILTER) | the EDIT layer (the engines; on DRUM the black keys mute lanes) |
 | FX | the selected channel's effects only: FX (the sends), SLICER, INSERT, INSERT 2, CH DELAY, CH REVERB | the FX layer |
-| SCL, ENV, ARP | their pages | SCL: its layer |
+| ENV | ENV (the sound's volume), FILT ENV (the filter's own), ENV DEST | |
+| SCL, ARP | their pages | SCL: its layer |
 | REC | arms the track | the REC layer (CLEAR, CLICK, COUNT-IN, CLICK LEVEL) |
 
 ## Menu

@@ -1636,6 +1636,11 @@ static void draw_columns(void)
         rel_inf(vp, val, &unit);
         card_mot_of(vp);                                /* (a global: never) */
         card_span_of(d);
+        if (vp >= &TSEL->p[P_FATK] && vp <= &TSEL->p[P_FREL] && TSEL->p[P_FATK] < 0) {   /* (Fantasma 2.0) FILT ENV
+                                                         * = ENV: the filter follows the sound's envelope */
+            draw_column(c, d->label, "=ENV", "", T_DIM, -1, param_icon(d, *vp));
+            continue;
+        }
         if (vp == &TSEL->p[P_ATDST]) {                  /* AFTERTOUCH's DEST: as MOD's (the engine's names) */
             card_span_by(span_mod_dst, TSEL, 0, MD_N - 1, 0);
             draw_column(c, d->label, mod_dst_name(TSEL, *vp), "", *vp ? VAL(c) : T_DIM, -1, mod_dst_icon(TSEL, *vp));

@@ -34,6 +34,11 @@ static const param_desc_t ESYNC_DESC[3] = {   /* ATK DEC REL with ENV SYNC on: t
     {"DEC", F_INT, 0, 127, 70, ESYNC_NAMES, 0},
     {"REL", F_INT, 0, 127, 60, ESYNC_NAMES, 0},
 };
+static const param_desc_t FESYNC_DESC[3] = {  /* (Fantasma 2.0) FILT ENV's with ENV SYNC on (ATK -1: = ENV) */
+    {"ATK", F_INT, -1, 127, -1, ESYNC_NAMES, 0},
+    {"DEC", F_INT, 0, 127, 70, ESYNC_NAMES, 0},
+    {"REL", F_INT, 0, 127, 60, ESYNC_NAMES, 0},
+};
 static uint32_t esync_idx(int32_t v) { return (uint32_t)(v & 127) * ESYNC_N >> 7; }   /* (param_format's split) */
 /* seq.c kb_map; 1 = SNAP (stored projects: the former ON); 3 = SEQ: SNAP, and the sequencer's notes snap too as
  * they play (seq.c seq_step; the steps keep what was written). Append-only: older projects hold 0..2 */
@@ -185,6 +190,10 @@ static const param_desc_t TP[P_COUNT] = {
     [P_ATSNS] = PE("AT", N_ATSNS, 0),
     [P_ATDST] = PE("ATDST", N_MDST, 0),
     [P_ATAMT] = PD("ATAMT", F_BIPCT, -64, 63, 0),
+    [P_FATK] = PD("ATK", F_TIME, -1, 127, -1),      /* (Fantasma 2.0) FILT ENV: ATK -1 = ENV (voice.c fenv_tick) */
+    [P_FDEC] = PD("DEC", F_TIME, 0, 127, 70),
+    [P_FSUS] = PD("SUS", F_PCT, 0, 127, 90),
+    [P_FREL] = PD("REL", F_TIME, 0, 127, 60),
 };
 
 /* the INSERT's A B C as its TYPE means them (TP's ranges and defaults): the drives DRIVE TONE LEVEL, CRUSH BITS RATE
@@ -261,6 +270,8 @@ static const param_desc_t *track_desc(const track_t *t, uint32_t id)
         return dg_desc(id);
     if (t->p[P_ESYNC] && (id == P_ATK || id == P_DEC || id == P_REL))   /* ENV SYNC: note values (1.5, #175) */
         return &ESYNC_DESC[id == P_ATK ? 0 : id == P_DEC ? 1 : 2];
+    if (t->p[P_ESYNC] && (id == P_FATK || id == P_FDEC || id == P_FREL))   /* .. FILT ENV's too (Fantasma 2.0) */
+        return &FESYNC_DESC[id == P_FATK ? 0 : id == P_FDEC ? 1 : 2];
     return &TP[id];
 }
 
@@ -481,6 +492,7 @@ typedef struct {
 
 static const page_t PAGES[] = {
     {"ENV", FAM_ENV, SC_TRACK, GR_ADSR, {P_ATK, P_DEC, P_SUS, P_REL}},
+    {"FILT ENV", FAM_ENV, SC_TRACK, GR_ADSR, {P_FATK, P_FDEC, P_FSUS, P_FREL}},   /* (Fantasma 2.0) the filter's own */
     {"ENV DEST", FAM_ENV, SC_TRACK, GR_NONE, {P_ED_FLT, P_ED_PIT, P_ED_SHP, P_ESYNC}},   /* (P_ED_FX: nothing reads it);
                                                                              * 1.5: ESYNC, ENV's times as note values */
     {"LFO", FAM_LFO, SC_TRACK, GR_LFO, {P_LRATE, P_LWAVE, P_LPHASE, P_LFADE}},

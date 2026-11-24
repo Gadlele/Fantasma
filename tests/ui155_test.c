@@ -135,7 +135,7 @@ static int select_page(void)
     go_title("ENV"); frame();
     b0 = song.g[G_BPM];
     turn(EN_SELECT, 1);
-    ok &= song.g[G_BPM] == b0 && title_is("ENV DEST");
+    ok &= song.g[G_BPM] == b0 && title_is("FILT ENV");
     bad += check("SELECT (#188): MENU > CONTROL > SELECT, PAGE by default (Fantasma 2.0): SELECT steps the tabs", ok);
 
     menu_put(MI_SELECT, 0);
@@ -161,7 +161,9 @@ static int select_page(void)
     b0 = song.g[G_BPM];
     go_title("ENV"); frame();
     turn(EN_SELECT, 1);
-    ok = title_is("ENV DEST");
+    ok = title_is("FILT ENV");                          /* (Fantasma 2.0) */
+    turn(EN_SELECT, 1);
+    ok &= title_is("ENV DEST");
     turn(EN_SELECT, 1);
     ok &= title_is("ENV");                              /* (round) */
     turn(EN_SELECT, -1);

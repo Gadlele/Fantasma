@@ -306,7 +306,9 @@ static void voice_start(track_t *t, voice_t *v, uint32_t note, uint32_t vel, int
     v->mrnd = t->m_rnd;
     t->m_vi = (uint8_t)(v - t->v);
     glide_set(t, v, glide);
-    if (!sounding) {
+    v->fstage = 1;                                      /* (Fantasma 2.0) FILT ENV from its attack, */
+    if (!sounding) {                                    /* from 0 or where it is, as the sound's */
+        v->fenv = 0;
         v->env = 0;
         v->env_out = 0;
         v->side = t->sp_alt;                            /* SPREAD: left, right, left .. (UNISON: mono_play); a */
@@ -545,7 +547,8 @@ _Static_assert(CTL == 32, "esync_one: 4.6 CTL in Q16 is 9646899");
 #if FELUCCA_CPU2
 #define T_ESYNC(t) ((t)->esync_k)                       /* the part's own (two cores render parts at once) */
 #else
-static uint32_t esync_k[3];      /* ATK's step, DEC's and REL's coefficient (Q16): the part's, this block (env_tick) */
+static uint32_t esync_k[6];      /* ATK's step, DEC's and REL's coefficient (Q16): the part's, this block (env_tick);
+                                  * 3..5 FILT ENV's (fenv_tick) */
 #define T_ESYNC(t) esync_k                              /* (one core: one for the part rendering, as up to 1.6) */
 #endif
 static uint32_t esync_one(uint32_t quarter, int32_t v, uint32_t i)
@@ -577,16 +580,54 @@ static __attribute__((noinline)) void esync_coef(track_t *t)   /* (not inlined: 
         T_ESYNC(t)[0] = esync_one(q, p[P_ATK], 0);
         T_ESYNC(t)[1] = esync_one(q, p[P_DEC], 1);
         T_ESYNC(t)[2] = esync_one(q, p[P_REL], 2);
+        T_ESYNC(t)[3] = esync_one(q, p[P_FATK] < 0 ? 0 : p[P_FATK], 0);   /* (FILT ENV) */
+        T_ESYNC(t)[4] = esync_one(q, p[P_FDEC], 1);
+        T_ESYNC(t)[5] = esync_one(q, p[P_FREL], 2);
     } else {                                            /* OFF: the tables, as always */
         T_ESYNC(t)[0] = ENV_LIN[p[P_ATK] & 127];
         T_ESYNC(t)[1] = ENV_EXP[p[P_DEC] & 127];
         T_ESYNC(t)[2] = ENV_EXP[p[P_REL] & 127];
+        T_ESYNC(t)[3] = ENV_LIN[p[P_FATK] & 127];       /* (FILT ENV; ATK -1 = ENV: not read) */
+        T_ESYNC(t)[4] = ENV_EXP[p[P_FDEC] & 127];
+        T_ESYNC(t)[5] = ENV_EXP[p[P_FREL] & 127];
+        if (p[P_FREL] >= 127 && (t == &trk[0] || (FELUCCA_AMBI && t->engine == ENGI_AMBI)))
+            T_ESYNC(t)[5] = 0;                          /* (FILT ENV at INF too: the drone's filter stays where it is) */
         if (p[P_REL] >= 127 && (t == &trk[0] || (FELUCCA_AMBI && t->engine == ENGI_AMBI))) {   /* (2.0: DRONE's too) */
             T_ESYNC(t)[2] = 0;
             AMBI_INF(t) = 1;
         }                             /* Fantasma: AMBI with REL at its top never lets go (the noise goes on after
                                                          * the note off, stop included); turn REL down and it fades */
     }
+}
+
+/* (Fantasma 2.0) one control tick of FILT ENV, the filter's own envelope (P_FATK ..; ATK -1: = ENV, track_render
+ * takes the sound's as before and this one follows it, so a change starts from where the filter is): attack, decay to
+ * SUS while the key is held, release once it is let go (REL at INF on DRONE: it stays, a tap shorter than the attack
+ * goes on rising to SUS, as the sound's). Returns Q15 */
+static __attribute__((noinline)) int32_t fenv_tick(track_t *t, voice_t *v)   /* (out of line: mix_part's loop as it was) */
+{
+    const uint32_t *k = T_ESYNC(t) + 3;
+    int32_t sus = (int32_t)t->p[P_FSUS] << 17;          /* Q24 */
+    if (v->gate) {
+        if (v->fstage == 1u) {
+            v->fenv += (int32_t)k[0];
+            if (v->fenv >= (1 << 24)) {
+                v->fenv = 1 << 24;
+                v->fstage = 2;
+            }
+        } else {
+            v->fenv += mulq16(sus - v->fenv, k[1]);
+        }
+    } else if (!k[2]) {                                 /* INF: held (a short tap still rises to SUS) */
+        if (v->fstage == 1u && v->fenv < sus) {
+            v->fenv += (int32_t)k[0];
+            if (v->fenv > sus)
+                v->fenv = sus;
+        }
+    } else {
+        v->fenv -= mulq16(v->fenv, k[2]);
+    }
+    return v->fenv >> 9;
 }
 
 /* one control tick (CTL samples) of the amplitude envelope; returns Q15 */
@@ -734,7 +775,7 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
     for (i = 0; i < NVOICE; i++) {
         voice_t *v = &t->v[i];
         vmod_t m;
-        int32_t env, pitch;
+        int32_t env, pitch, fq;
         if (!v->active)
             continue;
         {
@@ -752,6 +793,13 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
             if (e->amp)                                 /* the engine's own amplitude curve */
                 env = e->amp(t, v, env);
             m.envq15 = e->ownenv ? 0 : env;
+            if (p[P_FATK] >= 0 && !e->ownenv) {         /* (Fantasma 2.0) FILT ENV: the filter's own */
+                fq = fenv_tick(t, v);
+            } else {                                    /* = ENV (every older sound): the sound's, as always; */
+                fq = m.envq15;                          /* FILT ENV follows it (no jump when it is turned) */
+                v->fenv = v->env;
+                v->fstage = v->stage == 1u ? 1u : 2u;
+            }
             m.amp1 = e->ownenv ? env : mulq15(env, v->vel * 258);
             if (p[P_LD_AMP])
                 m.amp1 = mulq15(m.amp1, 32767 - mulq15(p[P_LPOL] ? lfo : (lfo + 32768) >> 1, p[P_LD_AMP] * 258));
@@ -775,9 +823,9 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         m.fine = v->fine + tune_fine + bend_fine;
         if (v->fine + tune_fine + bend_fine)             /* residual below 1/16 semitone */
             m.inc += (uint32_t)((int32_t)(m.inc >> 12) * (v->fine + tune_fine + bend_fine));
-        m.cutoff = ((lfo * p[P_LD_FLT]) >> 7) + ((m.envq15 * p[P_ED_FLT]) >> 7);
+        m.cutoff = ((lfo * p[P_LD_FLT]) >> 7) + ((fq * p[P_ED_FLT]) >> 7);   /* (ENV DEST's FLT: FILT ENV's) */
         if (v->vel > 110)                               /* accent opens the filter with the env */
-            m.cutoff += (m.envq15 * 24) >> 7;
+            m.cutoff += (fq * 24) >> 7;
         m.shape = (64 << 8) + ((lfo * p[P_LD_SHP]) >> 7) + ((m.envq15 * p[P_ED_SHP]) >> 7);
         if (MOD(t).on)                                  /* the modulation matrix (mod.c) */
             mod_voice(t, v, &m, v->fine + tune_fine + bend_fine);

@@ -14,7 +14,8 @@ static const char H_EDIT[] = "[K1-4]SOUND[EDIT]HOLD: ENGINES";
 static const char H_LANES[] = "[K1-4]LANE LEVELS[EDIT]HOLD: MUTES";
 static const char H_FMOP[] = "[K1]OPERATOR[SAVE]HOLD: UNDO";
 static const struct { const char *title, *hint; } HELP_PAGE[] = {
-    {"ENV", "[K1-4]A D S R[ENV]ENV DEST"},
+    {"ENV", "[K1-4]A D S R[ENV]FILT ENV"},
+    {"FILT ENV", "[K1]DOWN: = ENV[ENV]ENV DEST"},   /* (Fantasma 2.0) */
     {"ENV DEST", "[K1-4]ENV AMOUNTS[ENV]ENV"},
     {"LFO", "[K1-4]SHAPE[LFO]HOLD: MOMENTARY"},
     {"LFO 2", "[K1]SYNC TO BPM[LFO]LFO DEST"},

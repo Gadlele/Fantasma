@@ -99,6 +99,8 @@ typedef struct {
     uint32_t age;
     uint8_t mvel;                /* mod.c: the note-on velocity (before UNISON scaling) and RAND of the note */
     int16_t mrnd;
+    uint8_t fstage;              /* (Fantasma 2.0) FILT ENV: 1 attack, 2 decay / sustain (released: the gate's) */
+    int32_t fenv;                /* .. its level, Q24 (voice.c fenv_tick) */
 } voice_t;
 
 typedef struct {                 /* per-voice control-rate modulation, computed in voice.c */

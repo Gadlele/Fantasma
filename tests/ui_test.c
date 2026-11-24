@@ -4147,7 +4147,7 @@ static int test_quick_layers(void)
         btn_up(LB[i]); frame();
         ok &= !flash && !ui.home && (LB[i] == B_GLO ? str_eq(cur_page()->title, "SONG") :
                                      LB[i] == B_SCL ? cur_page()->fam == FAM_SCL : str_eq(cur_page()->title, "EDIT 1"));
-        hint &= msg_is(HINT[i]);
+        hint &= !msg_is(HINT[i]);                       /* (Fantasma 2.0: no hint) */
         go_home(); frame();
         btn_down(LB[i]); frames(368);
         ok &= !ui.layer;
@@ -4165,7 +4165,7 @@ static int test_quick_layers(void)
         ok &= ui.home && !ui.layer;
     }
     bad += check("GLO SCL EDIT: a tap opens the page, held past HOLD the map (no page), a key: the map at once", ok);
-    bad += check("  after a tap \"HOLD [BTN] QUICK\" until the layer has been opened once", hint);
+    bad += check("  (Fantasma 2.0) no \"HOLD [BTN] QUICK\" after a tap", hint);
     {
         persist_t p = {0};
         p.magic = PERSIST_MAGIC; p.panel = panel;
@@ -4588,8 +4588,8 @@ static int test_bughunt_ui(void)
     ui_power_on();
     layer_seen = 0;
     press(B_EDIT);
-    bad += check("EDIT tap = RENAME on USER: no layer hint over NAME (elsewhere the hint as before)",
-                 ok && msg_is("HOLD [EDIT] QUICK"));
+    bad += check("EDIT tap = RENAME on USER: no layer hint over NAME (Fantasma 2.0: nor elsewhere)",
+                 ok && !msg_is("HOLD [EDIT] QUICK"));
     return bad;
 }
 
@@ -7207,7 +7207,7 @@ static int test_seq_tools(void)
     ui_power_on();
     go_page(GR_ROLL); frame();
     press(B_SEQ); frames(320);
-    ok = str_eq(cur_page()->title, "DETAIL") && msg_is("HOLD [SEQ] QUICK");   /* (1.5.1, #199) */
+    ok = str_eq(cur_page()->title, "DETAIL") && !msg_is("HOLD [SEQ] QUICK");   /* (1.5.1, #199; Fantasma 2.0: no hint) */
     press(B_SEQ); frames(320);
     ok &= cur_page()->graph == GR_EVENTS && str_eq(cur_page()->title, "AUTOMATION");
     press(B_SEQ); frames(320);
@@ -7821,7 +7821,7 @@ static int test_rec_layer(void)
     go_title("ENV"); frame();
     n = ui.page;
     press(B_REC);
-    ok = song.rec == 1u && transport_req == 1u && msg_is("HOLD [REC] QUICK");   /* (until it has been opened once) */
+    ok = song.rec == 1u && transport_req == 1u && !msg_is("HOLD [REC] QUICK");   /* (Fantasma 2.0: no hint) */
     frames(64);
     press(B_REC);
     frames(500);
@@ -9785,7 +9785,7 @@ static int test_help(void)
     ui_power_on();
     menu_put(MI_HELP, 1);
     press(B_ENV);
-    ok = ui.help_t > 0u && str_eq(help_page(), "[K1-4]A D S R[ENV]ENV DEST");
+    ok = ui.help_t > 0u && str_eq(help_page(), "[K1-4]A D S R[ENV]FILT ENV");
     frames(2200);
     ok &= ui.help_t == 0u;
     press(B_SAVE);

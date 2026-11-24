@@ -20,8 +20,9 @@ static int32_t graph_ht = 100;
 static void graph_adsr(const track_t *t, uint16_t c)
 {
     const page_t *pg = cur_page();
-    int32_t a = 4 + t->p[pg->id[0]] * 50 / 127, d = 6 + t->p[pg->id[1]] * 50 / 127, r = 6 + t->p[pg->id[3]] * 60 / 127;
-    int32_t top = 6 * graph_ht / 100, bot = 88 * graph_ht / 100, sus = t->p[pg->id[2]] * 1000 / 127;   /* 0..1000 */
+    uint32_t i0 = pg->id[0] == P_FATK && t->p[P_FATK] < 0 ? P_ATK : pg->id[0];   /* (FILT ENV = ENV: ENV's shape) */
+    int32_t a = 4 + t->p[i0] * 50 / 127, d = 6 + t->p[i0 + 1u] * 50 / 127, r = 6 + t->p[i0 + 3u] * 60 / 127;
+    int32_t top = 6 * graph_ht / 100, bot = 88 * graph_ht / 100, sus = t->p[i0 + 2u] * 1000 / 127;   /* 0..1000 */
     int32_t x0 = 12, x1 = x0 + a, x3 = 226 - r, i, px, py;
     int32_t e = 32768;                                                  /* exp(-4.6 u), Q15 */
 #define EGY(lvl) (bot - (lvl) * (bot - top) / 1000)

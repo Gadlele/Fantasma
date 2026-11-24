@@ -795,7 +795,7 @@ static int learn_test(void)
 
     /* the stored codes with 1.5's parameters (the INSERT 96..100, TYPE 101, ESYNC 102, P_E0 103): a common parameter
      * id + 1, below ML_E0; an engine one ML_E0 + k whatever P_E0 is; every id back as it went in */
-    ok = P_E0 == 110u && P_COUNT == 118u && P_E0 < ML_E0;   /* (Fantasma's four, then 1.8's AFTERTOUCH three, before P_E0) */
+    ok = P_E0 == 114u && P_COUNT == 122u && P_E0 < ML_E0;   /* (Fantasma's four, then 1.8's AFTERTOUCH three, before P_E0) */
     for (i = 0; i < P_COUNT; i++)
         ok &= ml_id(ml_code(i)) == i && (i < P_E0 ? ml_code(i) == i + 1u && ml_code(i) < ML_E0 : ml_code(i) == ML_E0 + i - P_E0);
     ok &= ml_id(0) == P_COUNT && ml_id(P_E0 + 1u) == P_COUNT && ml_id(ML_E0 - 1u) == P_COUNT;   /* (no such parameter) */

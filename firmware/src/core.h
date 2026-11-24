@@ -117,6 +117,8 @@ enum {                          /* per-track parameters */
     P_ESYNC,                                   /* 1.5 (#175): ENV SYNC: ATK DEC REL as note values of the tempo (voice.c) */
     P_PDEN, P_PLEN, P_PEV, P_PSEED,            /* Fantasma: the Pad's chord progression (seq.c prog_step): DENS, BARS, EVOLVE, SEED */
     P_ATSNS, P_ATDST, P_ATAMT,                 /* 1.8: AFTERTOUCH: the keys' pressure (keytouch.c) and its routing (mod.c) */
+    P_FATK, P_FDEC, P_FSUS, P_FREL,            /* Fantasma 2.0: FILT ENV, the filter's own envelope (voice.c fenv_tick); ATK -1:
+                                                * = ENV, the filter follows the sound's (as before; every older sound) */
     P_E0, P_E1, P_E2, P_E3, P_E4, P_E5, P_E6, P_E7,
     P_COUNT
 };
@@ -267,7 +269,7 @@ static void step_set_nudge(step_t *s, int32_t v)
     uint32_t u = (uint32_t)(v < -8 ? -8 : v > 7 ? 7 : v) & 15u;
     s->flags = (uint8_t)((s->flags & ~SF_NUDGE) | (u & 7u) << 5 | (u >> 1 & 4u));
 }
-#define MOTION_MAX 122u          /* 1.2 (FUN10): 64 before; 128 up to Fantasma 1.1 (2.0: six fewer, the room 1.8's
+#define MOTION_MAX 116u          /* 1.2 (FUN10): 64 before; 128 up to Fantasma 1.1 (2.0: 122, then 116: the room 1.8's
                                   * AFTERTOUCH and Fantasma's Pad parameters take in FUN10, project.c) */
 /* Four tracks x64 steps fit one byte. Values retain their signed parameter range (-64..127: an int8_t, 1.2).
  * param: the P_* id (< 128: P_COUNT is at most 127, project.c), bit 7 (MOTION_LOCK, 1.1) a parameter lock: the value
@@ -277,7 +279,7 @@ static void step_set_nudge(step_t *s, int32_t v)
 #define MOTION_ID(e) ((uint32_t)(e)->param & 0x7Fu)
 typedef struct { uint8_t place, param; int8_t value; } motion_event_t;
 typedef struct { uint8_t count, on, rsv[2]; motion_event_t event[MOTION_MAX]; } motion_store_t;
-_Static_assert(sizeof(motion_store_t) == 370u, "motion disk layout (FUN10; 388 with 128 records, up to Fantasma 1.1)");
+_Static_assert(sizeof(motion_store_t) == 352u, "motion disk layout (FUN10; 388 with 128 records, up to Fantasma 1.1; 370 with 122)");
 #define CHAIN_ROWS 16u
 /* A song section (1.2, FUN10): the PROJECT slot each track plays (0..3, A..D; CHAIN_SILENT "-": that track plays
  * nothing there) and its repeats (1..16). Up to 1.1 a row was {slot, repeat}, all four tracks on that slot
@@ -357,11 +359,13 @@ typedef struct track {
     /* the second core: a part's render state, its own, so the two cores' parts share nothing (fx.c mix_block); in
      * the pad that keeps sizeof(track_t) a multiple of 16 (14 bytes before) */
     uint8_t lfo_wrap;            /* the LFO's phase wrapped this block: its S&H is drawn after the parts (voice.c) */
-    uint32_t esync_k[3];         /* ATK's step, DEC's and REL's coefficient (Q16) this block (voice.c esync_coef) */
+    uint32_t esync_k[6];         /* ATK's step, DEC's and REL's coefficient (Q16) this block (voice.c esync_coef);
+                                  * 3..5 FILT ENV's (Fantasma 2.0) */
     uint8_t spread_on;           /* SPREAD this block (fx.c mix_part, voice.c track_render) */
-    uint8_t rsv_sz[7];           /* (sizeof(track_t) a multiple of 16: below; 1.8's AFTERTOUCH grew it by 14, Fantasma's 4 Pad parameters took 8) */
+    uint8_t rsv_sz[3];           /* (sizeof(track_t) a multiple of 16: below; 1.8's AFTERTOUCH grew it by 14, Fantasma's 4 Pad parameters took 8,
+                                  * 2.0's FILT ENV 4 more) */
 #else
-    uint8_t rsv_sz[4];           /* (sizeof(track_t) a multiple of 16: below; 1.8's AFTERTOUCH took 2 of it, Fantasma's Pad parameters 8) */
+    uint8_t rsv_sz[12];          /* (sizeof(track_t) a multiple of 16: below; 1.8's AFTERTOUCH took 2 of it, Fantasma's Pad parameters 8; 2.0's FILT ENV) */
 #endif
     int16_t armp, aholdp;        /* P_AMODE / P_AHOLD as last seen by the ISR */
     /* engine switch (voice.c engine_block): the old engine's voices fade out, then it switches */

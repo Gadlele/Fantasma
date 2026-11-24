@@ -40,7 +40,7 @@
  * the other page buttons are swallowed. In SET layers OCT± do not shift the octave: OCT- (on release, not with OCT+)
  * puts back what the layer changed since it opened. A HOLD key's effect lasts until the key is let go, the map with
  * it. No layer in the menu, a dialog, NAME or the UPDATE MODE countdown. After a tap, until the layer has been opened
- * once: "HOLD [GLO] QUICK" (the seen bits are kept with the settings, favorites.c spare byte).
+ * once: "HOLD [GLO] QUICK" (the seen bits are kept with the settings, favorites.c spare byte); Fantasma 2.0: no more.
  * The lock (Discussion #83): a double tap (the second press within LY_DTAP_MS of the first tap, both let go before
  * HOLD, nothing else touched) opens the map and keeps it open with no button held (ui.lock): ly_down() counts the lock
  * as the button held, so the keys (seq.c keyboard_block: kb_lock), KNOB 1..4, OCT- act exactly as held (PLAY starts
@@ -336,12 +336,7 @@ static void layer_tap(uint32_t l)
         acted = page_tap(LAYERS[l].btn);
     }
     lys.dt_hint = 0;
-    if (!((layer_seen >> l) & 1u) && ui.msg_t == m && !name_on() && !ui.confirm && !ui.menu) {
-        ui_say("HOLD [", KC[LY_KC[l]].label);
-        str_cpy(ui.msg + str_len(ui.msg), "] QUICK", sizeof ui.msg - str_len(ui.msg));
-        ui.msg_t = 90;                                  /* ~1.5 s */
-        lys.dt_hint = 1;
-    }
+    (void)m;                                            /* (Fantasma 2.0: no "HOLD [..] QUICK" after a tap any more) */
     if (!acted && !name_on() && !ui.confirm && !ui.menu) {   /* a page opened: a second tap soon locks the layer */
         lys.dt_l = (uint8_t)l;
         lys.dt_ms = fm1_ms;

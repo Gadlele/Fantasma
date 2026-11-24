@@ -61,7 +61,9 @@
  *     chain is 4 + 16 x 5 = 84 bytes (FUN6..FUN9: 36, rows {slot, repeat}, chain_v9_t; they load as sections with the
  *     four tracks on the row's slot, song_chain.c chain_from_v9: the same song).
  * Fantasma 2.0 (Felucca 1.8.3's AFTERTOUCH and Fantasma's Pad parameters, P_COUNT 118): 122 motion records (MOTION_MAX),
- * 370 bytes, so that 68 + 4 x (118 + 2 + 576) + chain + motion = 3306 stays before MIDI IN TRACK (3309); a FUN10 of
+ * 370 bytes, so that 68 + 4 x (118 + 2 + 576) + chain + motion = 3306 stays before MIDI IN TRACK (3309); then FILT ENV
+ * (P_FATK .. P_FREL, P_COUNT 122): 116 records, 352 bytes, 68 + 4 x (122 + 2 + 576) + 84 + 352 = 3304. A FUN10 of 118
+ * loads by count, FILT ENV at its default (= ENV: as it played), and its first 116 records; a FUN10 of
  * 128 loads its first 122. Up to Fantasma 1.1 / Felucca 1.8:
  * 68 + 4 x (104 + 2 + 576) + chain + motion = 3268; the patches at PROJ_FM6_OFF (3312): 44 spare, room for 11 more
  * track parameters. Fantasma's DENS, BARS, EVOLVE and SEED (P_PDEN, P_PLEN, P_PEV, P_PSEED, 103..106; P_COUNT 115, P_E0 107) took eight bytes more: no spare left

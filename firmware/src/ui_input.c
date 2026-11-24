@@ -1099,6 +1099,11 @@ static void edit_param(uint32_t slot, int32_t steps)
     d = page_desc(pg, slot, &vp);
     if (!d || !vp || d->max == d->min)
         return;
+    if (vp >= &TSEL->p[P_FATK] && vp <= &TSEL->p[P_FREL] && TSEL->p[P_FATK] < 0) {   /* (Fantasma 2.0) FILT ENV at
+                                                         * = ENV, turned: its own from here, ENV's four to start from */
+        int16_t *p = TSEL->p;
+        p[P_FATK] = p[P_ATK]; p[P_FDEC] = p[P_DEC]; p[P_FSUS] = p[P_SUS]; p[P_FREL] = p[P_REL];
+    }
     v = param_turn(d, *vp, accel(EN_K1 + slot, steps, d->fmt == F_ENUM ? 0 : d->max - d->min));
     if (vp == &TSEL->p[P_ATSNS] && !*vp && v)             /* AFTERTOUCH on (1.8): the engine's routing, if none */
         at_turn_on(TSEL);
