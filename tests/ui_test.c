@@ -4458,6 +4458,17 @@ static int test_bughunt_ui(void)
         bad += check("  the beat counter runs (a bar of blocks wraps the beat of the bar)", beat_n < 4u && beat_pos < b);
         trk[2].p[P_AMODE] = 0; trk[2].nheld = 0;
     }
+    {   /* (Fantasma) BPM down to 30, played as set: a beat at 30, 39, 40 BPM (1.x played below 40 at 120) */
+        int16_t keep = song.g[G_BPM], kc = song.g[G_CLOCK];
+        uint32_t b30, b39, b40;
+        song.g[G_CLOCK] = 0;
+        song.g[G_BPM] = 30; b30 = beat_samples();
+        song.g[G_BPM] = 39; b39 = beat_samples();
+        song.g[G_BPM] = 40; b40 = beat_samples();
+        bad += check("BPM 30 .. 39 as set (a beat 2 s at 30), as 40 and up",
+                     b30 == FS * 2u && b39 == FS * 60u / 39u && b40 == FS * 60u / 40u);
+        song.g[G_BPM] = keep; song.g[G_CLOCK] = kc;
+    }
     /* 3: USER ERASE asks first (ERASE U02?): OCT- keeps the preset, OCT+ erases it */
     ui_power_on();
     go_page(GR_USER); ui.uslot = 1;

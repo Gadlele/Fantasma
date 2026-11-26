@@ -27,6 +27,7 @@ fixes, a new **X** may change how things are saved.
   so every sound, user preset and project sounds as before; any of its knobs starts it from ENV's values. Saved in the
   sound and the project; a project now holds 116 knob movements (122 before).
 - No more "HOLD [..] QUICK" after a tap of a layer's button.
+- **BPM 30 to 39 play as set**: below 40 the sequencer, the drums, the arpeggiator and the synced delays ran at 120.
 - **A CPU counter, always on screen**: at the right of the tabs, **C1** the first core's load and **C2** the second's
   (MENU › SYSTEM › 2ND CORE; `--` when it is off), refreshed twice a second, in the accent from 85 %.
 - **SELECT steps the tabs** of the page shown, by default (MENU › CONTROL › SELECT PAGE): the tempo is GLO › CLOCK,
